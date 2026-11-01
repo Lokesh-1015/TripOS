@@ -1,0 +1,7 @@
+* text=auto
+*.pdf binary
+*.png binary
+*.ico binary
+*.jpg binary
+*.sh text eol=lf
+*.yml text eol=lf

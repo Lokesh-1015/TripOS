@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tripos
+          POSTGRES_PASSWORD: tripos_dev
+          POSTGRES_DB: tripos
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U tripos -d tripos"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://tripos:tripos_dev@localhost:5434/tripos
+      PORT: 4000
+      APP_URL: http://localhost:3000
+      UPLOAD_DIR: uploads
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install pnpm
+        run: npm install -g pnpm@11.17.0
+
+      - name: Install backend
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+      - name: Apply database migrations
+        working-directory: server
+        run: pnpm exec prisma migrate deploy
+      - name: Typecheck and build backend
+        working-directory: server
+        run: |
+          pnpm run typecheck
+          pnpm run build
+
+      - name: Install frontend
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+      - name: Typecheck and build frontend
+        working-directory: frontend
+        run: yarn build
+
+      - name: Start backend
+        working-directory: server
+        run: |
+          nohup node dist/main.js > ../backend.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4000/api/health && break; sleep 1; done
+      - name: Backend tests
+        working-directory: server
+        run: pnpm test
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          nohup yarn dev > ../frontend.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
+      - name: Install browser tests
+        working-directory: tests
+        run: |
+          yarn install --frozen-lockfile
+          npx playwright install --with-deps chromium
+      - name: Browser tests
+        working-directory: tests
+        run: npx playwright test --project=desktop
+
+      - name: Show server logs
+        if: failure()
+        run: |
+          tail -n 60 backend.log frontend.log
+      - name: Keep test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: tests/test-results
+          retention-days: 7

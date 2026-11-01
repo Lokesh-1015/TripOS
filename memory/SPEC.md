@@ -2,8 +2,6 @@
 
 Collaborative group-travel workspace. One frontend (`frontend/`, Vite + React 19) and one backend (`server/`, NestJS 12 + Prisma 7 + PostgreSQL). The API contract, schema and permission rules are in `docs/data-model-and-api.md`.
 
-`backend/` (FastAPI) is the retired template and nothing routes to it.
-
 ## Running
 
 ```bash
