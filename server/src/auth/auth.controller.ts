@@ -1,9 +1,10 @@
-import { Body, Controller, HttpCode, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { parse } from "../common/validation.js";
+import { issueTicket } from "../realtime/ticket.js";
 import type { User } from "../generated/prisma/client.js";
 import { AuthService } from "./auth.service.js";
 import { CurrentUser, Public, SESSION_COOKIE } from "./session.guard.js";
@@ -57,7 +58,7 @@ export class AuthController {
   @Post("forgot-password")
   async forgot(@Body() body: unknown) {
     await this.auth.requestPasswordReset(parse(forgotBody, body).email);
-    return { ok: true };
+    return { ok: true, emailEnabled: this.auth.emailEnabled };
   }
 
   @Public()
@@ -82,6 +83,11 @@ export class AuthController {
   async resend(@CurrentUser() user: User) {
     if (!user.emailVerifiedAt) await this.auth.sendVerification(user);
     return { ok: true };
+  }
+
+  @Get("realtime-ticket")
+  realtimeTicket(@CurrentUser() user: User) {
+    return { ticket: issueTicket(user.id) };
   }
 
   @HttpCode(200)

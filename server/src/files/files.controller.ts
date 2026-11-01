@@ -7,7 +7,6 @@ import { parse } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { fileUrl } from "../trips/trip.serializer.js";
-import { FileStorage } from "./file-storage.service.js";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 // Only types browsers render safely are served inline; anything else downloads, so uploads can't run as pages.
@@ -17,10 +16,7 @@ const uploadBody = z.object({ tripId: z.string().optional(), visibility: z.enum(
 
 @Controller("files")
 export class FilesController {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly storage: FileStorage,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   @Post()
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: MAX_BYTES } }))
@@ -33,18 +29,18 @@ export class FilesController {
       const member = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: user.id } } });
       if (member?.status !== "active" || member.role === "viewer") throw new ForbiddenException({ message: "You can't upload to this trip" });
     }
-    const storageKey = await this.storage.save(file.buffer);
     const row = await this.prisma.storedFile.create({
       data: {
         tripId: visibility === "public" ? null : tripId,
         uploadedBy: user.id,
-        storageKey,
         fileName: file.originalname,
         mimeType: file.mimetype,
         sizeBytes: file.size,
         isPublic: visibility === "public",
         visibility: visibility === "private" ? "private" : "shared",
+        blob: { create: { data: new Uint8Array(file.buffer) } },
       },
+      select: { id: true },
     });
     return { id: row.id, url: fileUrl(row.id) };
   }
@@ -61,11 +57,13 @@ export class FilesController {
       // The same answer as a missing file, so ids of private files reveal nothing.
       if (!allowed) throw new NotFoundException();
     }
+    const blob = await this.prisma.fileBlob.findUnique({ where: { fileId: file.id } });
+    if (!blob) throw new NotFoundException();
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Type", file.mimeType);
     res.setHeader("Cache-Control", file.isPublic ? "public, max-age=86400" : "private, max-age=300");
     if (INLINE_TYPES.has(file.mimeType)) res.setHeader("Content-Disposition", "inline");
     else res.attachment(file.fileName);
-    res.sendFile(this.storage.path(file.storageKey));
+    res.send(Buffer.from(blob.data));
   }
 }

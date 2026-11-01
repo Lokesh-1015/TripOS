@@ -382,8 +382,8 @@ describe("live updates", () => {
   const sockets: ReturnType<typeof io>[] = [];
   afterAll(() => sockets.forEach((s) => s.close()));
 
-  function connect(cookie: string) {
-    const socket = io(BASE, { path: "/api/socket.io", extraHeaders: { Cookie: cookie }, transports: ["websocket"], reconnection: false });
+  function connect(ticket: string) {
+    const socket = io(BASE, { path: "/api/socket.io", auth: { ticket }, transports: ["websocket"], reconnection: false });
     sockets.push(socket);
     return new Promise<typeof socket>((resolve, reject) => {
       socket.once("ready", () => resolve(socket));
@@ -398,12 +398,15 @@ describe("live updates", () => {
     });
 
   it("refuses a socket with no session", async () => {
-    await expect(connect("tripos_session=nope")).rejects.toThrow();
+    await expect(connect("not-a-real-ticket")).rejects.toThrow();
+    await expect(connect(`${owner.user.id}.9999999999999.forged-signature`)).rejects.toThrow();
   });
 
   it("tells other members when a trip changes, and not outsiders", async () => {
-    const memberSocket = await connect(member.c.cookie);
-    const outsiderSocket = await connect(outsider.c.cookie);
+    const ticket = async (u: { c: Client }) => (await u.c.req("GET", "/auth/realtime-ticket")).body.ticket as string;
+    expect((await new Client().req("GET", "/auth/realtime-ticket")).status).toBe(401);
+    const memberSocket = await connect(await ticket(member));
+    const outsiderSocket = await connect(await ticket(outsider));
     let outsiderHeard = false;
     outsiderSocket.on("trip:changed", () => (outsiderHeard = true));
     const heard = next(memberSocket, "trip:changed");
@@ -416,7 +419,7 @@ describe("live updates", () => {
   it("pushes notifications, and cuts a removed member off immediately", async () => {
     const temp = await signUp(`Live${randomUUID().slice(0, 4)}`);
     await temp.c.req("POST", `/invites/${joinCode}/accept`);
-    const socket = await connect(temp.c.cookie);
+    const socket = await connect((await temp.c.req("GET", "/auth/realtime-ticket")).body.ticket);
     const notified = next(socket, "notifications:changed");
     await owner.c.req("PUT", `/trips/${tripId}/tasks/${id("task")}`, taskBody(temp.user.id));
     await notified;

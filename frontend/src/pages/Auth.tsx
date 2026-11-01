@@ -163,7 +163,7 @@ export function ForgotPassword() {
               e.preventDefault();
               if (!emailOk(email)) return setErr("Enter a valid email address");
               setErr(undefined);
-              void actions.forgotPassword(email.trim()).then(() => setSent(true), (error) => setErr(apiErrorMessage(error)));
+              void actions.forgotPassword(email.trim()).then(({ emailEnabled }) => (emailEnabled ? setSent(true) : setErr("Password reset by email isn't available yet. Please contact support.")), (error) => setErr(apiErrorMessage(error)));
             }}
           >
             <Field label="Email" htmlFor="fp-email" error={err}>

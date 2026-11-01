@@ -106,7 +106,7 @@ describe("password reset by email", () => {
   it("answers the same whether or not the account exists", async () => {
     const r = await new Client().req("POST", "/auth/forgot-password", { email: `nobody-${tag}@example.test` });
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ ok: true });
+    expect(r.body).toEqual({ ok: true, emailEnabled: true });
   });
 });
 

@@ -34,6 +34,7 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
   const access = useTripAccess(trip);
   const me = access.me;
   const emailVerified = useApp((s) => s.emailVerified);
+  const emailEnabled = useApp((s) => s.emailEnabled);
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string>();
   const [removing, setRemoving] = useState<Member>();
@@ -56,7 +57,7 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
             <DialogTitle>Trip members</DialogTitle>
             <DialogDescription>{access.canAdmin ? "Invite people, change roles or remove members." : "Everyone on this trip."}</DialogDescription>
           </DialogHeader>
-          {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">Verify your email to invite people by email. You can still share the link below.</p>}
+          {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can still share the link below." : "Email invites aren't available yet. Share the link below instead."}</p>}
           {access.canAdmin && emailVerified && <Field label="Invite by email" htmlFor="inv-email" error={err}>
             <div className="flex gap-2">
               <Input id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invite()} placeholder="friend@email.com" className="h-10 rounded-xl" data-testid="members-invite-email-input" />

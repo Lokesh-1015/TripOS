@@ -110,7 +110,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function AppShell() {
-  const { loading, offline, authed, onboarded, emailVerified, email } = useApp((s) => ({ loading: s.loading, offline: s.offline, authed: s.authed, onboarded: s.onboarded, emailVerified: s.emailVerified, email: s.user.email }));
+  const { loading, offline, authed, onboarded, emailVerified, emailEnabled, email } = useApp((s) => ({ loading: s.loading, offline: s.offline, authed: s.authed, onboarded: s.onboarded, emailVerified: s.emailVerified, emailEnabled: s.emailEnabled, email: s.user.email }));
   const location = useLocation();
   const navigate = useNavigate();
   const reduce = useReducedMotion();
@@ -180,7 +180,7 @@ export default function AppShell() {
           </header>
 
           {offline && <p className="bg-coral-soft px-4 py-2 text-center text-sm font-medium text-[#8A3B22]" role="status" data-testid="offline-banner">You're offline. Your changes will be saved when you reconnect, so keep this tab open.</p>}
-          {!emailVerified && (
+          {!emailVerified && emailEnabled && (
             <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-sage px-4 py-2 text-center text-sm text-forest" role="status" data-testid="verify-email-banner">
               <span>Check {email} for a link to verify your email. You'll need it to accept or send email invites.</span>
               <button className="font-semibold underline" onClick={() => void actions.resendVerification().then(() => toast.success("Verification email sent"), (e) => toast.error(apiErrorMessage(e)))} data-testid="verify-email-resend">Send it again</button>

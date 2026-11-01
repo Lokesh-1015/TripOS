@@ -7,7 +7,6 @@ import { AuthService } from "./auth/auth.service.js";
 import { SessionGuard } from "./auth/session.guard.js";
 import { TripAccessGuard } from "./authz/trip-access.guard.js";
 import { PrismaExceptionFilter } from "./common/prisma-exception.filter.js";
-import { FileStorage } from "./files/file-storage.service.js";
 import { FilesController } from "./files/files.controller.js";
 import { HealthController } from "./health/health.controller.js";
 import { MailService } from "./mail/mail.service.js";
@@ -41,6 +40,6 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     SharingController,
     FilesController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, TripAccessGuard, RealtimeGateway, TripWriter, FileStorage],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

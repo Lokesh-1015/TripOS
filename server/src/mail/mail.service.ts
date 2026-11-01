@@ -35,10 +35,14 @@ export class MailService {
 
   constructor(config: ConfigService) {
     const smtpUrl = config.get<string>("SMTP_URL");
-    if (!smtpUrl && config.get("NODE_ENV") === "production") throw new Error("SMTP_URL is required in production");
+    if (!smtpUrl) this.logger.warn("SMTP_URL isn't set: no emails will be sent, so email invites and password resets are off");
     this.transport = smtpUrl ? nodemailer.createTransport(smtpUrl) : null;
     this.from = config.get<string>("MAIL_FROM", "TripOS <hello@tripos.local>");
     this.appUrl = config.get<string>("APP_URL", "http://localhost:3000");
+  }
+
+  get enabled() {
+    return this.transport !== null;
   }
 
   sendVerification(to: string, name: string, token: string) {

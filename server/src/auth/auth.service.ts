@@ -24,6 +24,10 @@ export class AuthService {
     private readonly mail: MailService,
   ) {}
 
+  get emailEnabled() {
+    return this.mail.enabled;
+  }
+
   async signUp(name: string, rawEmail: string, password: string) {
     const email = normalizeEmail(rawEmail);
     const passwordHash = await hashPassword(password);

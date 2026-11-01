@@ -1,25 +1,21 @@
 import { Logger } from "@nestjs/common";
 import { type OnGatewayConnection, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
-import { hashToken } from "../auth/password.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { userFromTicket } from "./ticket.js";
 
 const tripRoom = (tripId: string) => `trip:${tripId}`;
 const userRoom = (userId: string) => `user:${userId}`;
-
-function sessionToken(cookieHeader?: string) {
-  return cookieHeader
-    ?.split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith("tripos_session="))
-    ?.slice("tripos_session=".length);
-}
 
 /**
  * Transport only: writes go through REST, and this tells clients what changed after the commit.
  * Clients refetch what they're allowed to see, so private items never travel over a socket.
  */
-@WebSocketGateway({ path: "/api/socket.io" })
+@WebSocketGateway({
+  path: "/api/socket.io",
+  // In production the socket connects directly to this host, from the frontend's origin.
+  cors: { origin: (process.env.CORS_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean) },
+})
 export class RealtimeGateway implements OnGatewayConnection {
   @WebSocketServer() private readonly server!: Server;
   private readonly logger = new Logger(RealtimeGateway.name);
@@ -28,11 +24,10 @@ export class RealtimeGateway implements OnGatewayConnection {
 
   async handleConnection(socket: Socket) {
     try {
-      const token = sessionToken(socket.handshake.headers.cookie);
-      const session = token ? await this.prisma.session.findUnique({ where: { tokenHash: hashToken(token) } }) : null;
-      if (!session || session.expiresAt < new Date()) return void socket.disconnect(true);
-      const memberships = await this.prisma.tripMember.findMany({ where: { userId: session.userId, status: "active" }, select: { tripId: true } });
-      await socket.join([userRoom(session.userId), ...memberships.map((m) => tripRoom(m.tripId))]);
+      const userId = userFromTicket(socket.handshake.auth?.ticket);
+      if (!userId) return void socket.disconnect(true);
+      const memberships = await this.prisma.tripMember.findMany({ where: { userId, status: "active" }, select: { tripId: true } });
+      await socket.join([userRoom(userId), ...memberships.map((m) => tripRoom(m.tripId))]);
       socket.emit("ready");
     } catch (err) {
       this.logger.error("Socket connection failed", err instanceof Error ? err.stack : String(err));

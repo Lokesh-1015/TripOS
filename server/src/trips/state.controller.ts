@@ -54,7 +54,7 @@ export class StateController {
   @Get("state")
   async state(@CurrentUser() user: User) {
     const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user)]);
-    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
+    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, emailEnabled: this.auth.emailEnabled, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
   }
 
   @Get("notifications")

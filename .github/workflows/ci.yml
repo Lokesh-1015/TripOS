@@ -32,7 +32,6 @@ jobs:
       DATABASE_URL: postgresql://tripos:tripos_dev@localhost:5434/tripos
       PORT: 4000
       APP_URL: http://localhost:3000
-      UPLOAD_DIR: uploads
       THROTTLE_DISABLED: "true"
       SMTP_URL: smtp://localhost:1025
       MAIL_FROM: TripOS <hello@tripos.local>

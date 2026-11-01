@@ -5,7 +5,6 @@ import { Actor, enforce, RequiresTripRole, TripAccessGuard } from "../authz/trip
 import { canContribute, canManageOwnContent } from "../authz/trip-policies.js";
 import type { TripActor } from "../authz/trip-roles.js";
 import { asDate, clientId, isoDate, parse, shortText } from "../common/validation.js";
-import { FileStorage } from "../files/file-storage.service.js";
 import type { Prisma, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { TripWriter } from "./trip-writer.service.js";
@@ -56,7 +55,6 @@ export class SharingController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly writer: TripWriter,
-    private readonly files: FileStorage,
   ) {}
 
   @Put("documents/:id")
@@ -93,7 +91,8 @@ export class SharingController {
     enforce(canManageOwnContent(actor, doc.uploadedBy, "document"));
     await this.writer.run(tripId, user.id, async ({ tx }) => {
       await tx.tripDocument.delete({ where: { id } });
-      if (doc.fileId) await this.files.remove(tx, doc.fileId);
+      // Deleting really deletes: passports don't linger after someone removes them.
+      if (doc.fileId) await tx.storedFile.deleteMany({ where: { id: doc.fileId } });
     });
     return { ok: true };
   }
@@ -145,7 +144,7 @@ export class SharingController {
     enforce(canManageOwnContent(actor, photo.authorId, "photo"));
     await this.writer.run(tripId, user.id, async ({ tx }) => {
       await tx.photo.delete({ where: { id } });
-      await this.files.remove(tx, fileIdOf(photo.url));
+      await tx.storedFile.deleteMany({ where: { id: fileIdOf(photo.url) } });
     });
     return { ok: true };
   }

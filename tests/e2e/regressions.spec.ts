@@ -185,6 +185,7 @@ test('a change made while a page is still connecting is not missed', async ({ br
   await api(b.page, 'POST', `/invites/${joinCode}/accept`);
 
   // Hold the second person's live connection open for a moment after their page has loaded its data.
+  await b.page.route(/socket\.io/, (route) => route.abort());
   await b.page.routeWebSocket(/socket\.io/, async (ws) => {
     await new Promise((r) => setTimeout(r, 2000));
     ws.connectToServer();

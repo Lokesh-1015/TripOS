@@ -407,13 +407,12 @@ model PackingItem {
   @@map("packing_items")
 }
 
-/// Bytes live in the storage driver; a private file is readable only by its uploader.
+/// A private file is readable only by its uploader.
 model StoredFile {
   id         String     @id @default(cuid())
   tripId     String?
   trip       Trip?      @relation(fields: [tripId], references: [id], onDelete: Cascade)
   uploadedBy String
-  storageKey String     @unique
   fileName   String
   mimeType   String
   sizeBytes  Int
@@ -422,8 +421,20 @@ model StoredFile {
   visibility Visibility @default(shared)
   createdAt  DateTime   @default(now()) @db.Timestamptz(6)
 
+  blob FileBlob?
+
   @@index([tripId])
   @@map("files")
+}
+
+/// The bytes, apart from `files` so normal queries never load them. They're in Postgres because the
+/// host's disk is wiped on restart; moving to object storage (R2) only changes FilesController.
+model FileBlob {
+  fileId String     @id
+  file   StoredFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  data   Bytes
+
+  @@map("file_blobs")
 }
 
 model TripDocument {

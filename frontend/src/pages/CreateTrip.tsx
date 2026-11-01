@@ -30,6 +30,7 @@ export default function CreateTrip() {
   const user = useApp((s) => s.user);
   const settings = useApp((s) => s.settings);
   const emailVerified = useApp((s) => s.emailVerified);
+  const emailEnabled = useApp((s) => s.emailEnabled);
   const navigate = useNavigate();
   const [qs] = useSearchParams();
   const [tripId] = useState(() => uid("trip"));
@@ -192,7 +193,7 @@ export default function CreateTrip() {
             )}
             {step === 2 && (
               <div className="grid gap-5" data-testid="create-trip-members">
-                {!emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="create-trip-verify-note">Verify your email to invite people by email. You can skip this for now and share the trip's link once it's created.</p>}
+                {!emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="create-trip-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can skip this for now and share the trip's link once it's created." : "Email invites aren't available yet. Share the trip's link once it's created."}</p>}
                 {emailVerified && <Field label="Invite by email" htmlFor="ct-email" error={err.email}>
                   <div className="flex gap-2">
                     <Input id="ct-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail())} placeholder="friend@email.com" className="h-11 rounded-xl" data-testid="create-trip-invite-email-input" />

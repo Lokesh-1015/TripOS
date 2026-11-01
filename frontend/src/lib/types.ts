@@ -250,6 +250,8 @@ export interface AppState {
   authed: boolean;
   /** Until this is true, email invites can't be seen, accepted or sent. */
   emailVerified: boolean;
+  /** False until the server has an email provider: nothing can be sent, so screens say so. */
+  emailEnabled: boolean;
   onboarded: boolean;
   user: Person;
   settings: Settings;

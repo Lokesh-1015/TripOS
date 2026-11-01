@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
   privacy: { profilePublic: true, showEmail: false, shareLocation: true },
 };
 
-let state: AppState = { version: 1, loading: true, offline: false, authed: false, emailVerified: false, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
+let state: AppState = { version: 1, loading: true, offline: false, authed: false, emailVerified: false, emailEnabled: true, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
 const listeners = new Set<() => void>();
 
 function set(next: AppState) {
@@ -63,12 +63,25 @@ let socket: Socket | null = null;
 
 function connectSocket() {
   if (socket) return;
-  socket = io({ path: "/api/socket.io", transports: ["websocket", "polling"] });
+  // Vercel can't carry a socket, so in production this connects straight to the API host. The login cookie
+  // belongs to the frontend's domain, so each connection proves itself with a short-lived ticket instead.
+  socket = io(import.meta.env.VITE_SOCKET_URL || window.location.origin, {
+    path: "/api/socket.io",
+    transports: ["websocket", "polling"],
+    auth: (send) => {
+      apiGet<{ ticket: string }>("/auth/realtime-ticket").then(({ ticket }) => send({ ticket }), () => send({}));
+    },
+  });
   socket.on("trip:changed", ({ tripId }: { tripId: string }) => void refreshTrip(tripId));
   socket.on("trips:changed", () => void loadState());
   socket.on("notifications:changed", () => void refreshNotifications());
   socket.on("connect", () => setOffline(false));
-  socket.on("disconnect", () => setOffline(true));
+  socket.on("disconnect", (reason) => {
+    setOffline(true);
+    // The server turned this connection away (say the ticket couldn't be fetched while it woke up). Socket.IO
+    // doesn't retry that by itself.
+    if (reason === "io server disconnect") setTimeout(() => socket?.connect(), 3000);
+  });
   // The server says "ready" once this connection has joined its rooms, on every connect and reconnect.
   // Reloading then picks up anything that changed before the socket was listening.
   socket.on("ready", () => void loadState());
@@ -283,7 +296,7 @@ export const actions = {
     beginSession();
     await loadState();
   },
-  forgotPassword: (email: string) => apiPost("/auth/forgot-password", { email }),
+  forgotPassword: (email: string) => apiPost<{ emailEnabled: boolean }>("/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) => apiPost("/auth/reset-password", { token, password }),
   changePassword: (current: string, next: string) => apiPost("/auth/change-password", { current, next }),
   verifyEmail: async (token: string) => {
