@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
   privacy: { profilePublic: true, showEmail: false, shareLocation: true },
 };
 
-let state: AppState = { version: 1, loading: true, offline: false, authed: false, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
+let state: AppState = { version: 1, loading: true, offline: false, authed: false, emailVerified: false, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
 const listeners = new Set<() => void>();
 
 function set(next: AppState) {
@@ -69,8 +69,9 @@ function connectSocket() {
   socket.on("notifications:changed", () => void refreshNotifications());
   socket.on("connect", () => setOffline(false));
   socket.on("disconnect", () => setOffline(true));
-  // Anything missed while disconnected is picked up by reloading on every reconnect.
-  socket.io.on("reconnect", () => void loadState());
+  // The server says "ready" once this connection has joined its rooms, on every connect and reconnect.
+  // Reloading then picks up anything that changed before the socket was listening.
+  socket.on("ready", () => void loadState());
 }
 
 function disconnectSocket() {
@@ -79,20 +80,23 @@ function disconnectSocket() {
 }
 
 let stateRequest = 0;
+let stateLoading = false;
 
 export async function loadState() {
   // Queued writes are still only on this screen, so a full reload now would wipe them. Do it after they land.
   if (pending.size) return void (reloadAfterWrites = true);
   const request = ++stateRequest;
+  stateLoading = true;
   try {
     const server = await apiGet<ServerState>("/state");
     if (request !== stateRequest) return;
-    if (pending.size) return void (reloadAfterWrites = true);
+    stateLoading = false;
     tripRequests.clear();
     set({ ...server, loading: false, offline: state.offline, authed: true });
     connectSocket();
   } catch (e) {
     if (request !== stateRequest) return;
+    stateLoading = false;
     if (e instanceof ApiError && e.status === 401) {
       disconnectSocket();
       set({ ...state, loading: false, authed: false, onboarded: false, user: SIGNED_OUT_USER, trips: [], notifications: [], saved: [] });
@@ -178,6 +182,12 @@ export function saved(message: string, options?: { description?: string }) {
 }
 
 function send(tripId: string, request: () => Promise<unknown>) {
+  // A reload already on its way predates this write and would undo it on screen: drop it and reload afterwards.
+  if (stateLoading) {
+    stateRequest++;
+    stateLoading = false;
+    reloadAfterWrites = true;
+  }
   pending.set(tripId, (pending.get(tripId) ?? 0) + 1);
   const done = (queues.get(tripId) ?? Promise.resolve(true))
     .then(() => untilAnswered(request))
@@ -276,6 +286,11 @@ export const actions = {
   forgotPassword: (email: string) => apiPost("/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) => apiPost("/auth/reset-password", { token, password }),
   changePassword: (current: string, next: string) => apiPost("/auth/change-password", { current, next }),
+  verifyEmail: async (token: string) => {
+    await apiPost("/auth/verify-email", { token });
+    await loadState();
+  },
+  resendVerification: () => apiPost("/auth/resend-verification"),
   async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[] }) {
     await apiPatch("/me", { ...patch, onboarded: true });
     await loadState();
@@ -292,7 +307,8 @@ export const actions = {
   },
   updateProfile(patch: { name?: string; email?: string; avatar?: string }) {
     const user = { ...state.user, ...patch };
-    set({ ...state, user, trips: state.trips.map((t) => ({ ...t, members: t.members.map((m) => (m.id === user.id ? { ...m, ...patch } : m)) })) });
+    const emailChanged = !!patch.email && patch.email.trim().toLowerCase() !== state.user.email;
+    set({ ...state, user, emailVerified: emailChanged ? false : state.emailVerified, trips: state.trips.map((t) => ({ ...t, members: t.members.map((m) => (m.id === user.id ? { ...m, ...patch } : m)) })) });
     return saveUser(patch);
   },
   updateSettings(patch: Partial<Settings>) {
@@ -377,9 +393,13 @@ export const actions = {
     }));
     void send(tripId, () => apiPost(`/trips/${tripId}/activities/${activityId}/comments`, { id: comment.id, text }));
   },
-  addAttachment(tripId: string, activityId: string, name: string) {
-    mapTrip(tripId, (t) => ({ ...t, activities: t.activities.map((a) => (a.id === activityId ? { ...a, attachments: [...a.attachments, name] } : a)) }));
-    void send(tripId, () => apiPost(`/trips/${tripId}/activities/${activityId}/attachments`, { name }));
+  addAttachment(tripId: string, activityId: string, name: string, url: string) {
+    mapTrip(tripId, (t) => ({ ...t, activities: t.activities.map((a) => (a.id === activityId ? { ...a, attachments: [...a.attachments, { name, url }] } : a)) }));
+    void send(tripId, () => apiPost(`/trips/${tripId}/activities/${activityId}/attachments`, { name, url }));
+  },
+  /** Moves the whole trip to another currency. The server converts everything in one step. */
+  convertCurrency(tripId: string, currency: string, rate: number) {
+    void send(tripId, () => apiPost(`/trips/${tripId}/convert-currency`, { currency, rate }));
   },
   vote(tripId: string, pollId: string, optionId: string) {
     const me = state.user.id;

@@ -61,6 +61,9 @@ export function equalShares(amount: number, ids: string[]) {
   return ids.map((memberId, i) => ({ memberId, amount: round2(base + (i === 0 ? rem : 0)) }));
 }
 
+/** Whether changing the currency would need converting existing amounts. */
+export const hasAmounts = (t: Trip) => t.budget > 0 || t.perPersonBudget > 0 || t.expenses.length > 0 || t.settlements.length > 0 || t.activities.some((a) => a.cost > 0);
+
 export const totalSpent = (t: Trip) => round2(t.expenses.reduce((s, e) => s + e.amount, 0));
 
 /** Net balance per member: positive = should receive, negative = owes. Settlements already paid are applied. */

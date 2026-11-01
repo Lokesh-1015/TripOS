@@ -10,6 +10,7 @@ import { PrismaExceptionFilter } from "./common/prisma-exception.filter.js";
 import { FileStorage } from "./files/file-storage.service.js";
 import { FilesController } from "./files/files.controller.js";
 import { HealthController } from "./health/health.controller.js";
+import { MailService } from "./mail/mail.service.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { RealtimeGateway } from "./realtime/realtime.gateway.js";
 import { ExpensesController } from "./trips/expenses.controller.js";
@@ -22,7 +23,11 @@ import { TripWriter } from "./trips/trip-writer.service.js";
 import { InvitesController, TripsController } from "./trips/trips.controller.js";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }])],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 300 }],
+      // Test suites create dozens of accounts a minute. Production ignores this setting.
+      skipIf: () => process.env.THROTTLE_DISABLED === "true" && process.env.NODE_ENV !== "production",
+    })],
   controllers: [
     HealthController,
     AuthController,
@@ -36,6 +41,6 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     SharingController,
     FilesController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, TripAccessGuard, RealtimeGateway, TripWriter, FileStorage],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, TripAccessGuard, RealtimeGateway, TripWriter, FileStorage],
 })
 export class AppModule {}

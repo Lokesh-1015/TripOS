@@ -29,6 +29,7 @@ interface Draft {
 export default function CreateTrip() {
   const user = useApp((s) => s.user);
   const settings = useApp((s) => s.settings);
+  const emailVerified = useApp((s) => s.emailVerified);
   const navigate = useNavigate();
   const [qs] = useSearchParams();
   const [tripId] = useState(() => uid("trip"));
@@ -38,7 +39,7 @@ export default function CreateTrip() {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [d, setD] = useState<Draft>({
-    name: qs.get("name") ?? "", destination: qs.get("dest") ?? "", description: "", cover: img(COVERS[0]),
+    name: qs.get("name") ?? "", destination: qs.get("dest") ?? "", description: "", cover: "",
     startDate: "", endDate: "", flexibleDates: false,
     members: [{ ...user, role: "owner" }], budget: "", currency: settings.currency, perPerson: "",
   });
@@ -51,6 +52,7 @@ export default function CreateTrip() {
     if (s === 0) {
       if (d.name.trim().length < 3) e.name = "Give your trip a name (3+ characters)";
       if (d.destination.trim().length < 2) e.destination = "Where are you headed?";
+      if (!d.cover) e.cover = "Choose a cover image, or upload your own";
     }
     if (s === 1) {
       if (!d.startDate) e.startDate = "Pick a start date";
@@ -143,7 +145,7 @@ export default function CreateTrip() {
                 <Field label="Destination" htmlFor="ct-dest" error={err.destination}>
                   <Input id="ct-dest" value={d.destination} onChange={(e) => set({ destination: e.target.value })} placeholder="City, region or country" className="h-11 rounded-xl" data-testid="create-trip-destination-input" />
                 </Field>
-                <Field label="Cover image">
+                <Field label="Cover image" error={err.cover}>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                     {COVERS.map((c) => {
                       const url = img(c);
@@ -190,13 +192,14 @@ export default function CreateTrip() {
             )}
             {step === 2 && (
               <div className="grid gap-5" data-testid="create-trip-members">
-                <Field label="Invite by email" htmlFor="ct-email" error={err.email}>
+                {!emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="create-trip-verify-note">Verify your email to invite people by email. You can skip this for now and share the trip's link once it's created.</p>}
+                {emailVerified && <Field label="Invite by email" htmlFor="ct-email" error={err.email}>
                   <div className="flex gap-2">
                     <Input id="ct-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail())} placeholder="friend@email.com" className="h-11 rounded-xl" data-testid="create-trip-invite-email-input" />
                     <Button onClick={addEmail} className="h-11 rounded-xl" data-testid="create-trip-invite-add-button">Add</Button>
                   </div>
-                </Field>
-                {people.length > 0 && <div>
+                </Field>}
+                {emailVerified && people.length > 0 && <div>
                   <p className="mb-2 text-[13px] font-medium">Quick add from past trips</p>
                   <div className="flex flex-wrap gap-2">
                     {people.map((p) => {

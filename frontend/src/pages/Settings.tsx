@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Camera, Check } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Camera, Check, Laptop, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,7 @@ function PasswordForm() {
 export default function Settings() {
   const user = useApp((s) => s.user);
   const settings = useApp((s) => s.settings);
+  const { theme, setTheme } = useTheme();
   const [p, setP] = useState({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles });
   const [err, setErr] = useState<Record<string, string>>({});
   const dirty = p.name !== user.name || p.email !== user.email || p.bio !== settings.bio || p.currency !== settings.currency || p.avatar !== user.avatar || p.styles.join() !== settings.travelStyles.join();
@@ -83,6 +85,7 @@ export default function Settings() {
           <TabsTrigger value="profile" data-testid="settings-tab-profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications" data-testid="settings-tab-notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy" data-testid="settings-tab-privacy">Privacy</TabsTrigger>
+          <TabsTrigger value="appearance" data-testid="settings-tab-appearance">Appearance</TabsTrigger>
           <TabsTrigger value="account" data-testid="settings-tab-account">Account</TabsTrigger>
         </TabsList>
 
@@ -147,6 +150,17 @@ export default function Settings() {
                 <Switch checked={settings.privacy[k]} onCheckedChange={(v) => { actions.updateSettings({ privacy: { ...settings.privacy, [k]: v } }); saved("Privacy setting saved"); }} data-testid={`settings-privacy-${k}`} />
               </label>
             ))}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="appearance">
+          <section className="grid gap-3 rounded-2xl border border-line bg-card p-5 sm:p-7">
+            <div><h3 className="font-semibold">Theme</h3><p className="text-sm text-ink-muted">Saved on this device.</p></div>
+            <div className="grid grid-cols-3 gap-2">
+              {([["light", "Light", Sun], ["dark", "Dark", Moon], ["system", "System", Laptop]] as const).map(([k, l, I]) => (
+                <button key={k} onClick={() => setTheme(k)} className={cn("flex flex-col items-center gap-2 rounded-xl border p-4 text-sm font-medium transition-colors", theme === k ? "border-forest bg-sage text-forest" : "border-line hover:border-forest/40")} aria-pressed={theme === k} data-testid={`settings-theme-${k}`}><I className="size-5" /> {l}</button>
+              ))}
+            </div>
           </section>
         </TabsContent>
 

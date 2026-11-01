@@ -15,6 +15,7 @@ const taskBody = z.object({
   assignee: z.string(),
   due: isoDate,
   priority: z.enum(["low", "medium", "high"]),
+  status: z.enum(["todo", "in_progress", "done"]).optional(),
   done: z.boolean().default(false),
   version,
 });
@@ -52,7 +53,10 @@ export class PlanningController {
   async upsertTask(@Param("tripId") tripId: string, @Param("id") id: string, @Actor() actor: TripActor, @CurrentUser() user: User, @Body() body: unknown) {
     enforce(canContribute(actor));
     parse(clientId, id);
-    const { version: expected, due, ...input } = parse(taskBody, body);
+    const { version: expected, due, status: requested, ...fields } = parse(taskBody, body);
+    // `done` drives progress counts in the UI, so the two can never disagree.
+    const status = requested ?? (fields.done ? "done" : "todo");
+    const input = { ...fields, status, done: status === "done" };
     const data = { ...input, due: asDate(due) };
     const existing = await this.prisma.task.findUnique({ where: { id } });
     if (existing && existing.tripId !== tripId) throw new ConflictException({ message: "Please try again" });

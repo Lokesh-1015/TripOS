@@ -56,6 +56,11 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.server.to(userRoom(userId)).emit("trips:changed");
   }
 
+  /** Something about the account changed, such as its email being verified in another tab. */
+  userChanged(userId: string) {
+    this.server?.to(userRoom(userId)).emit("trips:changed");
+  }
+
   tripDeleted(tripId: string) {
     this.server?.to(tripRoom(tripId)).emit("trips:changed");
     this.server?.in(tripRoom(tripId)).socketsLeave(tripRoom(tripId));

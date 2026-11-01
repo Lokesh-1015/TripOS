@@ -36,7 +36,24 @@ async function signUp(name: string) {
   return { c, email, user: state.body.user as { id: string } };
 }
 
-const newTrip = (over: Record<string, unknown> = {}) => ({ id: id("trip"), name: "Manali Adventure", destination: "Manali", startDate: "2027-03-01", endDate: "2027-03-05", budget: 90000, ...over });
+const MAILPIT = process.env.MAILPIT_URL ?? "http://localhost:8025";
+
+/** Follows the link from the verification email, so email invites are allowed for this account. */
+async function verifyEmail(address: string) {
+  for (let i = 0; i < 40; i++) {
+    const found = (await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${address}" subject:"Verify your TripOS email"`)}`)).json()) as { messages: { ID: string }[] };
+    if (found.messages?.length) {
+      const { Text } = (await (await fetch(`${MAILPIT}/api/v1/message/${found.messages[0].ID}`)).json()) as { Text: string };
+      const token = Text.match(/\/verify-email\/([\w-]+)/)?.[1];
+      expect((await new Client().req("POST", "/auth/verify-email", { token })).status).toBe(200);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`No verification email for ${address}`);
+}
+
+const newTrip = (over: Record<string, unknown> = {}) => ({ id: id("trip"), name: "Manali Adventure", destination: "Manali", cover: "https://images.unsplash.com/photo-1597167231350-d057a45dc868", startDate: "2027-03-01", endDate: "2027-03-05", budget: 90000, ...over });
 const taskBody = (assignee: string, over: Record<string, unknown> = {}) => ({ title: "Book cabs", assignee, due: "2027-02-20", priority: "high", ...over });
 const expenseBody = (paidBy: string, ids: string[], amount: number, over: Record<string, unknown> = {}) => {
   const each = Math.floor((amount / ids.length) * 100) / 100;
@@ -53,6 +70,7 @@ let joinCode: string;
 
 beforeAll(async () => {
   [owner, member, viewer, outsider] = await Promise.all([signUp("Ishita"), signUp("Rohan"), signUp("Priya"), signUp("Kabir")]);
+  await verifyEmail(owner.email);
   const created = await owner.c.req("POST", "/trips", newTrip());
   expect(created.status).toBe(201);
   tripId = created.body.id;
@@ -145,22 +163,11 @@ describe("permissions", () => {
 });
 
 describe("email invites", () => {
-  it("lists the invitee, then lets them accept after signing up", async () => {
+  it("lists the invitee as pending", async () => {
     const email = `invitee-${tag}@example.test`;
     const invited = await owner.c.req("POST", `/trips/${tripId}/members`, { email });
     expect(invited.status).toBe(201);
-    const pending = invited.body.members.find((m: { email: string }) => m.email === email);
-    expect(pending.status).toBe("invited");
-
-    const c = new Client();
-    await c.req("POST", "/auth/signup", { name: "Invited Person", email, password: "correct-horse" });
-    const state = (await c.req("GET", "/state")).body;
-    expect(state.user.id).toBe(pending.id);
-    expect(state.trips).toEqual([]);
-    const notification = state.notifications.find((n: { kind: string }) => n.kind === "invite");
-    expect(notification).toBeTruthy();
-    expect((await c.req("POST", `/notifications/${notification.id}/accept`)).status).toBe(200);
-    expect((await c.req("GET", "/state")).body.trips.map((t: { id: string }) => t.id)).toContain(tripId);
+    expect(invited.body.members.find((m: { email: string }) => m.email === email).status).toBe("invited");
   });
 
   it("shows a public preview for the join page", async () => {

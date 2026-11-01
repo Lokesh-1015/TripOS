@@ -24,6 +24,20 @@ enum MemberStatus {
   removed
 }
 
+enum ActivityType {
+  travel
+  activity
+  meal
+  stay
+  free
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
 enum ExpenseCategory {
   stay
   food
@@ -121,6 +135,8 @@ model User {
   name              String
   avatar            String   @default("")
   passwordHash      String?
+  /// Set by clicking an emailed link or resetting a password: both prove the person owns this address.
+  emailVerifiedAt   DateTime? @db.Timestamptz(6)
   onboarded         Boolean  @default(false)
   bio               String   @default("")
   currency          String   @default("INR")
@@ -133,6 +149,7 @@ model User {
 
   sessions      Session[]
   resetTokens   PasswordResetToken[]
+  verifyTokens  EmailVerificationToken[]
   memberships   TripMember[]
   notifications Notification[]
 
@@ -158,9 +175,22 @@ model PasswordResetToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime  @db.Timestamptz(6)
   usedAt    DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }
 
 model Trip {
@@ -224,6 +254,7 @@ model Activity {
   trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   day         Int
   position    Int      @default(0)
+  type        ActivityType @default(activity)
   title       String
   start       String
   end         String
@@ -232,12 +263,12 @@ model Activity {
   costMinor   Int      @default(0)
   notes       String   @default("")
   assignees   String[]
-  attachments String[]
   version     Int      @default(1)
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  comments ActivityComment[]
+  comments    ActivityComment[]
+  attachments ActivityAttachment[]
 
   @@index([tripId, day, position])
   @@map("activities")
@@ -255,12 +286,30 @@ model ActivityComment {
   @@map("activity_comments")
 }
 
+model ActivityAttachment {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  name       String
+  /// Null only for names saved before attachments stored real files.
+  url        String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([activityId, createdAt])
+  @@map("activity_attachments")
+}
+
 model Expense {
   id          String          @id
   tripId      String
   trip        Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   title       String
+  /// Always in the trip's currency, so every balance is in one currency.
   amountMinor Int
+  /// What was actually paid, when that was in another currency. fxRate is the rate to the trip's currency.
+  originalAmountMinor Int?
+  originalCurrency    String?
+  fxRate              Float?
   category    ExpenseCategory
   paidBy      String
   date        DateTime        @db.Date
@@ -294,6 +343,8 @@ model Settlement {
   from        String
   to          String
   amountMinor Int
+  /// Rounding correction from a currency conversion, not a payment anyone made.
+  isAdjustment Boolean @default(false)
   date        DateTime @db.Date
   createdById String
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
@@ -327,6 +378,7 @@ model Task {
   assignee    String
   due         DateTime @db.Date
   priority    Priority @default(medium)
+  status      TaskStatus @default(todo)
   done        Boolean  @default(false)
   version     Int      @default(1)
   createdAt   DateTime @default(now()) @db.Timestamptz(6)

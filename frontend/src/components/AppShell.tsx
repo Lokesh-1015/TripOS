@@ -4,6 +4,8 @@ import { motion, useReducedMotion } from "motion/react";
 import {
   Compass, FileText, HelpCircle, Home, Images, LogOut, Map as MapIcon, Menu, Plus, Receipt, Search, Settings, CheckSquare, ChevronsUpDown, User,
 } from "lucide-react";
+import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api";
 import { actions, useApp } from "@/lib/store";
 import { Avatar, Logo } from "@/components/common";
 import { NotificationsBell } from "@/components/Notifications";
@@ -108,7 +110,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function AppShell() {
-  const { loading, offline, authed, onboarded } = useApp((s) => ({ loading: s.loading, offline: s.offline, authed: s.authed, onboarded: s.onboarded }));
+  const { loading, offline, authed, onboarded, emailVerified, email } = useApp((s) => ({ loading: s.loading, offline: s.offline, authed: s.authed, onboarded: s.onboarded, emailVerified: s.emailVerified, email: s.user.email }));
   const location = useLocation();
   const navigate = useNavigate();
   const reduce = useReducedMotion();
@@ -178,6 +180,12 @@ export default function AppShell() {
           </header>
 
           {offline && <p className="bg-coral-soft px-4 py-2 text-center text-sm font-medium text-[#8A3B22]" role="status" data-testid="offline-banner">You're offline. Your changes will be saved when you reconnect, so keep this tab open.</p>}
+          {!emailVerified && (
+            <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-sage px-4 py-2 text-center text-sm text-forest" role="status" data-testid="verify-email-banner">
+              <span>Check {email} for a link to verify your email. You'll need it to accept or send email invites.</span>
+              <button className="font-semibold underline" onClick={() => void actions.resendVerification().then(() => toast.success("Verification email sent"), (e) => toast.error(apiErrorMessage(e)))} data-testid="verify-email-resend">Send it again</button>
+            </p>
+          )}
           <main className="mx-auto max-w-[1440px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12">
             <motion.div
               key={sectionKey}

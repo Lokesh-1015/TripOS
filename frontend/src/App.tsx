@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Landing from "@/pages/Landing";
-import { ForgotPassword, Login, Onboarding, ResetPassword, Signup } from "@/pages/Auth";
+import { ForgotPassword, Login, Onboarding, ResetPassword, Signup, VerifyEmail } from "@/pages/Auth";
 import AppShell from "@/components/AppShell";
 import Dashboard from "@/pages/Dashboard";
 import Trips from "@/pages/Trips";
@@ -23,6 +23,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/join/:code" element={<Join />} />
         <Route path="/app" element={<AppShell />}>

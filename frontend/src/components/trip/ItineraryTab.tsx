@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { addDays, format, parseISO } from "date-fns";
-import { ArrowDown, ArrowUp, CalendarPlus, Clock, GripVertical, MapPin, MessageSquare, Paperclip, Pencil, Plus, Send, SortAsc, Trash2, Wallet } from "lucide-react";
+import { ArrowDown, ArrowUp, BedDouble, CalendarPlus, Clock, Coffee, Flag, GripVertical, MapPin, MessageSquare, Paperclip, Pencil, Plane, Plus, Send, SortAsc, Trash2, Utensils, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,19 @@ import { Avatar, AvatarStack, ConfirmDialog, EmptyState, Field, Tip } from "@/co
 import { useTripAccess } from "@/lib/access";
 import { actions, saved } from "@/lib/store";
 import { ago, money, tripDays, uid } from "@/lib/format";
-import type { Activity, Trip } from "@/lib/types";
+import { apiErrorMessage, uploadFile } from "@/lib/api";
+import type { Activity, ActivityType, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const blank = (day: number, members: string[]): Activity => ({ id: "", day, title: "", start: "10:00", end: "11:00", location: "", description: "", cost: 0, notes: "", assignees: members, comments: [], attachments: [] });
+const ACTIVITY_TYPES: Record<ActivityType, { label: string; icon: typeof Flag }> = {
+  travel: { label: "Travel", icon: Plane },
+  activity: { label: "Activity", icon: Flag },
+  meal: { label: "Meal", icon: Utensils },
+  stay: { label: "Stay", icon: BedDouble },
+  free: { label: "Free time", icon: Coffee },
+};
+
+const blank = (day: number, members: string[]): Activity => ({ id: "", day, type: "activity", title: "", start: "10:00", end: "11:00", location: "", description: "", cost: 0, notes: "", assignees: members, comments: [], attachments: [] });
 
 function ActivityDialog({ trip, value, onClose }: { trip: Trip; value: Activity | null; onClose: () => void }) {
   const [a, setA] = useState<Activity | null>(value);
@@ -45,6 +54,12 @@ function ActivityDialog({ trip, value, onClose }: { trip: Trip; value: Activity 
         <DialogHeader><DialogTitle>{a.id ? "Edit activity" : "Add activity"}</DialogTitle></DialogHeader>
         <div className="grid gap-4">
           <Field label="Title" htmlFor="act-title" error={err.title}><Input id="act-title" value={a.title} onChange={(e) => setA({ ...a, title: e.target.value })} placeholder="Sunrise hike" data-testid="activity-title-input" /></Field>
+          <Field label="Type">
+            <Select value={a.type} onValueChange={(v) => setA({ ...a, type: v as ActivityType })}>
+              <SelectTrigger className="w-full" data-testid="activity-type-select"><SelectValue>{(v) => ACTIVITY_TYPES[v as ActivityType].label}</SelectValue></SelectTrigger>
+              <SelectContent>{Object.entries(ACTIVITY_TYPES).map(([k, t]) => <SelectItem key={k} value={k}>{t.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Day">
               <Select value={String(a.day)} onValueChange={(v) => setA({ ...a, day: +v })}>
@@ -179,7 +194,9 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
                   <div className="flex items-start gap-3">
                     {canContribute && <GripVertical className="mt-0.5 hidden size-4 shrink-0 cursor-grab text-ink-muted sm:block" aria-hidden />}
                     <div className="min-w-0 flex-1">
-                      <p className="num flex items-center gap-1.5 text-xs font-semibold text-sage-ink"><Clock className="size-3.5" /> {a.start} – {a.end}</p>
+                      <p className="num flex items-center gap-1.5 text-xs font-semibold text-sage-ink"><Clock className="size-3.5" /> {a.start} – {a.end}
+                        <span className="ml-1 inline-flex items-center gap-1 font-sans font-medium" data-testid={`activity-type-${a.id}`}>{(() => { const T = ACTIVITY_TYPES[a.type]; return <><T.icon className="size-3.5" /> {T.label}</>; })()}</span>
+                      </p>
                       <h3 className="mt-1 font-semibold">{a.title}</h3>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
                         {a.location && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{a.location}</span>}
@@ -206,10 +223,14 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
                   {open === a.id && (
                     <div className="mt-3 grid gap-3 border-t pt-3 animate-rise">
                       <div className="flex flex-wrap gap-2">
-                        {a.attachments.map((f) => <span key={f} className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs"><Paperclip className="size-3" />{f}</span>)}
+                        {a.attachments.map((f, i) => f.url ? <a key={i} href={f.url} download={f.name} className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs hover:underline" data-testid={`activity-attachment-${a.id}`}><Paperclip className="size-3" />{f.name}</a> : <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs"><Paperclip className="size-3" />{f.name}</span>)}
                         {canContribute && <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed px-2.5 py-1 text-xs text-ink-muted hover:text-ink" data-testid={`activity-attach-${a.id}`}>
                           <Plus className="size-3" /> Attach file
-                          <input type="file" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; actions.addAttachment(trip.id, a.id, f.name); saved(`${f.name} attached`); }} />
+                          <input type="file" className="sr-only" onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = "";
+                            if (f) void uploadFile(f, { tripId: trip.id, visibility: "shared" }).then(({ url }) => { actions.addAttachment(trip.id, a.id, f.name, url); saved(`${f.name} attached`); }, (error) => toast.error(apiErrorMessage(error)));
+                          }} />
                         </label>}
                       </div>
                       {a.comments.map((c) => (

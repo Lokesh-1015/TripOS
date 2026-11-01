@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, Camera, HandCoins, Loader2, Pencil, Plus, Receipt, ScanLine, Search, Trash2 } from "lucide-react";
-import { compressImage, scanErrorMessage, scanReceipt, type ReceiptScan } from "@/lib/receipts";
+import { ArrowRight, HandCoins, Pencil, Plus, Receipt, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -14,67 +12,44 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, ConfirmDialog, EmptyState, Field, Progress, Stat } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
 import { actions, saved, useApp } from "@/lib/store";
-import { balances, CATEGORY_COLOR, CATEGORY_LABEL, CURRENCIES, equalShares, fmtDate, money, round2, suggestTransfers, todayISO, totalSpent, uid } from "@/lib/format";
+import { balances, CATEGORY_COLOR, CATEGORY_LABEL, CURRENCIES, equalShares, fmtDate, hasAmounts, money, round2, suggestTransfers, todayISO, totalSpent, uid } from "@/lib/format";
 import type { Expense, ExpenseCategory, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-interface Draft { id: string; title: string; amount: string; category: ExpenseCategory; paidBy: string; date: string; splitType: "equal" | "custom"; participants: string[]; custom: Record<string, string>; notes: string }
+interface Draft { id: string; title: string; amount: string; currency: string; rate: string; category: ExpenseCategory; paidBy: string; date: string; splitType: "equal" | "custom"; participants: string[]; custom: Record<string, string>; notes: string }
 
 const toDraft = (e: Expense | null, trip: Trip, me: string): Draft => e
-  ? { id: e.id, title: e.title, amount: String(e.amount), category: e.category, paidBy: e.paidBy, date: e.date, splitType: e.splitType, participants: e.shares.map((s) => s.memberId), custom: Object.fromEntries(e.shares.map((s) => [s.memberId, String(s.amount)])), notes: e.notes }
-  : { id: "", title: "", amount: "", category: "food", paidBy: me, date: todayISO() < trip.startDate || todayISO() > trip.endDate ? todayISO() : todayISO(), splitType: "equal", participants: trip.members.map((m) => m.id), custom: {}, notes: "" };
+  ? { id: e.id, title: e.title, amount: String(e.original?.amount ?? e.amount), currency: e.original?.currency ?? trip.currency, rate: e.original ? String(e.original.rate) : "", category: e.category, paidBy: e.paidBy, date: e.date, splitType: e.splitType, participants: e.shares.map((s) => s.memberId), custom: Object.fromEntries(e.shares.map((s) => [s.memberId, String(s.amount)])), notes: e.notes }
+  // People who haven't joined yet aren't charged by default; the payer can tick them in.
+  : { id: "", title: "", amount: "", currency: trip.currency, rate: "", category: "food", paidBy: me, date: todayISO(), splitType: "equal", participants: trip.members.filter((m) => m.status !== "invited").map((m) => m.id), custom: {}, notes: "" };
 
-function ExpenseDialog({ trip, open, initial, initialFile, onClose }: { trip: Trip; open: boolean; initial: Expense | null; initialFile?: File; onClose: () => void }) {
+function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boolean; initial: Expense | null; onClose: () => void }) {
   const me = useApp((s) => s.user.id);
   const [d, setD] = useState<Draft>(() => toDraft(initial, trip, me));
   const [err, setErr] = useState<Record<string, string>>({});
-  const [receipt, setReceipt] = useState<{ url: string; result?: ReceiptScan }>();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const scan = useMutation({
-    mutationFn: async (file: File) => {
-      const url = await compressImage(file);
-      setReceipt({ url });
-      return { url, result: await scanReceipt(url) };
-    },
-    onSuccess: ({ url, result: r }) => {
-      setReceipt({ url, result: r });
-      if (!r.is_receipt) return toast.error("That doesn't look like a receipt", { description: "Try a clearer photo of the bill." });
-      setD((p) => ({
-        ...p,
-        title: r.merchant || p.title,
-        amount: r.amount ? String(r.amount) : p.amount,
-        date: r.date ?? p.date,
-        category: r.category,
-        custom: {},
-      }));
-      if (!r.amount) toast.warning("Couldn't read the total — please enter it");
-      else if (r.currency && r.currency !== trip.currency) toast.warning(`Receipt is in ${r.currency}; this trip uses ${trip.currency}. Please check the amount.`);
-      else toast.success("Receipt scanned", { description: "Check the details, then save." });
-    },
-    onError: (e) => toast.error("Couldn't scan receipt", { description: scanErrorMessage(e) }),
-  });
   useEffect(() => {
-    if (open) { setD(toDraft(initial, trip, me)); setErr({}); setReceipt(undefined); scan.reset(); }
+    if (open) { setD(toDraft(initial, trip, me)); setErr({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, trip.id, me]);
-  useEffect(() => {
-    if (open && initialFile) scan.mutate(initialFile);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialFile]);
-  const amount = +d.amount || 0;
+  const foreign = d.currency !== trip.currency;
+  const entered = +d.amount || 0;
+  const rate = +d.rate || 0;
+  // Everything below works in the trip's currency, so balances stay comparable.
+  const amount = foreign ? round2(entered * rate) : entered;
   const customTotal = round2(d.participants.reduce((s, id) => s + (+d.custom[id] || 0), 0));
   const remaining = round2(amount - customTotal);
 
   const save = () => {
     const e: Record<string, string> = {};
     if (d.title.trim().length < 2) e.title = "What was this for?";
-    if (!(amount > 0)) e.amount = "Enter an amount greater than 0";
+    if (!(entered > 0)) e.amount = "Enter an amount greater than 0";
+    if (foreign && !(rate > 0)) e.rate = "Enter the exchange rate";
     if (!d.participants.length) e.split = "Pick at least one person to split with";
     if (d.splitType === "custom" && Math.abs(remaining) > 0.009) e.split = `Custom amounts must add up to ${money(amount, trip.currency)} (${remaining > 0 ? `${money(remaining, trip.currency)} left` : `${money(-remaining, trip.currency)} over`})`;
     setErr(e);
     if (Object.keys(e).length) return;
     const shares = d.splitType === "equal" ? equalShares(amount, d.participants) : d.participants.map((id) => ({ memberId: id, amount: round2(+d.custom[id] || 0) })).filter((s) => s.amount > 0);
-    const exp: Expense = { ...(initial ?? {}), id: d.id || uid("exp"), title: d.title.trim(), amount: round2(amount), category: d.category, paidBy: d.paidBy, date: d.date, splitType: d.splitType, shares, notes: d.notes };
+    const exp: Expense = { ...(initial ?? {}), id: d.id || uid("exp"), title: d.title.trim(), amount: round2(amount), original: foreign ? { amount: entered, currency: d.currency, rate } : undefined, category: d.category, paidBy: d.paidBy, date: d.date, splitType: d.splitType, shares, notes: d.notes };
     actions.upsert(trip.id, "expenses", exp, { text: `${d.id ? "edited" : "added"} an expense “${exp.title}” (${money(exp.amount, trip.currency)})`, kind: "expense" }, !d.id);
     saved(d.id ? "Expense updated" : "Expense added", { description: "Balances updated" });
     onClose();
@@ -88,28 +63,24 @@ function ExpenseDialog({ trip, open, initial, initialFile, onClose }: { trip: Tr
           <DialogDescription>Split equally or set exact amounts per person.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          {!d.id && (
-            <div className={cn("flex items-center gap-3 rounded-xl border border-dashed p-3 transition-colors", scan.isPending ? "border-forest bg-sage/50" : "border-line")} data-testid="receipt-scan-panel">
-              {receipt ? <img src={receipt.url} alt="Receipt" className="size-12 rounded-lg object-cover" data-testid="receipt-scan-thumbnail" /> : <span className="grid size-12 place-items-center rounded-lg bg-sage text-forest"><ScanLine className="size-5" /></span>}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{scan.isPending ? "Reading your receipt…" : receipt?.result?.is_receipt ? `Scanned${receipt.result.merchant ? ` · ${receipt.result.merchant}` : ""}` : "Scan a receipt"}</p>
-                <p className="text-xs text-ink-muted" data-testid="receipt-scan-status">
-                  {scan.isPending ? "Finding the total, date and category" : receipt?.result?.is_receipt ? `${receipt.result.confidence} confidence — please double-check` : "Snap or upload a bill — we'll fill in the amount, date and category"}
-                </p>
-              </div>
-              <Button type="button" size="sm" variant="outline" disabled={scan.isPending} onClick={() => fileRef.current?.click()} data-testid="receipt-scan-button">
-                {scan.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />} {receipt ? "Rescan" : "Scan"}
-              </Button>
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) scan.mutate(f); }} data-testid="receipt-scan-file-input" />
-            </div>
-          )}
-          <div className="grid grid-cols-[1fr_140px] gap-3">
-            <Field label="Description" htmlFor="ex-title" error={err.title}><Input id="ex-title" value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="Dinner at Café 1947" data-testid="expense-title-input" /></Field>
-            <Field label={`Amount (${trip.currency})`} htmlFor="ex-amt" error={err.amount}><Input id="ex-amt" inputMode="decimal" value={d.amount} onChange={(e) => setD({ ...d, amount: e.target.value.replace(/[^\d.]/g, "") })} className="num" placeholder="0" data-testid="expense-amount-input" /></Field>
+          <Field label="Description" htmlFor="ex-title" error={err.title}><Input id="ex-title" value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="Dinner at Café 1947" data-testid="expense-title-input" /></Field>
+          <div className="grid grid-cols-[1fr_110px] gap-3">
+            <Field label="Amount" htmlFor="ex-amt" error={err.amount}><Input id="ex-amt" inputMode="decimal" value={d.amount} onChange={(e) => setD({ ...d, amount: e.target.value.replace(/[^\d.]/g, "") })} className="num" placeholder="0" data-testid="expense-amount-input" /></Field>
+            <Field label="Currency">
+              <Select value={d.currency} onValueChange={(v) => setD({ ...d, currency: v as string })}>
+                <SelectTrigger className="w-full" data-testid="expense-currency-select"><SelectValue /></SelectTrigger>
+                <SelectContent>{CURRENCIES.map((x) => <SelectItem key={x.code} value={x.code}>{x.code}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
           </div>
+          {foreign && (
+            <Field label={`Exchange rate: 1 ${d.currency} in ${trip.currency}`} htmlFor="ex-rate" error={err.rate} hint={amount > 0 ? `Counts as ${money(amount, trip.currency)} on this trip` : "Use the rate you actually paid"}>
+              <Input id="ex-rate" inputMode="decimal" value={d.rate} onChange={(e) => { setD({ ...d, rate: e.target.value.replace(/[^\d.]/g, "") }); setErr({ ...err, rate: "" }); }} className="num" placeholder="83.50" data-testid="expense-rate-input" />
+            </Field>
+          )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field label="Paid by">
-              <Select value={d.paidBy} onValueChange={(v) => setD({ ...d, paidBy: v })}>
+              <Select value={d.paidBy} onValueChange={(v) => setD({ ...d, paidBy: v as string })}>
                 <SelectTrigger className="w-full" data-testid="expense-paid-by-select"><SelectValue>{(v) => trip.members.find((m) => m.id === v)?.name.split(" ")[0]}</SelectValue></SelectTrigger>
                 <SelectContent>{trip.members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
@@ -124,7 +95,7 @@ function ExpenseDialog({ trip, open, initial, initialFile, onClose }: { trip: Tr
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[13px] font-medium">Split between</p>
+              <p className="text-[13px] font-medium">Split between{foreign && ` (in ${trip.currency})`}</p>
               <Tabs value={d.splitType} onValueChange={(v) => setD({ ...d, splitType: v as Draft["splitType"] })}>
                 <TabsList className="h-8">
                   <TabsTrigger value="equal" className="text-xs" data-testid="expense-split-equal-tab">Equally</TabsTrigger>
@@ -140,7 +111,7 @@ function ExpenseDialog({ trip, open, initial, initialFile, onClose }: { trip: Tr
                   <div key={m.id} className="flex items-center gap-3 px-3 py-2">
                     <Checkbox checked={on} onCheckedChange={(c) => setD({ ...d, participants: c ? [...d.participants, m.id] : d.participants.filter((x) => x !== m.id) })} aria-label={`Include ${m.name}`} data-testid={`expense-participant-${m.id}`} />
                     <Avatar person={m} size={26} ring={false} />
-                    <span className="flex-1 text-sm">{m.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{m.name}{m.status === "invited" && <span className="text-ink-muted"> · invited</span>}</span>
                     {d.splitType === "equal" ? (
                       <span className={cn("num text-sm", on ? "font-medium" : "text-ink-muted")}>{money(eq, trip.currency)}</span>
                     ) : (
@@ -168,12 +139,45 @@ function ExpenseDialog({ trip, open, initial, initialFile, onClose }: { trip: Tr
   );
 }
 
+/** Converting needs a rate the group agrees on: the amounts really do change. */
+function ConvertDialog({ trip, currency, onClose }: { trip: Trip; currency: string | undefined; onClose: () => void }) {
+  const [rate, setRate] = useState("");
+  const [err, setErr] = useState<string>();
+  useEffect(() => { setRate(""); setErr(undefined); }, [currency]);
+  const value = +rate || 0;
+  const spent = totalSpent(trip);
+  const convert = () => {
+    if (!currency) return;
+    if (!(value > 0)) return setErr("Enter the exchange rate");
+    actions.convertCurrency(trip.id, currency, value);
+    saved(`Trip converted to ${currency}`, { description: "Everyone's balance moved with it." });
+    onClose();
+  };
+  return (
+    <Dialog open={!!currency} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent data-testid="convert-currency-dialog">
+        <DialogHeader>
+          <DialogTitle>Convert this trip to {currency}?</DialogTitle>
+          <DialogDescription>Every expense, payment, budget and balance on this trip will be converted for everyone. To undo it, you'd have to convert back.</DialogDescription>
+        </DialogHeader>
+        <Field label={`Exchange rate: 1 ${trip.currency} in ${currency}`} htmlFor="convert-rate" error={err} hint={value > 0 && currency ? `${money(spent, trip.currency)} spent becomes ${money(round2(spent * value), currency)}` : undefined}>
+          <Input id="convert-rate" inputMode="decimal" value={rate} onChange={(e) => { setRate(e.target.value.replace(/[^\d.]/g, "")); setErr(undefined); }} className="num" data-testid="convert-rate-input" />
+        </Field>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={convert} data-testid="convert-confirm-button">Convert trip</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function ExpensesTab({ trip }: { trip: Trip }) {
   const access = useTripAccess(trip);
   const me = access.me;
   const [params, setParams] = useSearchParams();
-  const [dialog, setDialog] = useState<{ open: boolean; exp: Expense | null; file?: File }>({ open: params.get("new") === "1", exp: null });
-  const scanRef = useRef<HTMLInputElement>(null);
+  const [dialog, setDialog] = useState<{ open: boolean; exp: Expense | null }>({ open: params.get("new") === "1", exp: null });
+  const [convertTo, setConvertTo] = useState<string>();
   const [deleting, setDeleting] = useState<Expense>();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<"all" | ExpenseCategory>("all");
@@ -187,6 +191,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
   const spent = totalSpent(trip);
   const bal = useMemo(() => balances(trip.members, trip.expenses, trip.settlements), [trip]);
   const transfers = useMemo(() => suggestTransfers(bal), [bal]);
+  const payments = trip.settlements.filter((x) => !x.adjustment);
   const byCat = Object.entries(trip.expenses.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.category]: (acc[e.category] ?? 0) + e.amount }), {})).map(([k, v]) => ({ key: k as ExpenseCategory, name: CATEGORY_LABEL[k as ExpenseCategory], value: v })).sort((a, b) => b.value - a.value);
   const perPerson = trip.members.map((m) => ({
     name: m.name.split(" ")[0],
@@ -201,14 +206,17 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-ink-muted">
           Currency
-          <Select value={c} disabled={!access.canAdmin} onValueChange={(v) => { actions.patchTrip(trip.id, { currency: v }, `switched currency to ${v}`); saved(`Showing amounts in ${v}`); }}>
+          <Select value={c} disabled={!access.canAdmin} onValueChange={(v) => {
+            if (v === c) return;
+            // With nothing to convert it's only a preference; with amounts, relabelling would change what people owe.
+            if (hasAmounts(trip)) return setConvertTo(v as string);
+            actions.patchTrip(trip.id, { currency: v as string }, `switched currency to ${v}`);
+          }}>
             <SelectTrigger size="sm" className="w-24 rounded-lg" data-testid="expenses-currency-select"><SelectValue /></SelectTrigger>
             <SelectContent>{CURRENCIES.map((x) => <SelectItem key={x.code} value={x.code}>{x.code}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         {access.canContribute && <div className="flex gap-2">
-          <Button variant="outline" className="rounded-xl" onClick={() => scanRef.current?.click()} data-testid="expenses-scan-receipt-button"><ScanLine className="size-4" /> Scan receipt</Button>
-          <input ref={scanRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setDialog({ open: true, exp: null, file: f }); }} data-testid="expenses-scan-file-input" />
           <Button className="rounded-xl" onClick={() => setDialog({ open: true, exp: null })} data-testid="expenses-add-button"><Plus className="size-4" /> Add expense</Button>
         </div>}
       </div>
@@ -260,7 +268,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
                 ))}
               </ul>
             )}
-            {trip.settlements.length > 0 && <p className="mt-3 text-xs text-ink-muted">{trip.settlements.length} payment{trip.settlements.length > 1 ? "s" : ""} recorded · {money(trip.settlements.reduce((s, x) => s + x.amount, 0), c)} settled</p>}
+            {payments.length > 0 && <p className="mt-3 text-xs text-ink-muted">{payments.length} payment{payments.length > 1 ? "s" : ""} recorded · {money(round2(payments.reduce((s, x) => s + x.amount, 0)), c)} settled</p>}
           </div>
         </section>
 
@@ -337,6 +345,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
                   </div>
                   <div className="text-right">
                     <p className="num text-sm font-semibold">{money(e.amount, c)}</p>
+                    {e.original && <p className="num text-xs text-ink-muted" data-testid={`expense-original-${e.id}`}>paid {money(e.original.amount, e.original.currency)}</p>}
                     <p className="num text-xs text-ink-muted">{mine ? `your share ${money(mine, c)}` : "not involved"}</p>
                   </div>
                   {access.canModerate(e.createdBy ?? me) && <div className="flex gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100">
@@ -350,7 +359,8 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
         )}
       </section>
 
-      <ExpenseDialog trip={trip} open={dialog.open} initial={dialog.exp} initialFile={dialog.file} onClose={() => setDialog({ open: false, exp: null })} />
+      <ExpenseDialog trip={trip} open={dialog.open} initial={dialog.exp} onClose={() => setDialog({ open: false, exp: null })} />
+      <ConvertDialog trip={trip} currency={convertTo} onClose={() => setConvertTo(undefined)} />
       <ConfirmDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)} title={`Delete “${deleting?.title}”?`} body="Balances and settlements will be recalculated without it." confirmLabel="Delete expense" onConfirm={() => { if (deleting) { actions.remove(trip.id, "expenses", deleting.id, { text: `deleted the expense “${deleting.title}”`, kind: "expense" }); saved("Expense deleted"); } }} />
       <ConfirmDialog
         open={!!settle}

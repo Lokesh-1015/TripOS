@@ -177,3 +177,26 @@ test('people only see the actions their role allows, and the server still refuse
   await member.context.close();
   await viewer.context.close();
 });
+
+test('a change made while a page is still connecting is not missed', async ({ browser }) => {
+  const a = await newUser(browser, 'Sender');
+  const b = await newUser(browser, 'Late');
+  const { id, joinCode } = await createTrip(a.page);
+  await api(b.page, 'POST', `/invites/${joinCode}/accept`);
+
+  // Hold the second person's live connection open for a moment after their page has loaded its data.
+  await b.page.routeWebSocket(/socket\.io/, async (ws) => {
+    await new Promise((r) => setTimeout(r, 2000));
+    ws.connectToServer();
+  });
+  await b.page.goto(`/app/trips/${id}/chat`);
+  await b.page.getByTestId('chat-panel').waitFor();
+
+  const me = (await api(a.page, 'GET', '/state')).body.user.id;
+  expect(me).toBeTruthy();
+  expect((await api(a.page, 'PUT', `/trips/${id}/messages/msg-late-${stamp}`, { kind: 'text', text: 'Sent during the gap' })).status).toBe(200);
+
+  await expect(b.page.getByTestId('chat-messages')).toContainText('Sent during the gap', { timeout: 8000 });
+  await a.context.close();
+  await b.context.close();
+});

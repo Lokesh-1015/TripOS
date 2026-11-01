@@ -12,6 +12,7 @@ const signUpBody = z.object({ name: z.string().trim().min(2).max(100), email: z.
 const logInBody = z.object({ email: z.email(), password: z.string().min(1).max(200) });
 const forgotBody = z.object({ email: z.email() });
 const resetBody = z.object({ token: z.string().min(10), password: z.string().min(8).max(200) });
+const verifyBody = z.object({ token: z.string().min(10) });
 const changeBody = z.object({ current: z.string().min(1), next: z.string().min(8).max(200) });
 
 @UseGuards(ThrottlerGuard)
@@ -65,6 +66,21 @@ export class AuthController {
   async reset(@Body() body: unknown) {
     const { token, password } = parse(resetBody, body);
     await this.auth.resetPassword(token, password);
+    return { ok: true };
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post("verify-email")
+  async verify(@Body() body: unknown) {
+    await this.auth.verifyEmail(parse(verifyBody, body).token);
+    return { ok: true };
+  }
+
+  @HttpCode(200)
+  @Post("resend-verification")
+  async resend(@CurrentUser() user: User) {
+    if (!user.emailVerifiedAt) await this.auth.sendVerification(user);
     return { ok: true };
   }
 

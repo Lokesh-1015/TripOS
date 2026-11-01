@@ -50,6 +50,7 @@ test('two members plan a trip together and see each other live', async ({ browse
     await p.getByTestId('dashboard-empty-create').click();
     await p.getByTestId('create-trip-name-input').fill('Goa Weekend');
     await p.getByTestId('create-trip-destination-input').fill('Goa, India');
+    await p.locator('[data-testid^="create-trip-cover-photo"]').first().click();
     await p.getByTestId('create-trip-next-button').click();
     await p.getByTestId('create-trip-start-date-input').fill('2030-03-01');
     await p.getByTestId('create-trip-end-date-input').fill('2030-03-04');

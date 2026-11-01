@@ -10,8 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarStack, ConfirmDialog, Field, StatusBadge, Tip } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
-import { actions, inviteLink, saved, useTrip } from "@/lib/store";
-import { CURRENCIES, daysUntil, fmtRange, tripStatus, uid } from "@/lib/format";
+import { actions, inviteLink, saved, useApp, useTrip } from "@/lib/store";
+import { CURRENCIES, daysUntil, fmtRange, hasAmounts, tripStatus, uid } from "@/lib/format";
 import type { Member, Role, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import OverviewTab from "@/components/trip/OverviewTab";
@@ -33,6 +33,7 @@ type TabKey = (typeof TABS)[number][0];
 function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean; onOpenChange: (o: boolean) => void }) {
   const access = useTripAccess(trip);
   const me = access.me;
+  const emailVerified = useApp((s) => s.emailVerified);
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string>();
   const [removing, setRemoving] = useState<Member>();
@@ -43,7 +44,7 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
     if (trip.members.some((m) => m.email === v)) return setErr("This person is already on the trip");
     const m: Member = { id: uid("p"), name: v.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), email: v, avatar: "", role: "member", status: "invited" };
     actions.upsert(trip.id, "members", m, { text: `invited ${m.name}`, kind: "member" });
-    saved(`${m.name} invited`, { description: "They'll see the invite in TripOS. Share the link if they don't have an account yet." });
+    saved(`${m.name} invited`, { description: "We've emailed them an invitation." });
     setEmail("");
     setErr(undefined);
   };
@@ -55,7 +56,8 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
             <DialogTitle>Trip members</DialogTitle>
             <DialogDescription>{access.canAdmin ? "Invite people, change roles or remove members." : "Everyone on this trip."}</DialogDescription>
           </DialogHeader>
-          {access.canAdmin && <Field label="Invite by email" htmlFor="inv-email" error={err}>
+          {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">Verify your email to invite people by email. You can still share the link below.</p>}
+          {access.canAdmin && emailVerified && <Field label="Invite by email" htmlFor="inv-email" error={err}>
             <div className="flex gap-2">
               <Input id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invite()} placeholder="friend@email.com" className="h-10 rounded-xl" data-testid="members-invite-email-input" />
               <Button onClick={invite} className="h-10 rounded-xl" data-testid="members-invite-send-button">Invite</Button>
@@ -130,7 +132,7 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
           <div className="grid grid-cols-[1fr_150px] gap-3">
             <Field label="Budget" htmlFor="et-b"><Input id="et-b" inputMode="numeric" value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value.replace(/[^\d.]/g, "") })} className="num" data-testid="edit-trip-budget-input" /></Field>
             <Field label="Currency">
-              <Select value={f.currency} onValueChange={(v) => setF({ ...f, currency: v })}>
+              <Select value={f.currency} disabled={hasAmounts(trip)} onValueChange={(v) => setF({ ...f, currency: v as string })}>
                 <SelectTrigger className="w-full" data-testid="edit-trip-currency-select"><SelectValue /></SelectTrigger>
                 <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}</SelectContent>
               </Select>

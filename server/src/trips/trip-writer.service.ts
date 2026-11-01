@@ -33,7 +33,7 @@ export class TripWriter {
     private readonly realtime: RealtimeGateway,
   ) {}
 
-  async run<T>(tripId: string, actorId: string, fn: (ctx: WriteContext) => Promise<T>): Promise<T> {
+  async run<T>(tripId: string, actorId: string, fn: (ctx: WriteContext) => Promise<T>, options?: { timeout: number }): Promise<T> {
     const notified = new Set<string>();
     const result = await this.prisma.$transaction(async (tx) => {
       const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true } });
@@ -59,7 +59,7 @@ export class TripWriter {
           recipients.forEach((id) => notified.add(id));
         },
       });
-    });
+    }, options);
     this.realtime.tripChanged(tripId);
     this.realtime.notificationsChanged([...notified]);
     return result;

@@ -32,13 +32,22 @@ yarn install
 yarn dev
 ```
 
-Open http://localhost:3000 and create an account.
+Open http://localhost:3000 and create an account. Verification and invite emails arrive in the local inbox at http://localhost:8025.
 
 ## Viewing the database
+
+Open a browser view of every table at http://localhost:5555:
 
 ```bash
 cd server
 pnpm exec prisma studio
+```
+
+Check which migrations have been applied:
+
+```bash
+cd server
+pnpm exec prisma migrate status
 ```
 
 ## Tests

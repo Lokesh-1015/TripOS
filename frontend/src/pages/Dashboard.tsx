@@ -169,7 +169,7 @@ export default function Dashboard() {
                       disabled={roleOn(t.trip) === "viewer"}
                       className="mt-0.5 text-ink-muted transition-colors enabled:hover:text-forest"
                       onClick={() => {
-                        actions.upsert(t.trip.id, "tasks", { ...t, trip: undefined, done: true } as never, { text: `completed “${t.title}”`, kind: "task" });
+                        actions.upsert(t.trip.id, "tasks", { ...t, trip: undefined, done: true, status: "done" } as never, { text: `completed “${t.title}”`, kind: "task" });
                         saved("Task completed");
                       }}
                       aria-label={`Mark ${t.title} complete`}

@@ -17,10 +17,10 @@ The app is at http://localhost:3000. Vite proxies `/api` and the socket to the b
 ## Accounts
 - Real email and password login with an httpOnly session cookie. New accounts start empty and pass through onboarding.
 - `/app/*` redirects to `/login` when signed out; `sessionStorage tripos:next` returns people to a join link after logging in.
-- Password reset links are logged by the server until an email provider is added.
+- Signup sends a verification email; unverified accounts can't see, accept or send email invites. Email goes over SMTP, caught locally by Mailpit at http://localhost:8025.
 
 ## Routes
-`/` landing · `/login` · `/signup` · `/forgot-password` · `/reset-password/:token` · `/onboarding` · `/join/:code` · `/app` dashboard · `/app/trips` · `/app/trips/new` · `/app/trips/:id/:tab?` (overview, itinerary, expenses, tasks, packing, documents, map, chat, memories) · `/app/trips/:id/replay` · `/app/explore` · `/app/expenses` · `/app/tasks` · `/app/memories` · `/app/documents` · `/app/settings`.
+`/` landing · `/login` · `/signup` · `/forgot-password` · `/reset-password/:token` · `/verify-email/:token` · `/onboarding` · `/join/:code` · `/app` dashboard · `/app/trips` · `/app/trips/new` · `/app/trips/:id/:tab?` (overview, itinerary, expenses, tasks, packing, documents, map, chat, memories) · `/app/trips/:id/replay` · `/app/explore` · `/app/expenses` · `/app/tasks` · `/app/memories` · `/app/documents` · `/app/settings`.
 
 ## Business logic
 - Balances = paid − share, + settlements sent, − settlements received. The UI derives them in `lib/format.ts`; the server's ledger must always agree.
@@ -29,4 +29,4 @@ The app is at http://localhost:3000. Vite proxies `/api` and the socket to the b
 - Trip status is derived from dates unless archived.
 
 ## Receipt scanning
-Not ported to the new backend, so the route returns 404 and the UI falls back to manual entry. The PRD lists it as a future feature.
+Removed from the UI until the AI phase (PRD Phase 5). The old Python version is in the baseline commit.

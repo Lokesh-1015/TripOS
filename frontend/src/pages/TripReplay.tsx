@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { addDays, format, parseISO } from "date-fns";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { ChevronLeft, Images, MapPin, Pause, Play, Sparkles, Wallet } from "lucide-react";
+import { ChevronLeft, Images, MapPin, Pause, Play, Sparkles, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarStack, Progress } from "@/components/common";
 import { IllustratedMap } from "@/components/trip/MapTab";
-import { useTrip } from "@/lib/store";
+import { useTripAccess } from "@/lib/access";
+import { actions, saved, useTrip } from "@/lib/store";
 import { CATEGORY_COLOR, CATEGORY_LABEL, fmtRange, money, round2, totalSpent, tripDays, tripStatus } from "@/lib/format";
 import type { ExpenseCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,8 @@ export default function TripReplay() {
   const [day, setDay] = useState(0);
   const [playing, setPlaying] = useState(false);
   const days = trip ? tripDays(trip) : 1;
+  const access = useTripAccess(trip ?? { members: [] });
+  const [highlight, setHighlight] = useState("");
 
   useEffect(() => {
     if (!playing) return;
@@ -161,14 +165,20 @@ export default function TripReplay() {
         </section>
       </div>
 
-      {trip.highlights.length > 0 && (
+      {(trip.highlights.length > 0 || access.canAdmin) && (
         <section className="mt-10 rounded-3xl bg-sage/70 p-6 sm:p-10" data-testid="replay-highlights">
           <h2 className="text-xl font-semibold tracking-tight">Memorable highlights</h2>
           <ul className="mt-5 grid gap-4 sm:grid-cols-3">
             {trip.highlights.map((h, i) => (
-              <li key={h} className="rounded-2xl bg-card p-5 text-[15px] leading-snug shadow-sm"><span className="num text-3xl font-semibold text-coral">0{i + 1}</span><p className="mt-2">{h}</p></li>
+              <li key={h} className="rounded-2xl bg-card p-5 text-[15px] leading-snug shadow-sm"><span className="flex items-start justify-between gap-2"><span className="num text-3xl font-semibold text-coral">0{i + 1}</span>{access.canAdmin && <Button variant="ghost" size="icon-xs" aria-label={`Remove highlight ${i + 1}`} onClick={() => { actions.patchTrip(trip.id, { highlights: trip.highlights.filter((_, j) => j !== i) }); saved("Highlight removed"); }} data-testid={`replay-highlight-remove-${i}`}><X /></Button>}</span><p className="mt-2">{h}</p></li>
             ))}
           </ul>
+          {access.canAdmin && trip.highlights.length < 10 && (
+            <form className="mt-5 flex gap-2" onSubmit={(e) => { e.preventDefault(); const h = highlight.trim(); if (!h) return; actions.patchTrip(trip.id, { highlights: [...trip.highlights, h] }); saved("Highlight added"); setHighlight(""); }}>
+              <Input value={highlight} onChange={(e) => setHighlight(e.target.value)} maxLength={200} placeholder="The moment everyone still talks about…" className="h-10 flex-1 rounded-xl bg-card" aria-label="New highlight" data-testid="replay-highlight-input" />
+              <Button type="submit" className="h-10 rounded-xl" data-testid="replay-highlight-add-button">Add</Button>
+            </form>
+          )}
         </section>
       )}
       <p className="mt-10 text-center text-sm text-ink-muted">Plan together. Travel together. <b className="text-forest">Remember together.</b></p>

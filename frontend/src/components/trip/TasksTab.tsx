@@ -11,10 +11,11 @@ import { Avatar, ConfirmDialog, EmptyState, Field, Progress } from "@/components
 import { useTripAccess } from "@/lib/access";
 import { actions, saved } from "@/lib/store";
 import { fmtDate, todayISO, uid } from "@/lib/format";
-import type { Priority, Task, Trip } from "@/lib/types";
+import type { Priority, Task, TaskStatus, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PRIORITY_STYLE: Record<Priority, string> = { high: "bg-[#FDE8E3] text-[#B4402A]", medium: "bg-[#FFF4DC] text-[#8A6212]", low: "bg-muted text-ink-muted" };
+const STATUS_LABEL: Record<TaskStatus, string> = { todo: "To do", in_progress: "In progress", done: "Done" };
 type View = "mine" | "all" | "completed" | "overdue";
 const VIEWS: [View, string][] = [["all", "All tasks"], ["mine", "My tasks"], ["overdue", "Overdue"], ["completed", "Completed"]];
 
@@ -40,6 +41,12 @@ export function TaskDialog({ trip, task, onClose }: { trip: Trip; task: Task | n
         <div className="grid gap-4">
           <Field label="Title" htmlFor="tk-title" error={err}><Input id="tk-title" value={t.title} onChange={(e) => setT({ ...t, title: e.target.value })} placeholder="Book the cab to the airport" data-testid="task-title-input" /></Field>
           <Field label="Description" htmlFor="tk-desc"><Textarea id="tk-desc" value={t.description} onChange={(e) => setT({ ...t, description: e.target.value })} rows={2} data-testid="task-description-input" /></Field>
+          <Field label="Status">
+            <Select value={t.status} onValueChange={(v) => setT({ ...t, status: v as TaskStatus, done: v === "done" })}>
+              <SelectTrigger className="w-full" data-testid="task-status-select"><SelectValue>{(v) => STATUS_LABEL[v as TaskStatus]}</SelectValue></SelectTrigger>
+              <SelectContent>{Object.entries(STATUS_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="Assign to">
               <Select value={t.assignee} onValueChange={(v) => setT({ ...t, assignee: v })}>
@@ -71,7 +78,7 @@ export function TaskRow({ trip, task, onEdit, onDelete, showTrip = false }: { tr
   const who = trip.members.find((m) => m.id === task.assignee);
   const overdue = !task.done && task.due < today;
   const toggle = () => {
-    actions.upsert(trip.id, "tasks", { ...task, done: !task.done }, task.done ? undefined : { text: `completed “${task.title}”`, kind: "task" });
+    actions.upsert(trip.id, "tasks", { ...task, done: !task.done, status: task.done ? "todo" : "done" }, task.done ? undefined : { text: `completed “${task.title}”`, kind: "task" });
     saved(task.done ? "Marked as to-do" : "Task completed 🎉");
   };
   return (
@@ -84,6 +91,7 @@ export function TaskRow({ trip, task, onEdit, onDelete, showTrip = false }: { tr
         {task.description && <p className="mt-0.5 truncate text-xs text-ink-muted">{task.description}</p>}
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
           <span className={cn("rounded-full px-2 py-0.5 font-medium capitalize", PRIORITY_STYLE[task.priority])}>{task.priority}</span>
+          {task.status === "in_progress" && <span className="rounded-full bg-sage px-2 py-0.5 font-medium text-forest" data-testid={`task-in-progress-${task.id}`}>In progress</span>}
           <span className={cn(overdue ? "font-medium text-destructive" : "text-ink-muted")}>{overdue ? "Overdue · " : "Due "}{fmtDate(task.due, "dd MMM")}</span>
           {showTrip && <span className="text-ink-muted">· {trip.name}</span>}
         </div>
@@ -100,7 +108,7 @@ export function TaskRow({ trip, task, onEdit, onDelete, showTrip = false }: { tr
 export default function TasksTab({ trip }: { trip: Trip }) {
   const { me, canContribute } = useTripAccess(trip);
   const [params, setParams] = useSearchParams();
-  const newTask = (): Task => ({ id: "", title: "", description: "", assignee: me, due: trip.startDate > todayISO() ? trip.startDate : todayISO(), priority: "medium", done: false });
+  const newTask = (): Task => ({ id: "", title: "", description: "", assignee: me, due: trip.startDate > todayISO() ? trip.startDate : todayISO(), priority: "medium", status: "todo", done: false });
   const [editing, setEditing] = useState<Task | null>(params.get("new") === "1" ? newTask() : null);
   const [deleting, setDeleting] = useState<Task>();
   const [view, setView] = useState<View>("all");

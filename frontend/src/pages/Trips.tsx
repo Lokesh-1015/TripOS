@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Map as MapIcon, Plus, Search } from "lucide-react";
+import { LayoutGrid, List, Map as MapIcon, Plus, Search } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EmptyState, PageHeader } from "@/components/common";
+import { AvatarStack, EmptyState, PageHeader, StatusBadge } from "@/components/common";
 import { TripCard } from "@/components/TripCard";
 import { useApp } from "@/lib/store";
-import { tripStatus } from "@/lib/format";
+import { fmtRange, money, totalSpent, tripStatus } from "@/lib/format";
 import type { TripStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ export default function Trips() {
   const q = params.get("q") ?? "";
   const filter = (params.get("status") ?? "all") as (typeof FILTERS)[number];
   const sort = params.get("sort") ?? "soonest";
+  const view = params.get("view") === "list" ? "list" : "grid";
   const setParam = (k: string, v: string) => {
     const next = new URLSearchParams(params);
     if (v && v !== "all") next.set(k, v);
@@ -58,13 +59,18 @@ export default function Trips() {
           ))}
         </div>
         <div className="flex gap-2 lg:ml-auto">
-          <label className="relative flex-1 lg:w-64">
+          <div className="inline-flex shrink-0 rounded-xl border border-line bg-card p-1" role="group" aria-label="View">
+            {([["grid", LayoutGrid, "Grid view"], ["list", List, "List view"]] as const).map(([k, I, label]) => (
+              <button key={k} onClick={() => setParam("view", k === "grid" ? "" : k)} className={cn("grid size-8 place-items-center rounded-lg transition-colors", view === k ? "bg-forest text-white" : "text-ink-muted hover:text-ink")} aria-label={label} aria-pressed={view === k} data-testid={`trips-view-${k}`}><I className="size-4" /></button>
+            ))}
+          </div>
+          <label className="relative min-w-0 flex-1 lg:w-64">
             <span className="sr-only">Search trips</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
             <Input value={q} onChange={(e) => setParam("q", e.target.value)} placeholder="Search trips or people" className="h-10 rounded-xl pl-9" data-testid="trips-search-input" />
           </label>
           <Select value={sort} onValueChange={(v) => setParam("sort", v)}>
-            <SelectTrigger className="h-10 w-44 rounded-xl" data-testid="trips-sort-select"><SelectValue>{(v) => SORTS[v as string]}</SelectValue></SelectTrigger>
+            <SelectTrigger className="h-10 w-36 shrink-0 rounded-xl sm:w-44" data-testid="trips-sort-select"><SelectValue>{(v) => SORTS[v as string]}</SelectValue></SelectTrigger>
             <SelectContent>{Object.entries(SORTS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
           </Select>
         </div>
@@ -77,6 +83,23 @@ export default function Trips() {
           action={<Link to="/app/trips/new" className={cn(buttonVariants(), "rounded-xl")} data-testid="trips-empty-create">Create trip</Link>}
           testId="trips-empty-state"
         />
+      ) : view === "list" ? (
+        <ul className="divide-y rounded-2xl border border-line bg-card" data-testid="trips-list">
+          {list.map((t) => (
+            <li key={t.id}>
+              <Link to={`/app/trips/${t.id}`} className="flex items-center gap-4 p-3 transition-colors hover:bg-muted/50 sm:px-4" data-testid={`trips-list-row-${t.id}`}>
+                <img src={t.cover} alt="" className="size-14 shrink-0 rounded-xl object-cover" loading="lazy" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{t.name}</span>
+                  <span className="block truncate text-xs text-ink-muted">{t.destination} · {fmtRange(t.startDate, t.endDate)}</span>
+                </span>
+                <span className="num hidden text-sm text-ink-muted md:block">{money(totalSpent(t), t.currency)}{t.budget ? ` of ${money(t.budget, t.currency)}` : ""}</span>
+                <span className="hidden sm:block"><AvatarStack people={t.members} size={26} max={3} /></span>
+                <StatusBadge status={tripStatus(t)} />
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" data-testid="trips-grid">
           {list.map((t) => <TripCard key={t.id} trip={t} />)}

@@ -1,6 +1,6 @@
-import { Body, ConflictException, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Put } from "@nestjs/common";
+import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, Put } from "@nestjs/common";
 import { z } from "zod";
-import { normalizeEmail } from "../auth/auth.service.js";
+import { AuthService, normalizeEmail } from "../auth/auth.service.js";
 import { CurrentUser } from "../auth/session.guard.js";
 import { imageRef, parse } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
@@ -36,6 +36,11 @@ const toNotification = (n: { id: string; tripId: string | null; kind: string; ti
   link: n.link ?? undefined,
 });
 
+/** An email invite goes to whoever owns that address, which only a verified account has shown. */
+export function assertVerified(user: User, action: string) {
+  if (!user.emailVerifiedAt) throw new ForbiddenException({ code: "EMAIL_NOT_VERIFIED", message: `Verify your email before you ${action}. Check your inbox for the link.` });
+}
+
 /** The UI's AppState, plus the per-user actions that aren't scoped to a single trip. */
 @Controller()
 export class StateController {
@@ -43,17 +48,18 @@ export class StateController {
     private readonly prisma: PrismaService,
     private readonly writer: TripWriter,
     private readonly realtime: RealtimeGateway,
+    private readonly auth: AuthService,
   ) {}
 
   @Get("state")
   async state(@CurrentUser() user: User) {
-    const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user.id)]);
-    return { version: 1, authed: true, onboarded: user.onboarded, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
+    const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user)]);
+    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
   }
 
   @Get("notifications")
   notifications(@CurrentUser() user: User) {
-    return this.notificationsFor(user.id);
+    return this.notificationsFor(user);
   }
 
   @Patch("me")
@@ -61,11 +67,14 @@ export class StateController {
     const patch = parse(profileBody, body);
     const email = patch.email ? normalizeEmail(patch.email) : undefined;
     if (email && email !== user.email && (await this.prisma.user.findUnique({ where: { email } }))) throw new ConflictException({ message: "That email is already in use" });
-    const updated = await this.prisma.user.update({ where: { id: user.id }, data: { ...patch, email } });
+    const emailChanged = !!email && email !== user.email;
+    // A new address is unproven until its owner clicks the link, so anything sent to it stays hidden until then.
+    const updated = await this.prisma.user.update({ where: { id: user.id }, data: { ...patch, email, ...(emailChanged ? { emailVerifiedAt: null } : {}) } });
+    if (emailChanged) await this.auth.sendVerification(updated);
     // Every trip this person belongs to shows their name and avatar.
     const memberships = await this.prisma.tripMember.findMany({ where: { userId: user.id, status: "active" }, select: { tripId: true } });
     if (patch.name || patch.avatar !== undefined || email) memberships.forEach((m) => this.realtime.tripChanged(m.tripId));
-    return { user: toPerson(updated), settings: toSettings(updated), onboarded: updated.onboarded };
+    return { user: toPerson(updated), settings: toSettings(updated), onboarded: updated.onboarded, emailVerified: !!updated.emailVerifiedAt };
   }
 
   @Put("me/saved")
@@ -88,6 +97,7 @@ export class StateController {
   async dismiss(@CurrentUser() user: User, @Param("id") id: string) {
     const n = await this.prisma.notification.findFirst({ where: { id, userId: user.id } });
     if (!n) return { ok: true };
+    if (n.kind === "invite") assertVerified(user, "respond to an invitation");
     await this.prisma.notification.delete({ where: { id } });
     if (n.kind === "invite" && n.tripId) {
       const { count } = await this.prisma.tripMember.updateMany({ where: { tripId: n.tripId, userId: user.id, status: "invited" }, data: { status: "removed" } });
@@ -99,6 +109,7 @@ export class StateController {
   @HttpCode(200)
   @Post("notifications/:id/accept")
   async acceptInvite(@CurrentUser() user: User, @Param("id") id: string) {
+    assertVerified(user, "accept an invitation");
     const n = await this.prisma.notification.findFirst({ where: { id, userId: user.id, kind: "invite" } });
     if (!n?.tripId) throw new NotFoundException({ message: "This invitation is no longer available" });
     const tripId = n.tripId;
@@ -121,8 +132,9 @@ export class StateController {
     return toTrip(await this.prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: tripInclude }), userId);
   }
 
-  private async notificationsFor(userId: string) {
-    const rows = await this.prisma.notification.findMany({ where: { userId }, orderBy: { at: "desc" }, take: 100 });
+  private async notificationsFor(user: User) {
+    // Email invites name the trip, so they aren't shown to an account that hasn't proved it owns the address.
+    const rows = await this.prisma.notification.findMany({ where: { userId: user.id, ...(user.emailVerifiedAt ? {} : { kind: { not: "invite" } }) }, orderBy: { at: "desc" }, take: 100 });
     return rows.map(toNotification);
   }
 }

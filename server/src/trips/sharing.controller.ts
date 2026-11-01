@@ -43,7 +43,7 @@ const photoBody = z.object({
 });
 
 /** A file can only be attached to the trip it was uploaded to, by someone on that trip. */
-async function assertFile(tx: Prisma.TransactionClient, tripId: string, url: string | undefined, userId: string) {
+export async function assertFile(tx: Prisma.TransactionClient, tripId: string, url: string | undefined, userId: string) {
   if (!url) return;
   const file = await tx.storedFile.findUnique({ where: { id: fileIdOf(url) } });
   if (!file || file.tripId !== tripId || file.uploadedBy !== userId) throw new UnprocessableEntityException({ message: "That file couldn't be found. Please upload it again." });

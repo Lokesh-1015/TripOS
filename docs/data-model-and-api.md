@@ -37,16 +37,38 @@ Screens read through `useApp` and write through `actions` in `frontend/src/lib/s
 
 Nobody but the uploader can see a private document, including admins.
 
+## Email and verified accounts
+
+Mail goes out over SMTP (`SMTP_URL`), so any provider works. Locally, Mailpit catches everything at http://localhost:8025.
+
+| Rule | Why |
+|---|---|
+| Signing up doesn't verify an address; clicking the emailed link or resetting the password does | Both prove the person can read that inbox |
+| An unverified account can't see, accept, decline or send email invites | Otherwise anyone signing up with an invited address could get in, and accounts could send spam |
+| Changing email makes the account unverified again | A new address has to prove itself too |
+| A password reset ends every session | If someone else signed up with your address first, this is how you take the account back |
+| Verification and reset requests send at most one email a minute | So these routes can't flood an inbox |
+| Joining through an invite link doesn't need verification | The link is deliberately "anyone with the link" |
+
+## Currency
+
+Every balance is in the trip's currency.
+
+- **An expense in another currency** is entered with the rate paid, and counts at the converted amount.
+- **Changing a trip's currency** converts everything in one transaction at a rate an admin enters: expenses, shares, payments, budgets and costs. Shares still add up exactly.
+- **Rounding** is corrected with small adjustment entries, so people who were settled stay exactly settled. The UI doesn't count these as payments.
+- A trip with no amounts yet can change currency freely. Otherwise `PATCH /trips/:tripId` refuses a currency change with a 409.
+
 ## Tables
 
 | Table | UI type | Notes |
 |---|---|---|
 | `users` | `Person`, `Settings` | A null `passwordHash` is a placeholder from an email invite, claimed at signup. |
-| `sessions`, `password_reset_tokens` | | Hashed tokens only. |
+| `sessions`, `password_reset_tokens`, `email_verification_tokens` | | Hashed tokens only. |
 | `trips` | `Trip` | `joinCode` backs the invite link. Upcoming, ongoing and completed are derived from dates in the UI. |
 | `trip_members` | `Member` | `status` is `invited`, `active` or `removed`. Removed rows stay so balances survive. |
-| `activities`, `activity_comments` | `Activity`, `Comment` | `position` holds the order within a day. |
-| `expenses`, `expense_shares`, `settlements` | `Expense`, `ExpenseShare`, `Settlement` | |
+| `activities`, `activity_comments`, `activity_attachments` | `Activity`, `Comment`, `Attachment` | `position` holds the order within a day. |
+| `expenses`, `expense_shares`, `settlements` | `Expense`, `ExpenseShare`, `Settlement` | Amounts are in the trip's currency. An expense paid in another currency also keeps what was paid and the rate. |
 | `ledger_entries` | | Append-only audit of every balance change; edits write reversals. |
 | `tasks`, `packing_items`, `places` | `Task`, `PackingItem`, `Place` | |
 | `polls`, `poll_options`, `votes` | `Poll`, `PollOption` | One vote per member per poll is a primary key. |
@@ -59,8 +81,9 @@ All sit under `/api`. Every route needs a session unless marked public.
 
 ```
 GET    /health                                  public
-POST   /auth/signup | login | logout | forgot-password | reset-password   public
+POST   /auth/signup | login | logout | forgot-password | reset-password | verify-email   public
 POST   /auth/change-password
+POST   /auth/resend-verification
 
 GET    /state                                   the UI's AppState
 PATCH  /me                                      profile and settings
@@ -90,6 +113,7 @@ PUT    /trips/:tripId/expenses/:id
 DELETE /trips/:tripId/expenses/:id
 PUT    /trips/:tripId/settlements/:id
 GET    /trips/:tripId/balances
+POST   /trips/:tripId/convert-currency      admin or owner; { currency, rate }
 
 PUT    /trips/:tripId/tasks/:id
 DELETE /trips/:tripId/tasks/:id

@@ -1,6 +1,6 @@
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Mail } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Check, Loader2, Mail, MailCheck, MailX } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,8 @@ function AuthLayout({ children, image = IMG.manali, quote }: { children: ReactNo
 
 export function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<{ email?: string; pw?: string; form?: string }>({});
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,8 @@ export function Login() {
 
 export function Signup() {
   const navigate = useNavigate();
-  const [f, setF] = useState({ name: "", email: "", pw: "" });
+  const [params] = useSearchParams();
+  const [f, setF] = useState({ name: "", email: params.get("email") ?? "", pw: "" });
   const [err, setErr] = useState<Record<string, string | undefined>>({});
   const [saving, setSaving] = useState(false);
   const submit = async (e: FormEvent) => {
@@ -206,6 +208,29 @@ export function ResetPassword() {
         </Field>
         <Button type="submit" className="h-11 rounded-xl" disabled={saving} data-testid="reset-password-submit-button">{saving ? "Saving…" : "Update password"}</Button>
       </form>
+    </AuthLayout>
+  );
+}
+
+export function VerifyEmail() {
+  const { token = "" } = useParams();
+  const [status, setStatus] = useState<"working" | "done" | "failed">("working");
+  const [message, setMessage] = useState("");
+  const started = useRef(false);
+  useEffect(() => {
+    // A link works once, and React runs effects twice in development.
+    if (started.current) return;
+    started.current = true;
+    actions.verifyEmail(token).then(() => setStatus("done"), (error) => { setMessage(apiErrorMessage(error)); setStatus("failed"); });
+  }, [token]);
+  return (
+    <AuthLayout image={IMG.kerala} quote="Set up once. Every trip after that feels effortless.">
+      <div data-testid={`verify-email-${status}`}>
+        <span className="grid size-12 place-items-center rounded-2xl bg-sage text-forest">{status === "working" ? <Loader2 className="size-5 animate-spin" /> : status === "done" ? <MailCheck className="size-5" /> : <MailX className="size-5" />}</span>
+        <h1 className="mt-5 text-2xl font-semibold tracking-tight">{status === "working" ? "Verifying your email…" : status === "done" ? "Your email is verified" : "We couldn't verify your email"}</h1>
+        <p className="mt-2 text-sm text-ink-muted">{status === "working" ? "One moment." : status === "done" ? "You can now accept trip invitations and invite your crew." : message}</p>
+        {status !== "working" && <Link to="/app" className="mt-6 inline-flex h-11 items-center rounded-xl bg-forest px-5 text-sm font-medium text-white" data-testid="verify-email-continue">Go to TripOS</Link>}
+      </div>
     </AuthLayout>
   );
 }

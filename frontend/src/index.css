@@ -6,21 +6,32 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+    --brand-forest: #174C3C;
+    --brand-sage: #E7EFE9;
+    --brand-sage-ink: #3D6E5D;
+    --brand-paper: #F8F8F5;
+    --brand-coral-soft: #FFF0EA;
+    --brand-ink: #202824;
+    --brand-ink-muted: #5F6A65;
+    --brand-line: #E5E9E4;
+}
+
 @theme inline {
     --font-heading: 'Plus Jakarta Sans Variable', sans-serif;
     --font-sans: 'Plus Jakarta Sans Variable', sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
-    --color-forest: #174C3C;
+    --color-forest: var(--brand-forest);
     --color-forest-deep: #12372C;
     --color-forest-hover: #1E5E4B;
-    --color-sage: #E7EFE9;
-    --color-sage-ink: #3D6E5D;
-    --color-paper: #F8F8F5;
+    --color-sage: var(--brand-sage);
+    --color-sage-ink: var(--brand-sage-ink);
+    --color-paper: var(--brand-paper);
     --color-coral: #F28B68;
-    --color-coral-soft: #FFF0EA;
-    --color-ink: #202824;
-    --color-ink-muted: #5F6A65;
-    --color-line: #E5E9E4;
+    --color-coral-soft: var(--brand-coral-soft);
+    --color-ink: var(--brand-ink);
+    --color-ink-muted: var(--brand-ink-muted);
+    --color-line: var(--brand-line);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -115,6 +126,14 @@
 }
 
 .dark {
+    --brand-forest: #2F8F6D;
+    --brand-sage: #1E3A30;
+    --brand-sage-ink: #7CC3A6;
+    --brand-paper: #0f1a16;
+    --brand-coral-soft: #3A2219;
+    --brand-ink: #F2F4F0;
+    --brand-ink-muted: #A2BEB4;
+    --brand-line: rgba(255,255,255,.12);
     --background: #0f1a16;
     --foreground: #F2F4F0;
     --card: #16241f;
@@ -188,4 +207,9 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Forest is both a fill and a text colour. As text on dark surfaces it needs the lighter shade to stay readable. */
+.dark .text-forest {
+    color: var(--brand-sage-ink);
 }

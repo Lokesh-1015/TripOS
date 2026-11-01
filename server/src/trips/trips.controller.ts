@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { z } from "zod";
 import { normalizeEmail, DEFAULT_NOTIFY, DEFAULT_PRIVACY } from "../auth/auth.service.js";
 import { CurrentUser, Public } from "../auth/session.guard.js";
@@ -10,8 +11,10 @@ import { toMinor } from "../common/money.js";
 import { asDate, clientId, imageRef, isoDate, longText, money, parse, shortText, version } from "../common/validation.js";
 import type { Prisma, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { MailService } from "../mail/mail.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import { pollBody, pollData } from "./polls.controller.js";
+import { assertVerified } from "./state.controller.js";
 import { dateString } from "../common/validation.js";
 import { tripInclude, toTrip } from "./trip.serializer.js";
 import { TripWriter, updateVersioned } from "./trip-writer.service.js";
@@ -25,7 +28,7 @@ const createBody = z
     name,
     destination,
     description: longText.default(""),
-    cover: imageRef.default(""),
+    cover: imageRef.refine((v) => v !== "", "Choose a cover image"),
     startDate: isoDate,
     endDate: isoDate,
     flexibleDates: z.boolean().default(false),
@@ -81,18 +84,20 @@ export class TripsController {
     private readonly prisma: PrismaService,
     private readonly writer: TripWriter,
     private readonly realtime: RealtimeGateway,
+    private readonly mail: MailService,
   ) {}
 
   @Post()
   async create(@CurrentUser() user: User, @Body() body: unknown) {
     const input = parse(createBody, body);
+    if (input.members.length) assertVerified(user, "invite people");
     if (await this.prisma.trip.findUnique({ where: { id: input.id }, select: { id: true } })) {
       // A retried create must not fail, but must not reveal someone else's trip either.
       const mine = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: input.id, userId: user.id } } });
       if (!mine) throw new ConflictException({ message: "Please try again" });
       return this.load(input.id, user.id);
     }
-    const invitedIds = await this.prisma.$transaction(async (tx) => {
+    const invited = await this.prisma.$transaction(async (tx) => {
       await tx.trip.create({
         data: {
           id: input.id,
@@ -113,21 +118,22 @@ export class TripsController {
           events: { create: { actorId: user.id, text: `created the trip “${input.name}”`, kind: "trip" } },
         },
       });
-      const ids: string[] = [];
+      const people: { id: string; email: string; passwordHash: string | null }[] = [];
       for (const m of input.members) {
         // Quick add only reaches people the caller has actually travelled with.
         const known = m.id ? await tx.user.findFirst({ where: { id: m.id, memberships: { some: { status: "active", trip: { members: { some: { userId: user.id, status: "active" } } } } } } }) : null;
         const invitee = known ?? (m.email ? await findOrCreateUser(tx, m.email) : null);
-        if (!invitee || invitee.id === user.id || ids.includes(invitee.id)) continue;
+        if (!invitee || invitee.id === user.id || people.some((p) => p.id === invitee.id)) continue;
         await tx.tripMember.create({ data: { tripId: input.id, userId: invitee.id, role: "member", status: "invited" } });
         await tx.notification.create({ data: inviteNotification(invitee.id, input.id, user.name, input.name) });
-        ids.push(invitee.id);
+        people.push(invitee);
       }
       for (const p of input.polls) await tx.poll.create({ data: pollData(p, input.id, user.id) });
-      return ids;
+      return people;
     });
     this.realtime.membershipChanged(user.id, input.id, true);
-    this.realtime.notificationsChanged(invitedIds);
+    this.realtime.notificationsChanged(invited.map((p) => p.id));
+    invited.forEach((p) => void this.mail.sendTripInvite(p.email, user.name, input.name, !!p.passwordHash));
     return this.load(input.id, user.id);
   }
 
@@ -153,6 +159,11 @@ export class TripsController {
       // Activities are stored by day number, so a shorter trip would strand them where no one can reach them.
       const stranded = await tx.activity.count({ where: { tripId, day: { gte: days } } });
       if (stranded) throw new ConflictException({ message: `${stranded} planned ${stranded === 1 ? "activity is" : "activities are"} after the new end date. Move or delete them first.` });
+      if (rest.currency && rest.currency !== current.currency) {
+        // Relabelling amounts would silently change what everyone owes.
+        const hasMoney = current.budgetMinor > 0 || current.perPersonBudgetMinor > 0 || (await tx.expense.count({ where: { tripId } })) > 0 || (await tx.settlement.count({ where: { tripId } })) > 0 || (await tx.activity.count({ where: { tripId, costMinor: { gt: 0 } } })) > 0;
+        if (hasMoney) throw new ConflictException({ message: "This trip already has amounts in it. Convert the currency from the Expenses tab." });
+      }
       await updateVersioned(
         { updateMany: (args) => tx.trip.updateMany({ where: { id: tripId, ...(expected === undefined ? {} : { version: expected }) }, data: args.data }) },
         { id: tripId, tripId },
@@ -182,13 +193,15 @@ export class TripsController {
     return { ok: true };
   }
 
-  @UseGuards(TripAccessGuard)
+  @UseGuards(ThrottlerGuard, TripAccessGuard)
+  @Throttle({ default: { ttl: 3_600_000, limit: 100 } })
   @RequiresTripRole("viewer")
   @Post(":tripId/members")
   async invite(@Param("tripId") tripId: string, @Actor() actor: TripActor, @CurrentUser() user: User, @Body() body: unknown) {
     enforce(canInviteMembers(actor));
+    assertVerified(user, "invite people");
     const { email } = parse(inviteBody, body);
-    const inviteeId = await this.writer.run(tripId, user.id, async ({ tx, log, tripName }) => {
+    const invitee = await this.writer.run(tripId, user.id, async ({ tx, log, tripName }) => {
       const invitee = await findOrCreateUser(tx, email);
       const existing = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: invitee.id } } });
       if (existing && existing.status !== "removed") throw new ConflictException({ message: "This person is already on the trip" });
@@ -199,9 +212,10 @@ export class TripsController {
       });
       await tx.notification.create({ data: inviteNotification(invitee.id, tripId, user.name, tripName) });
       await log(`invited ${invitee.name}`, "member");
-      return invitee.id;
+      return { ...invitee, tripName };
     });
-    this.realtime.notificationsChanged([inviteeId]);
+    this.realtime.notificationsChanged([invitee.id]);
+    void this.mail.sendTripInvite(invitee.email, user.name, invitee.tripName, !!invitee.passwordHash);
     return this.load(tripId, user.id);
   }
 

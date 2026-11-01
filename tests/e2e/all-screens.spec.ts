@@ -24,9 +24,20 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
 
+  // Inviting by email needs a verified address.
+  let verifyLink = '';
+  for (let i = 0; i < 50 && !verifyLink; i++) {
+    const found = await (await fetch(`http://localhost:8025/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`)).json();
+    if (found.messages?.length) verifyLink = (await (await fetch(`http://localhost:8025/api/v1/message/${found.messages[0].ID}`)).json()).Text.match(/http:\/\/localhost:3000\/verify-email\/[\w-]+/)[0];
+    else await page.waitForTimeout(100);
+  }
+  await page.goto(verifyLink);
+  await page.getByTestId('verify-email-done').waitFor();
+
   await page.goto('/app/trips/new');
   await page.getByTestId('create-trip-name-input').fill('Everything Trip');
   await page.getByTestId('create-trip-destination-input').fill('Kerala');
+  await page.locator('[data-testid^="create-trip-cover-photo"]').first().click();
   await page.getByTestId('create-trip-next-button').click();
   await page.getByTestId('create-trip-start-date-input').fill('2030-05-01');
   await page.getByTestId('create-trip-end-date-input').fill('2030-05-03');

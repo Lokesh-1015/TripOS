@@ -22,9 +22,17 @@ export interface Comment {
   at: string;
 }
 
+export type ActivityType = "travel" | "activity" | "meal" | "stay" | "free";
+
+export interface Attachment {
+  name: string;
+  url?: string;
+}
+
 export interface Activity {
   id: string;
   day: number; // 0-based trip day index
+  type: ActivityType;
   title: string;
   start: string; // HH:mm
   end: string;
@@ -34,7 +42,7 @@ export interface Activity {
   notes: string;
   assignees: string[];
   comments: Comment[];
-  attachments: string[];
+  attachments: Attachment[];
   version?: number;
 }
 
@@ -48,7 +56,10 @@ export interface ExpenseShare {
 export interface Expense {
   id: string;
   title: string;
+  /** Always in the trip's currency. */
   amount: number;
+  /** What was actually paid, when that was in another currency. */
+  original?: { amount: number; currency: string; rate: number };
   category: ExpenseCategory;
   paidBy: string;
   createdBy?: string;
@@ -65,9 +76,13 @@ export interface Settlement {
   to: string;
   amount: number;
   date: string;
+  /** A rounding correction from converting currency, not a payment anyone made. */
+  adjustment?: boolean;
 }
 
 export type Priority = "low" | "medium" | "high";
+
+export type TaskStatus = "todo" | "in_progress" | "done";
 
 export interface Task {
   id: string;
@@ -76,6 +91,7 @@ export interface Task {
   assignee: string;
   due: string;
   priority: Priority;
+  status: TaskStatus;
   done: boolean;
   version?: number;
 }
@@ -232,6 +248,8 @@ export interface AppState {
   /** The server can't be reached; changes are held and sent on reconnect. */
   offline: boolean;
   authed: boolean;
+  /** Until this is true, email invites can't be seen, accepted or sent. */
+  emailVerified: boolean;
   onboarded: boolean;
   user: Person;
   settings: Settings;

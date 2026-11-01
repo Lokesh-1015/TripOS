@@ -8,11 +8,13 @@ import { toMinor } from "../common/money.js";
 import { clientId, hhmm, longText, money, parse, shortText, version } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { assertFile } from "./sharing.controller.js";
 import { TripWriter, updateVersioned } from "./trip-writer.service.js";
 
 const activityBody = z
   .object({
     day: z.number().int().min(0).max(366),
+    type: z.enum(["travel", "activity", "meal", "stay", "free"]).default("activity"),
     title: shortText.min(2),
     start: hhmm,
     end: hhmm,
@@ -27,7 +29,7 @@ const activityBody = z
 
 const reorderBody = z.object({ day: z.number().int().min(0), ids: z.array(z.string()).max(500) });
 const commentBody = z.object({ id: clientId, text: z.string().trim().min(1).max(2000) });
-const attachmentBody = z.object({ name: z.string().trim().min(1).max(255) });
+const attachmentBody = z.object({ name: z.string().trim().min(1).max(255), url: z.string().regex(/^\/api\/files\/[\w-]+$/) });
 
 @UseGuards(TripAccessGuard)
 @RequiresTripRole("member")
@@ -51,7 +53,7 @@ export class ItineraryController {
         await updateVersioned(tx.activity as never, { id, tripId }, expected, data);
       } else {
         const last = await tx.activity.aggregate({ where: { tripId, day: input.day }, _max: { position: true } });
-        await tx.activity.create({ data: { ...data, id, tripId, position: (last._max.position ?? -1) + 1, attachments: [] } });
+        await tx.activity.create({ data: { ...data, id, tripId, position: (last._max.position ?? -1) + 1 } });
         await notify({ kind: "itinerary", title: `Itinerary updated in ${tripName}`, body: `${input.title} added on day ${input.day + 1}`, link: `/app/trips/${tripId}/itinerary` });
       }
       await log(`${existing ? "updated" : "added"} “${input.title}” on day ${input.day + 1}`, "itinerary");
@@ -87,10 +89,11 @@ export class ItineraryController {
   @Post(":id/attachments")
   async attach(@Param("tripId") tripId: string, @Param("id") id: string, @Actor() actor: TripActor, @CurrentUser() user: User, @Body() body: unknown) {
     enforce(canContribute(actor));
-    const { name } = parse(attachmentBody, body);
+    const { name, url } = parse(attachmentBody, body);
     await this.writer.run(tripId, user.id, async ({ tx }) => {
-      const { count } = await tx.activity.updateMany({ where: { id, tripId }, data: { attachments: { push: name } } });
-      if (!count) throw new NotFoundException({ message: "This activity no longer exists" });
+      if (!(await tx.activity.count({ where: { id, tripId } }))) throw new NotFoundException({ message: "This activity no longer exists" });
+      await assertFile(tx, tripId, url, user.id);
+      await tx.activityAttachment.create({ data: { activityId: id, name, url } });
     });
     return { ok: true };
   }

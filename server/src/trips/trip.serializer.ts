@@ -8,7 +8,7 @@ const EVENT_WINDOW = 200;
 
 export const tripInclude = {
   members: { where: { status: { not: "removed" } }, include: { user: true }, orderBy: { joinedAt: "asc" } },
-  activities: { include: { comments: { orderBy: { at: "asc" } } }, orderBy: [{ day: "asc" }, { position: "asc" }, { createdAt: "asc" }] },
+  activities: { include: { comments: { orderBy: { at: "asc" } }, attachments: { orderBy: { createdAt: "asc" } } }, orderBy: [{ day: "asc" }, { position: "asc" }, { createdAt: "asc" }] },
   expenses: { include: { shares: true }, orderBy: { createdAt: "desc" } },
   settlements: { orderBy: { createdAt: "asc" } },
   tasks: { orderBy: { createdAt: "desc" } },
@@ -59,6 +59,7 @@ export function toTrip(t: TripRow, viewerId: string) {
     activities: t.activities.map((a) => ({
       id: a.id,
       day: a.day,
+      type: a.type,
       title: a.title,
       start: a.start,
       end: a.end,
@@ -67,7 +68,7 @@ export function toTrip(t: TripRow, viewerId: string) {
       cost: fromMinor(a.costMinor),
       notes: a.notes,
       assignees: a.assignees,
-      attachments: a.attachments,
+      attachments: a.attachments.map((f) => ({ name: f.name, url: undefIfNull(f.url) })),
       version: a.version,
       comments: a.comments.map((c) => ({ id: c.id, authorId: c.authorId, text: c.text, at: c.at.toISOString() })),
     })),
@@ -75,6 +76,7 @@ export function toTrip(t: TripRow, viewerId: string) {
       id: e.id,
       title: e.title,
       amount: fromMinor(e.amountMinor),
+      original: e.originalAmountMinor !== null && e.originalCurrency && e.fxRate ? { amount: fromMinor(e.originalAmountMinor), currency: e.originalCurrency, rate: e.fxRate } : undefined,
       category: e.category,
       paidBy: e.paidBy,
       date: dateString(e.date),
@@ -84,8 +86,8 @@ export function toTrip(t: TripRow, viewerId: string) {
       createdBy: e.createdById,
       shares: e.shares.map((s) => ({ memberId: s.memberId, amount: fromMinor(s.amountMinor) })),
     })),
-    settlements: t.settlements.map((s) => ({ id: s.id, from: s.from, to: s.to, amount: fromMinor(s.amountMinor), date: dateString(s.date) })),
-    tasks: t.tasks.map((k) => ({ id: k.id, title: k.title, description: k.description, assignee: k.assignee, due: dateString(k.due), priority: k.priority, done: k.done, version: k.version })),
+    settlements: t.settlements.map((s) => ({ id: s.id, from: s.from, to: s.to, amount: fromMinor(s.amountMinor), date: dateString(s.date), adjustment: s.isAdjustment })),
+    tasks: t.tasks.map((k) => ({ id: k.id, title: k.title, description: k.description, assignee: k.assignee, due: dateString(k.due), priority: k.priority, status: k.status, done: k.done, version: k.version })),
     // Enforced here rather than hidden in the UI: other people's personal lists never leave the server.
     packing: t.packing
       .filter((p) => p.scope === "shared" || p.assignee === viewerId)
