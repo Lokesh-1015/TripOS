@@ -273,9 +273,17 @@ function event(text: string, kind: string): TripEvent {
   return { id: uid("ev"), actorId: state.user.id, text, at: new Date().toISOString(), kind };
 }
 
+/** A reload that started before this write would undo it on screen, so replace it with a fresh one. */
+function supersedeStaleLoad() {
+  if (stateLoading) void loadState();
+}
+
 function saveUser(patch: Record<string, unknown>) {
   lastWrite = apiPatch("/me", patch).then(
-    () => true,
+    () => {
+      supersedeStaleLoad();
+      return true;
+    },
     (e) => {
       toast.error(apiErrorMessage(e));
       void loadState();
@@ -306,7 +314,15 @@ export const actions = {
   resendVerification: () => apiPost("/auth/resend-verification"),
   async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[] }) {
     await apiPatch("/me", { ...patch, onboarded: true });
-    await loadState();
+    // Apply this now: a reload may be overlapping (the live connection triggers one), and whichever
+    // loses gives up without waiting, so the next screen can't rely on awaiting it.
+    set({
+      ...state,
+      onboarded: true,
+      user: { ...state.user, name: patch.name },
+      settings: { ...state.settings, bio: patch.bio, currency: patch.currency, travelStyles: patch.travelStyles },
+    });
+    void loadState();
   },
   signOut() {
     disconnectSocket();
@@ -331,7 +347,10 @@ export const actions = {
   setSaved(saved: string[]) {
     set({ ...state, saved });
     lastWrite = apiPut("/me/saved", { saved }).then(
-      () => true,
+      () => {
+        supersedeStaleLoad();
+        return true;
+      },
       (e) => {
         toast.error(apiErrorMessage(e));
         void loadState();

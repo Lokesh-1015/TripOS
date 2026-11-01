@@ -201,3 +201,28 @@ test('a change made while a page is still connecting is not missed', async ({ br
   await a.context.close();
   await b.context.close();
 });
+
+test('finishing onboarding on a slow connection reaches the dashboard', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  // Real networks let the live connection's reload begin while the finish step's own reload is in flight.
+  await page.route('**/api/state', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.route('**/api/auth/realtime-ticket', async (route) => {
+    await new Promise((r) => setTimeout(r, 900));
+    await route.continue();
+  });
+  await page.goto('/signup');
+  await page.getByTestId('signup-name-input').fill('Slow Tester');
+  await page.getByTestId('signup-email-input').fill(`slow-${stamp}@example.test`);
+  await page.getByTestId('signup-password-input').fill('correct-horse');
+  await page.getByTestId('signup-submit-button').click();
+  await page.getByTestId('onboarding-next-button').click();
+  await page.getByTestId('onboarding-finish-button').click();
+  await expect(page.getByTestId('dashboard-welcome')).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(2500);
+  await expect(page.getByTestId('dashboard-welcome')).toBeVisible();
+  await context.close();
+});
