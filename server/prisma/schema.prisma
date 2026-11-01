@@ -1,0 +1,522 @@
+// Mirrors frontend/src/lib/types.ts: names and enum values match the UI's domain model.
+// Money is stored as integer minor units and converted at the API boundary (common/money.ts).
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  owner
+  admin
+  member
+  viewer
+}
+
+enum MemberStatus {
+  invited
+  active
+  removed
+}
+
+enum ExpenseCategory {
+  stay
+  food
+  transport
+  activities
+  shopping
+  other
+}
+
+enum SplitType {
+  equal
+  custom
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum PackingCategory {
+  clothing
+  toiletries
+  electronics
+  documents
+  medicines
+  essentials
+  misc
+}
+
+enum PackingScope {
+  personal
+  shared
+}
+
+enum DocCategory {
+  tickets
+  hotel
+  identity
+  insurance
+  bookings
+  emergency
+  other
+}
+
+enum Visibility {
+  shared
+  private
+}
+
+enum PlaceType {
+  destination
+  stay
+  food
+  activity
+  meetup
+}
+
+enum PollCategory {
+  destination
+  dates
+  activity
+  restaurant
+  hotel
+}
+
+enum MessageKind {
+  text
+  poll
+  location
+  image
+  file
+}
+
+enum PhotoKind {
+  photo
+  video
+}
+
+enum NotificationKind {
+  invite
+  message
+  task
+  expense
+  vote
+  itinerary
+  document
+}
+
+/// UI: Person + Settings. A null passwordHash is a placeholder created by an email invite;
+/// signing up with that email claims the row, so every trip reference stays valid.
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  avatar            String   @default("")
+  passwordHash      String?
+  onboarded         Boolean  @default(false)
+  bio               String   @default("")
+  currency          String   @default("INR")
+  travelStyles      String[]
+  notify            Json
+  privacy           Json
+  savedDestinations String[]
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+
+  sessions      Session[]
+  resetTokens   PasswordResetToken[]
+  memberships   TripMember[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @db.Timestamptz(6)
+  usedAt    DateTime? @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Trip {
+  id                   String   @id
+  name                 String
+  destination          String
+  description          String   @default("")
+  cover                String   @default("")
+  startDate            DateTime @db.Date
+  endDate              DateTime @db.Date
+  flexibleDates        Boolean  @default(false)
+  currency             String   @default("INR")
+  budgetMinor          Int      @default(0)
+  perPersonBudgetMinor Int      @default(0)
+  archived             Boolean  @default(false)
+  highlights           String[]
+  /// Stable secret behind the "anyone with the link" invite URL the UI always displays.
+  joinCode             String   @unique
+  version              Int      @default(1)
+  createdById          String
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+
+  members       TripMember[]
+  activities    Activity[]
+  expenses      Expense[]
+  settlements   Settlement[]
+  ledger        LedgerEntry[]
+  tasks         Task[]
+  packing       PackingItem[]
+  documents     TripDocument[]
+  places        Place[]
+  polls         Poll[]
+  messages      Message[]
+  photos        Photo[]
+  events        TripEvent[]
+  notifications Notification[]
+  files         StoredFile[]
+
+  @@map("trips")
+}
+
+/// Authorization root: every trip permission resolves to a row here.
+model TripMember {
+  tripId   String
+  trip     Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User         @relation(fields: [userId], references: [id])
+  role     Role         @default(member)
+  status   MemberStatus @default(active)
+  joinedAt DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@id([tripId, userId])
+  @@index([userId, status])
+  @@map("trip_members")
+}
+
+model Activity {
+  id          String   @id
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  day         Int
+  position    Int      @default(0)
+  title       String
+  start       String
+  end         String
+  location    String   @default("")
+  description String   @default("")
+  costMinor   Int      @default(0)
+  notes       String   @default("")
+  assignees   String[]
+  attachments String[]
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  comments ActivityComment[]
+
+  @@index([tripId, day, position])
+  @@map("activities")
+}
+
+model ActivityComment {
+  id         String   @id
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  authorId   String
+  text       String
+  at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([activityId, at])
+  @@map("activity_comments")
+}
+
+model Expense {
+  id          String          @id
+  tripId      String
+  trip        Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  title       String
+  amountMinor Int
+  category    ExpenseCategory
+  paidBy      String
+  date        DateTime        @db.Date
+  splitType   SplitType
+  notes       String          @default("")
+  createdById String
+  version     Int             @default(1)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
+
+  shares ExpenseShare[]
+
+  @@index([tripId, date])
+  @@map("expenses")
+}
+
+model ExpenseShare {
+  expenseId   String
+  expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId    String
+  amountMinor Int
+
+  @@id([expenseId, memberId])
+  @@map("expense_shares")
+}
+
+model Settlement {
+  id          String   @id
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  from        String
+  to          String
+  amountMinor Int
+  date        DateTime @db.Date
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tripId])
+  @@map("settlements")
+}
+
+/// Append-only. Edits and deletes write reversing rows; balances are SUM(amountMinor) per member.
+model LedgerEntry {
+  id          String   @id @default(cuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  memberId    String
+  amountMinor Int
+  sourceType  String
+  sourceId    String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tripId, memberId])
+  @@index([sourceType, sourceId])
+  @@map("ledger_entries")
+}
+
+model Task {
+  id          String   @id
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @default("")
+  assignee    String
+  due         DateTime @db.Date
+  priority    Priority @default(medium)
+  done        Boolean  @default(false)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([tripId])
+  @@index([assignee, done])
+  @@map("tasks")
+}
+
+model PackingItem {
+  id        String          @id
+  tripId    String
+  trip      Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  name      String
+  category  PackingCategory
+  qty       Int             @default(1)
+  scope     PackingScope
+  assignee  String
+  packed    Boolean         @default(false)
+  version   Int             @default(1)
+  createdAt DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(6)
+
+  @@index([tripId])
+  @@map("packing_items")
+}
+
+/// Bytes live in the storage driver; a private file is readable only by its uploader.
+model StoredFile {
+  id         String     @id @default(cuid())
+  tripId     String?
+  trip       Trip?      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  uploadedBy String
+  storageKey String     @unique
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  /// Avatars and trip covers appear on the public join page.
+  isPublic   Boolean    @default(false)
+  visibility Visibility @default(shared)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@index([tripId])
+  @@map("files")
+}
+
+model TripDocument {
+  id         String      @id
+  tripId     String
+  trip       Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  name       String
+  category   DocCategory
+  fileType   String
+  size       String
+  uploadedBy String
+  uploadedAt DateTime    @db.Date
+  visibility Visibility  @default(shared)
+  fileId     String?
+
+  @@index([tripId, visibility])
+  @@map("documents")
+}
+
+model Place {
+  id        String    @id
+  tripId    String
+  trip      Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  name      String
+  type      PlaceType
+  x         Float
+  y         Float
+  address   String    @default("")
+  note      String    @default("")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([tripId])
+  @@map("places")
+}
+
+model Poll {
+  id        String       @id
+  tripId    String
+  trip      Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  question  String
+  category  PollCategory
+  closed    Boolean      @default(false)
+  createdBy String
+  createdAt DateTime     @default(now()) @db.Timestamptz(6)
+
+  options PollOption[]
+  votes   Vote[]
+
+  @@index([tripId, createdAt])
+  @@map("polls")
+}
+
+model PollOption {
+  id          String  @id
+  pollId      String
+  poll        Poll    @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label       String
+  image       String?
+  description String?
+  costMinor   Int?
+  position    Int     @default(0)
+
+  votes Vote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+/// One vote per member per poll: the UI's polls are single choice.
+model Vote {
+  pollId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId   String
+  at       DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@id([pollId, userId])
+  @@index([optionId])
+  @@map("votes")
+}
+
+model Message {
+  id       String      @id
+  tripId   String
+  trip     Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  authorId String
+  text     String      @default("")
+  at       DateTime    @default(now()) @db.Timestamptz(6)
+  kind     MessageKind @default(text)
+  pollId   String?
+  placeId  String?
+  imageUrl String?
+  fileName String?
+  fileUrl  String?
+  pinned   Boolean     @default(false)
+
+  @@index([tripId, at, id])
+  @@map("messages")
+}
+
+model Photo {
+  id       String    @id
+  tripId   String
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  url      String
+  caption  String    @default("")
+  authorId String
+  day      Int       @default(0)
+  album    String    @default("Uploads")
+  kind     PhotoKind @default(photo)
+  at       DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([tripId, day])
+  @@map("photos")
+}
+
+/// Append-only activity feed, written by the server so actors and text can't be forged.
+model TripEvent {
+  id      String   @id @default(cuid())
+  tripId  String
+  trip    Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  actorId String
+  text    String
+  kind    String
+  at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tripId, at, id])
+  @@map("trip_events")
+}
+
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId String?
+  trip   Trip?            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  kind   NotificationKind
+  title  String
+  body   String           @default("")
+  at     DateTime         @default(now()) @db.Timestamptz(6)
+  read   Boolean          @default(false)
+  link   String?
+
+  @@index([userId, at])
+  @@map("notifications")
+}

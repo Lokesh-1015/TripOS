@@ -1,0 +1,205 @@
+{
+  "theme": {
+    "mode": "light",
+    "description": "Premium, calm, organic-modern travel workspace with deep forest green, soft sage, warm off-white and refined coral accents. Natural, organized, Notion+Linear aesthetic."
+  },
+  "colors": {
+    "surfaces": [
+      {
+        "name": "page",
+        "kind": "solid",
+        "bg": "#F8F8F5",
+        "on_bg": "#202824",
+        "on_bg_muted": "#5F6A65",
+        "roles": {
+          "link": "#174C3C",
+          "error": "#D93829",
+          "success": "#1E7B58",
+          "warning": "#C46B10"
+        }
+      },
+      {
+        "name": "surface",
+        "kind": "solid",
+        "bg": "#FFFFFF",
+        "on_bg": "#202824",
+        "on_bg_muted": "#5F6A65",
+        "roles": {
+          "border": "#E5E9E4",
+          "hover": "#F2F6F3"
+        }
+      },
+      {
+        "name": "sidebar",
+        "kind": "solid",
+        "bg": "#12372C",
+        "on_bg": "#FFFFFF",
+        "on_bg_muted": "#A2BEB4",
+        "roles": {
+          "active_item_bg": "#1E5242",
+          "badge_bg": "#F28B68",
+          "badge_text": "#FFFFFF"
+        }
+      },
+      {
+        "name": "sage_subtle",
+        "kind": "solid",
+        "bg": "#E7EFE9",
+        "on_bg": "#174C3C",
+        "on_bg_muted": "#3D6E5D"
+      },
+      {
+        "name": "accent_pill",
+        "kind": "solid",
+        "bg": "#F28B68",
+        "on_bg": "#FFFFFF",
+        "on_bg_muted": "#FFF0EA"
+      },
+      {
+        "name": "hero",
+        "kind": "image",
+        "contrast_against": "#122A22",
+        "guarantee": "scrim: linear-gradient(180deg, rgba(18, 42, 34, 0.75) 0%, rgba(18, 42, 34, 0.85) 100%)",
+        "on_bg": "#FFFFFF",
+        "on_bg_muted": "#D2E2DB",
+        "roles": {
+          "link": "#F28B68",
+          "error": "#FF8F85",
+          "success": "#7CE5B7"
+        }
+      }
+    ],
+    "primary": "#174C3C",
+    "primary_hover": "#1E5E4B",
+    "accent": "#F28B68",
+    "on_accent": "#FFFFFF",
+    "border_subtle": "#E5E9E4",
+    "border_focus": "#174C3C"
+  },
+  "typography": {
+    "font_family_heading": "Plus Jakarta Sans Variable, sans-serif",
+    "font_family_body": "Plus Jakarta Sans Variable, sans-serif",
+    "font_family_mono": "Geist Mono Variable, monospace",
+    "css_import": "@import \"@fontsource-variable/plus-jakarta-sans\"; @import \"@fontsource-variable/geist-mono\";",
+    "scale_px": {
+      "display": 56,
+      "h1": 40,
+      "h2": 30,
+      "h3": 22,
+      "h4": 18,
+      "body": 15,
+      "caption": 13
+    },
+    "letter_spacing": {
+      "display": "-0.03em",
+      "heading": "-0.02em",
+      "overline": "0.15em",
+      "body": "0.005em"
+    }
+  },
+  "entry_surfaces": {
+    "/": "split hero landing — bold brand value + interactive travel preview left, live interactive interactive trip card & quick action right",
+    "/login": "split auth — brand positioning with trip stats panel left, clean login card right",
+    "/signup": "split auth — workspace onboarding preview left, clean multi-step registration form right",
+    "/app": "sidebar-driven command workspace — collapsible dark forest sidebar left, responsive multi-tab trip canvas right"
+  },
+  "layouts": {
+    "desktop": {
+      "type": "sidebar_canvas",
+      "sidebar_width": "260px",
+      "canvas_max_width": "1440px",
+      "content_padding": "p-6 lg:p-8"
+    },
+    "mobile": {
+      "type": "bottom_nav_sheet",
+      "nav_height": "64px",
+      "content_padding": "p-4"
+    },
+    "border_radius": {
+      "cards": "rounded-2xl",
+      "buttons": "rounded-xl",
+      "inputs": "rounded-xl",
+      "chips": "rounded-full"
+    }
+  },
+  "motion": {
+    "standard_transition": "transition-all duration-200 ease-out",
+    "modal_animation": "animate-in fade-in-50 zoom-in-95 duration-200",
+    "tab_transition": "transition-opacity duration-150 ease-in-out"
+  },
+  "accessibility": {
+    "contrast_standard": "WCAG AA (minimum 4.5:1 for body copy on both page and sidebar)",
+    "data_testid_convention": "kebab-case functional identifiers on every button, input, tab, poll option, expense row, and modal action"
+  },
+  "image_urls": {
+    "destinations": [
+      {
+        "id": "manali",
+        "title": "Manali Snow Adventure",
+        "location": "Himachal Pradesh, India",
+        "image_url": "https://images.unsplash.com/photo-1597167231350-d057a45dc868?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwxfHxtYW5hbGklMjBtb3VudGFpbnMlMjBzbm93fGVufDB8fHx8MTc5MzUzOTk0Nnww&ixlib=rb-4.1.0&q=85",
+        "category": "mountains_adventure",
+        "recommended_for": "Hero banner, Upcoming trip card, Itinerary header"
+      },
+      {
+        "id": "goa",
+        "title": "Goa Beach & Sunsets",
+        "location": "Goa, India",
+        "image_url": "https://images.unsplash.com/photo-1614082242765-7c98ca0f3df3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxnb2ElMjBiZWFjaCUyMHBhbG1zfGVufDB8fHx8MTc5MzUzOTk0Nnww&ixlib=rb-4.1.0&q=85",
+        "category": "beach_leisure",
+        "recommended_for": "Completed trip card, Trip replay scrapbook"
+      },
+      {
+        "id": "udaipur",
+        "title": "Rajasthan Heritage Road Trip",
+        "location": "Udaipur & Jodhpur, Rajasthan",
+        "image_url": "https://images.unsplash.com/photo-1695956353120-54ce5e91632b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwxfHxyYWphc3RoYW4lMjBwYWxhY2UlMjB1ZGFpcHVyfGVufDB8fHx8MTc5MzUzOTk0Nnww&ixlib=rb-4.1.0&q=85",
+        "category": "heritage_culture",
+        "recommended_for": "Completed trip card, Gallery memories"
+      },
+      {
+        "id": "manali_trek",
+        "title": "Solang Valley Ridge",
+        "location": "Manali, India",
+        "image_url": "https://images.unsplash.com/photo-1619344901057-d4dbeced24af?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwzfHxtYW5hbGklMjBtb3VudGFpbnMlMjBzbm93fGVufDB8fHx8MTc5MzUzOTk0Nnww&ixlib=rb-4.1.0&q=85",
+        "category": "trekking",
+        "recommended_for": "Activity card in Itinerary"
+      },
+      {
+        "id": "rajasthan_lake_palace",
+        "title": "Lake Pichola Palace",
+        "location": "Udaipur, India",
+        "image_url": "https://images.unsplash.com/photo-1633702738734-443da2c18f3c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwzfHxyYWphc3RoYW4lMjBwYWxhY2UlMjB1ZGFpcHVyfGVufDB8fHx8MTc5MzUzOTk0Nnww&ixlib=rb-4.1.0&q=85",
+        "category": "heritage_palace",
+        "recommended_for": "Trip memories photo album"
+      }
+    ],
+    "avatars": [
+      {
+        "name": "Aarav Sharma",
+        "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=srgb&fm=jpg&w=150&h=150&fit=crop"
+      },
+      {
+        "name": "Priya Nair",
+        "avatar_url": "https://images.unsplash.com/photo-1517841905240-472988babdf9?crop=entropy&cs=srgb&fm=jpg&w=150&h=150&fit=crop"
+      },
+      {
+        "name": "Rohan Mehta",
+        "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=srgb&fm=jpg&w=150&h=150&fit=crop"
+      },
+      {
+        "name": "Ananya Joshi",
+        "avatar_url": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?crop=entropy&cs=srgb&fm=jpg&w=150&h=150&fit=crop"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Locale & Currency: Default currency is INR (₹). Use Indian numbering format (e.g. ₹42,500) and DD MMM YYYY dates.",
+    "Navigation Structure: Provide persistent desktop left sidebar in rich dark forest (#12372C) and a sticky bottom navigation on mobile viewport.",
+    "Trip Workspace Tabs: Must include Overview, Itinerary (timeline reorder & day breakdown), Expenses (Splitwise style math with settlement algorithm + category chart), Tasks (Kanban/List with assignees), Packing (categorized checklist with personal/shared tabs), Documents (secure travel vault with simulated download/upload preview), Map (interactive mockup with pinned food, stay & activities), Chat (threaded group discussion + quick polls), Memories (photo grid + Trip Replay scrapbook modal).",
+    "Interactive Voting Polls: Add poll creator and live voting widgets in the Overview & Chat tabs.",
+    "Expense Settlement: Calculate 'Who owes Whom' with a 1-click 'Settle Up' dialog.",
+    "Data Persistence: Utilize LocalStorage with robust default seed datasets (Manali Adventure, Goa Weekend, Rajasthan Road Trip) so the app is instantly populated and fully editable.",
+    "Every clickable or testable element must carry data-testid='...' for verification."
+  ]
+}

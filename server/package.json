@@ -1,0 +1,48 @@
+{
+  "name": "tripos-server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "db:up": "docker compose -f ../docker-compose.yml up -d --wait postgres",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.3.2",
+    "@nestjs/config": "^12.0.1",
+    "@nestjs/core": "^12.3.2",
+    "@nestjs/platform-express": "^12.3.2",
+    "@nestjs/platform-socket.io": "^12.3.2",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^12.3.2",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "cookie": "^2.0.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^18.0.9",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.11",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "prisma": "7.10.1",
+    "socket.io-client": "^4.8.4",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "type": "module"
+}

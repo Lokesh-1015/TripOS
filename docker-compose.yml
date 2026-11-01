@@ -1,0 +1,23 @@
+# Local development database. Bound to loopback; port 5434 avoids the Postgres installs on 5432/5433.
+# Project name stays distinct: "tripos" belongs to an older project's volumes, which compose would reattach.
+name: tripos-new
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tripos
+      POSTGRES_PASSWORD: tripos_dev
+      POSTGRES_DB: tripos
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tripos -d tripos"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
