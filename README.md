@@ -68,6 +68,32 @@ npx playwright test --project=desktop
 
 CI runs all of this on every push to `main` and on every pull request.
 
+## Deployment
+
+| Part | Where | Address |
+|---|---|---|
+| Frontend | Vercel, project `tripos`, deploys from `main` | https://tripos-travel.vercel.app |
+| Backend | Render, service `tripos-api`, deploys from `main` | https://tripos-api-z0ux.onrender.com |
+| Database | Render Postgres `tripos-db` | Internal to Render |
+
+How they connect:
+
+- **API calls:** `frontend/vercel.json` forwards `/api` to Render, so the login cookie stays first-party on the frontend's domain.
+- **Live updates:** Vercel can't carry a socket, so the browser connects straight to Render (`VITE_SOCKET_URL`) and proves who it is with a short-lived ticket from `/api/auth/realtime-ticket`.
+- **Render settings:** `DATABASE_URL`, `APP_URL`, `CORS_ORIGINS`, `NODE_ENV=production`, `NODE_VERSION`. Add `SMTP_URL` and `MAIL_FROM` to turn on email.
+
+Render build command:
+
+```bash
+cd server && NODE_ENV=development npx --yes pnpm@11.17.0 install --frozen-lockfile && ./node_modules/.bin/prisma generate && ./node_modules/.bin/nest build
+```
+
+Render start command, which also applies migrations:
+
+```bash
+cd server && ./node_modules/.bin/prisma migrate deploy && node dist/main.js
+```
+
 ## Documentation
 
 - [Data model and API](docs/data-model-and-api.md): schema, routes, permissions and live updates

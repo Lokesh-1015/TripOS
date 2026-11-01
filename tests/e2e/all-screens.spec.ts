@@ -150,6 +150,7 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
     await page.getByTestId('trip-edit-button').click();
     await page.getByTestId('edit-trip-name-input').fill('Everything Trip Renamed');
     await page.getByTestId('edit-trip-save-button').click();
+    await page.locator('[data-sonner-toast]', { hasText: 'Trip details saved' }).waitFor();
     await page.reload();
     await expect(page.getByTestId('trip-header-name')).toHaveText('Everything Trip Renamed');
     await page.getByTestId('trip-more-menu-button').click();

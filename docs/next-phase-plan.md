@@ -7,9 +7,9 @@
 | Milestone | Status |
 |---|---|
 | 1. Version control and CI | **Done.** Code is at `Lokesh-1015/TripOS`, and CI runs every test on each push. |
-| 2. Real email and verified accounts | **Built and tested locally.** Needs a production email provider and domain. |
-| 3. Production file storage | Next |
-| 4. Deployment | Not started |
+| 2. Real email and verified accounts | **Built and tested locally.** Off in production until an email provider is connected. |
+| 3. Production file storage | **Interim.** Files live in Postgres and survive restarts, but R2 is still needed. |
+| 4. Deployment | **Live on free plans:** https://tripos-travel.vercel.app. Needs paid plans and a custom domain before real groups rely on it. |
 | 5. Reliability and monitoring | Not started |
 | 6. Trust and legal | Not started |
 | 7. Measure the beta | Not started |
@@ -18,19 +18,20 @@
 ## Next phase, in order
 
 ### A. Production file storage (M), launch blocker
-Files sit on one machine's disk and would be lost on redeploy.
+Files are in Postgres for now, which uses up the small free database quickly.
 - Move file storage to Cloudflare R2 behind the existing `FileStorage` class, with short-lived signed links.
 - Strip location data from uploaded photos, because holiday photos reveal where people are staying.
 - Check file types by content rather than trusting the browser, and set storage limits per trip.
 
 **Done when:** files survive a redeploy, and an uploaded photo no longer carries GPS data.
 
-### B. Deployment (M), launch blocker
-- Host the frontend on Vercel, and the API and live updates on Railway or Render. Vercel can't hold open the connections live updates need.
-- Use `app.` and `api.` subdomains on one domain, so the login cookie works across them. This needs a configurable API address in the frontend.
-- Use managed Postgres with automatic backups, and test a restore once.
-- Apply database migrations automatically on deploy, with secure cookies and exact allowed origins.
+### B. Production-grade hosting (M), launch blocker
+The app is deployed on free plans. Before real groups rely on it:
+- Move the database to a paid plan with automatic backups, and test a restore once. **The free database expires on 1 December 2026.**
+- Move the backend to a paid plan, so it doesn't sleep after 15 idle minutes.
+- Connect a custom domain.
 - Connect the production email provider, with SPF and DKIM set up so mail doesn't land in spam.
+- Review Vercel's plan: Hobby is for non-commercial use.
 
 **Done when:** two people on different networks sign up from a real email, and plan a trip together on the live site.
 
@@ -83,4 +84,4 @@ Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is 
 | Domain name | Yours to choose | B |
 | Email provider | Resend, using its SMTP settings in `SMTP_URL` | B |
 | File storage account | Cloudflare R2, as the PRD says | A |
-| Backend host | Railway, as the PRD suggests | B |
+| Paid hosting | Render's starter plans for the backend and database | B, before 1 December 2026 |
