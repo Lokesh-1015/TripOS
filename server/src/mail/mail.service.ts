@@ -3,9 +3,9 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import nodemailer from "nodemailer";
 
-const RESEND_URL = "https://api.resend.com/emails";
-const RESEND_ATTEMPTS = 3;
-const RESEND_TIMEOUT_MS = 10_000;
+const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
+const BREVO_ATTEMPTS = 3;
+const BREVO_TIMEOUT_MS = 10_000;
 
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
@@ -25,29 +25,42 @@ interface Message {
   html: string;
 }
 
+/** "TripOS <hello@example.org>" as the name and address Brevo asks for separately. */
+function parseSender(from: string) {
+  const match = from.match(/^\s*(.*?)\s*<(.+)>\s*$/);
+  return match ? { name: match[1] || undefined, email: match[2] } : { email: from.trim() };
+}
+
 /**
  * Retries rate limits, provider errors and network failures, which is what a burst of trip invites
  * or a brief outage looks like. The key stops a retry sending twice if the first attempt got through.
  */
-async function sendWithResend(apiKey: string, message: Message) {
+async function sendWithBrevo(apiKey: string, message: Message) {
   const idempotencyKey = randomUUID();
   for (let attempt = 1; ; attempt++) {
     let failure: string;
     let retryable = true;
     try {
-      const res = await fetch(RESEND_URL, {
+      const res = await fetch(BREVO_URL, {
         method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
-        body: JSON.stringify(message),
-        signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
+        headers: { "api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: parseSender(message.from),
+          to: [{ email: message.to }],
+          subject: message.subject,
+          textContent: message.text,
+          htmlContent: message.html,
+          headers: { IdempotencyKey: idempotencyKey },
+        }),
+        signal: AbortSignal.timeout(BREVO_TIMEOUT_MS),
       });
       if (res.ok) return;
-      failure = `Resend answered ${res.status}: ${(await res.text()).slice(0, 300)}`;
+      failure = `Brevo answered ${res.status}: ${(await res.text()).slice(0, 300)}`;
       retryable = res.status === 429 || res.status >= 500;
     } catch (err) {
-      failure = `Resend couldn't be reached: ${err instanceof Error ? err.message : String(err)}`;
+      failure = `Brevo couldn't be reached: ${err instanceof Error ? err.message : String(err)}`;
     }
-    if (!retryable || attempt === RESEND_ATTEMPTS) throw new Error(failure);
+    if (!retryable || attempt === BREVO_ATTEMPTS) throw new Error(failure);
     await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
   }
 }
@@ -63,7 +76,7 @@ ${body}
 }
 
 /**
- * Sends through Resend's HTTPS API when RESEND_API_KEY is set, because Render's free plan blocks SMTP
+ * Sends through Brevo's HTTPS API when BREVO_API_KEY is set, because Render's free plan blocks SMTP
  * ports. Otherwise it uses SMTP_URL, which is how Mailpit catches mail locally. Sending happens after
  * the database commit and a failure only logs: a mail outage must not undo a signup or an invite, and
  * both can be sent again.
@@ -76,16 +89,16 @@ export class MailService {
   private readonly appUrl: string;
 
   constructor(config: ConfigService) {
-    const apiKey = config.get<string>("RESEND_API_KEY");
+    const apiKey = config.get<string>("BREVO_API_KEY");
     const smtpUrl = config.get<string>("SMTP_URL");
     if (apiKey) {
-      this.deliver = (message) => sendWithResend(apiKey, message);
+      this.deliver = (message) => sendWithBrevo(apiKey, message);
     } else if (smtpUrl) {
       const transport = nodemailer.createTransport(smtpUrl);
       this.deliver = (message) => transport.sendMail(message);
     } else {
       this.deliver = null;
-      this.logger.warn("Neither RESEND_API_KEY nor SMTP_URL is set: no emails will be sent, so email invites and password resets are off");
+      this.logger.warn("Neither BREVO_API_KEY nor SMTP_URL is set: no emails will be sent, so email invites and password resets are off");
     }
     this.from = config.get<string>("MAIL_FROM", "TripOS <hello@tripos.local>");
     this.appUrl = config.get<string>("APP_URL", "http://localhost:3000");

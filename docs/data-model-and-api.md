@@ -39,7 +39,7 @@ Nobody but the uploader can see a private document, including admins.
 
 ## Email and verified accounts
 
-Production mail goes through Resend's HTTPS API (`RESEND_API_KEY`), because Render's free plan blocks SMTP ports. Failed sends are retried up to three times while the server is running. Without that key, mail goes over `SMTP_URL`; locally, Mailpit catches everything at http://localhost:8025.
+Production mail goes through Brevo's HTTPS API (`BREVO_API_KEY`), because Render's free plan blocks SMTP ports. Failed sends are retried up to three times while the server is running. Without that key, mail goes over `SMTP_URL`; locally, Mailpit catches everything at http://localhost:8025.
 
 | Rule | Why |
 |---|---|

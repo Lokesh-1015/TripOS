@@ -7,7 +7,7 @@
 | Milestone | Status |
 |---|---|
 | 1. Version control and CI | **Done.** Code is at `Lokesh-1015/TripOS`, and CI runs every test on each push. |
-| 2. Real email and verified accounts | **Built and tested locally, with Resend sending ready.** Off in production until a domain is verified and `RESEND_API_KEY` is set. |
+| 2. Real email and verified accounts | **Built and tested locally, with Brevo sending ready.** Uses a Gmail sender, so mail may land in spam until a domain is connected. |
 | 3. Production file storage | **Interim.** Files live in Postgres and survive restarts, but R2 is still needed. |
 | 4. Deployment | **Live on free plans:** https://tripos-travel.vercel.app. Needs paid plans and a custom domain before real groups rely on it. |
 | 5. Reliability and monitoring | Not started |
@@ -30,7 +30,7 @@ The app is deployed on free plans. Before real groups rely on it:
 - Move the database to a paid plan with automatic backups, and test a restore once. **The free database expires on 1 December 2026.**
 - Move the backend to a paid plan, so it doesn't sleep after 15 idle minutes.
 - Connect a custom domain.
-- Verify the email domain in Resend, with SPF and DKIM set up so mail doesn't land in spam, and set `RESEND_API_KEY` and `MAIL_FROM` on Render.
+- Authenticate a domain in Brevo, with SPF, DKIM and DMARC set up so mail doesn't land in spam, and change `MAIL_FROM` on Render to use it.
 - Review Vercel's plan: Hobby is for non-commercial use.
 
 **Done when:** two people on different networks sign up from a real email, and plan a trip together on the live site.
@@ -82,6 +82,6 @@ Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is 
 |---|---|---|
 | Should the repository stay public? | Make it private until launch: the PRD and all code are readable by anyone | Now |
 | Domain name | Yours to choose | B |
-| Email domain | Verify a domain or subdomain in Resend, which is needed to email anyone but yourself | B |
+| Email domain | Authenticate a domain in Brevo. Sending from Gmail works without one, but Brevo replaces the sender address and more mail may land in spam | B |
 | File storage account | Cloudflare R2, as the PRD says | A |
 | Paid hosting | Render's starter plans for the backend and database | B, before 1 December 2026 |
