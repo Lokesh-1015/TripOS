@@ -39,6 +39,11 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.server?.to(tripRoom(tripId)).emit("trip:changed", { tripId });
   }
 
+  /** Says only that something changed: members fetch positions through their membership check. */
+  locationsChanged(tripId: string) {
+    this.server?.to(tripRoom(tripId)).emit("locations:changed", { tripId });
+  }
+
   notificationsChanged(userIds: string[]) {
     if (userIds.length) this.server?.to(userIds.map(userRoom)).emit("notifications:changed");
   }

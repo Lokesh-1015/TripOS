@@ -105,7 +105,7 @@ export function toTrip(t: TripRow, viewerId: string) {
         visibility: d.visibility,
         dataUrl: d.fileId ? fileUrl(d.fileId) : undefined,
       })),
-    places: t.places.map((p) => ({ id: p.id, name: p.name, type: p.type, x: p.x, y: p.y, address: p.address, note: p.note, version: p.version })),
+    places: t.places.map((p) => ({ id: p.id, name: p.name, type: p.type, lat: p.lat ?? undefined, lng: p.lng ?? undefined, address: p.address, note: p.note, version: p.version })),
     polls: t.polls.map((p) => ({
       id: p.id,
       question: p.question,

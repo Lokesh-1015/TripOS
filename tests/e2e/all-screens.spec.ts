@@ -10,6 +10,9 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
   test.setTimeout(120_000);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
+  // An empty map style, so this doesn't depend on the tile service. maps-and-live-location.spec.ts covers the map.
+  await page.route('**/tiles.openfreemap.org/**', (route) => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }));
+  await page.route('**/api/places/search*', (route) => route.fulfill({ json: [] }));
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -117,7 +120,8 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
   await test.step('map: a saved place persists', async () => {
     await page.goto(`${tripUrl}/map`);
     await page.getByTestId('map-add-place-button').click();
-    await page.getByTestId('illustrated-map').click({ position: { x: 200, y: 200 } });
+    await expect(page.getByTestId('trip-map')).toHaveAttribute('data-map-ready', 'true', { timeout: 30_000 });
+    await page.getByTestId('trip-map').click({ position: { x: 200, y: 200 } });
     await page.getByTestId('place-name-input').fill('Houseboat jetty');
     await page.getByTestId('place-save-button').click();
     await expect(page.getByTestId('map-places-list')).toContainText('Houseboat jetty');

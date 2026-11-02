@@ -33,8 +33,8 @@ const packingBody = z.object({
 const placeBody = z.object({
   name: shortText.min(2),
   type: z.enum(["destination", "stay", "food", "activity", "meetup"]),
-  x: z.number().min(0).max(100),
-  y: z.number().min(0).max(100),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
   address: shortText.default(""),
   note: shortText.default(""),
   version,

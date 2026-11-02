@@ -65,6 +65,16 @@ export default defineConfig(async () => {
           navigateFallback: "/index.html",
           // The API is never cached by the service worker: private data only goes where lib/offline.ts puts it.
           navigateFallbackDenylist: [/^\/api\//],
+          // Map areas someone has looked at stay available with no signal.
+          runtimeCaching: [{
+            urlPattern: /^https:\/\/tiles\.openfreemap\.org\//,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "map-tiles",
+              expiration: { maxEntries: 800, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          }],
         },
       }),
       ...(visualEditsDisabled ? [] : [visualEdits()]),
@@ -103,6 +113,7 @@ export default defineConfig(async () => {
         "date-fns",
         "@icons-pack/react-simple-icons",
         "lucide-react-upstream",
+        "maplibre-gl",
         "motion/react",
         "next-themes",
         "react",

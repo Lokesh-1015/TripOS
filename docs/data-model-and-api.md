@@ -37,6 +37,16 @@ Screens read through `useApp` and write through `actions` in `frontend/src/lib/s
 
 Nobody but the uploader can see a private document, including admins.
 
+## Live location
+
+| Rule | Why |
+|---|---|
+| Off until someone chooses to share, per trip, for 1, 4 or 8 hours | It's opt-in and always ends by itself |
+| One row per person per trip, holding only the latest position | There's no history to leak |
+| Deleted on stop, expiry, sign-out, leaving the trip, or turning off the privacy setting | Nothing is left behind. Expired rows go on the next request, as a background job would keep the free database awake |
+| Visible to active members only, fetched through the membership check | Sockets only announce that something changed |
+| Left out of the trip data and the offline copy on the device | A position never lands somewhere it can outlive sharing |
+
 ## Email and verified accounts
 
 Production mail goes through Brevo's HTTPS API (`BREVO_API_KEY`), because Render's free plan blocks SMTP ports. Failed sends are retried up to three times while the server is running. Without that key, mail goes over `SMTP_URL`; locally, Mailpit catches everything at http://localhost:8025.
@@ -115,6 +125,13 @@ PUT    /trips/:tripId/settlements/:id
 GET    /trips/:tripId/balances
 POST   /trips/:tripId/convert-currency      admin or owner; { currency, rate }
 GET    /exchange-rates                      signed in; today's rates against USD, cached for 6 hours
+GET    /places/search?q=&lat=&lng=          signed in; finds places through Photon, cached for a day
+GET    /trips/:tripId/live-locations        active members; who is sharing and where
+PUT    /trips/:tripId/live-locations/me     active members; start sharing { lat, lng, accuracy, hours: 1 | 4 | 8 }
+PATCH  /trips/:tripId/live-locations/me     the sharer; new position { lat, lng, accuracy }. Can't extend the end time
+DELETE /trips/:tripId/live-locations/me     the sharer; stop and delete the position
+GET    /live-locations/mine                 signed in; the trips you're sharing with
+DELETE /live-locations/mine                 signed in; stop sharing everywhere, as signing out does
 
 PUT    /trips/:tripId/tasks/:id
 DELETE /trips/:tripId/tasks/:id

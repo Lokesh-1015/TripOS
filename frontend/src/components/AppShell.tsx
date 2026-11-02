@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
+import LiveLocationBanner from "@/components/LiveLocationBanner";
 import { actions, useApp } from "@/lib/store";
 import { Avatar, Logo } from "@/components/common";
 import { NotificationsBell } from "@/components/Notifications";
@@ -180,6 +181,7 @@ export default function AppShell() {
           </header>
 
           {offline && <p className="bg-coral-soft px-4 py-2 text-center text-sm font-medium text-[#8A3B22]" role="status" data-testid="offline-banner">{offlineCopy ? "You're offline, viewing what was last saved on this device." : "You're offline."} Your changes will be saved when you reconnect, so keep this app open.</p>}
+          <LiveLocationBanner />
           {!emailVerified && emailEnabled && (
             <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-sage px-4 py-2 text-center text-sm text-forest" role="status" data-testid="verify-email-banner">
               <span>Check {email} for a link to verify your email. You'll need it to accept or send email invites.</span>

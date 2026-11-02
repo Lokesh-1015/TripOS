@@ -95,6 +95,10 @@ Render start command, which also applies migrations:
 cd server && ./node_modules/.bin/prisma migrate deploy && node dist/main.js
 ```
 
+## Maps
+
+Maps need no keys or accounts: [MapLibre](https://maplibre.org) draws them, [OpenFreeMap](https://openfreemap.org) serves the tiles, and the backend searches places through [Photon](https://photon.komoot.io).
+
 ## Installable app and offline access
 
 The service worker only runs in a built app, so to try it or test it:

@@ -13,7 +13,7 @@ import { uid } from "@/lib/format";
 import type { Message, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NewPollDialog, PollCard } from "./OverviewTab";
-import { PLACE_META } from "./MapTab";
+import { PLACE_META } from "./placeMeta";
 
 export default function ChatTab({ trip }: { trip: Trip }) {
   const { me, canContribute } = useTripAccess(trip);

@@ -11,11 +11,14 @@ import { FilesController } from "./files/files.controller.js";
 import { HealthController } from "./health/health.controller.js";
 import { MailService } from "./mail/mail.service.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
+import { PlaceSearchController } from "./places/place-search.controller.js";
+import { PlaceSearchService } from "./places/place-search.service.js";
 import { RatesController } from "./rates/rates.controller.js";
 import { RatesService } from "./rates/rates.service.js";
 import { RealtimeGateway } from "./realtime/realtime.gateway.js";
 import { ExpensesController } from "./trips/expenses.controller.js";
 import { ItineraryController } from "./trips/itinerary.controller.js";
+import { LiveLocationController } from "./trips/live-location.controller.js";
 import { PlanningController } from "./trips/planning.controller.js";
 import { PollsController } from "./trips/polls.controller.js";
 import { SharingController } from "./trips/sharing.controller.js";
@@ -42,7 +45,9 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     SharingController,
     FilesController,
     RatesController,
+    PlaceSearchController,
+    LiveLocationController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, RatesService, TripAccessGuard, RealtimeGateway, TripWriter],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, RatesService, PlaceSearchService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

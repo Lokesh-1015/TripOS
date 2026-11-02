@@ -107,7 +107,9 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
   const [err, setErr] = useState<Record<string, string>>({});
   useEffect(() => {
     if (open) setF({ name: trip.name, destination: trip.destination, description: trip.description, startDate: trip.startDate, endDate: trip.endDate, budget: String(trip.budget || ""), currency: trip.currency });
-  }, [open, trip]);
+    // Only when it opens: a live update arriving while someone types must not wipe what they've typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const save = () => {
     const e: Record<string, string> = {};
     if (f.name.trim().length < 3) e.name = "Name must be at least 3 characters";

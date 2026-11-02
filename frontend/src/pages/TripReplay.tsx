@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { addDays, format, parseISO } from "date-fns";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
@@ -7,12 +7,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarStack, Progress } from "@/components/common";
-import { IllustratedMap } from "@/components/trip/MapTab";
+import { MapFallback } from "@/components/trip/MapTab";
 import { useTripAccess } from "@/lib/access";
 import { actions, saved, useTrip } from "@/lib/store";
 import { CATEGORY_COLOR, CATEGORY_LABEL, fmtRange, money, round2, totalSpent, tripDays, tripStatus } from "@/lib/format";
 import type { ExpenseCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const TripMap = lazy(() => import("@/components/trip/TripMap"));
 
 export default function TripReplay() {
   const { id } = useParams();
@@ -129,7 +131,9 @@ export default function TripReplay() {
       <div className="mt-10 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <section data-testid="replay-route">
           <h2 className="mb-3 text-xl font-semibold tracking-tight">The route</h2>
-          <IllustratedMap places={trip.places} route className="aspect-[16/11] w-full" />
+          {trip.places.some((p) => p.lat != null)
+            ? <Suspense fallback={<MapFallback className="aspect-[16/11] w-full" />}><TripMap places={trip.places} route className="aspect-[16/11] w-full" /></Suspense>
+            : <p className="rounded-2xl border border-line bg-muted p-8 text-center text-sm text-ink-muted" data-testid="replay-no-route">No places were saved on the map for this trip, so there's no route to show.</p>}
           <ol className="mt-3 flex flex-wrap gap-2 text-sm">
             {trip.places.map((p, i) => <li key={p.id} className="rounded-full bg-sage px-3 py-1 text-forest"><span className="num font-semibold">{i + 1}</span> {p.name}</li>)}
           </ol>

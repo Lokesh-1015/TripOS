@@ -130,8 +130,9 @@ export interface Place {
   id: string;
   name: string;
   type: PlaceType;
-  x: number; // % position on the illustrative map
-  y: number;
+  /** Missing on places saved before maps were real, until someone places them. */
+  lat?: number;
+  lng?: number;
   address: string;
   note: string;
   version?: number;

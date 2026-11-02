@@ -74,6 +74,12 @@ export class StateController {
     // Every trip this person belongs to shows their name and avatar.
     const memberships = await this.prisma.tripMember.findMany({ where: { userId: user.id, status: "active" }, select: { tripId: true } });
     if (patch.name || patch.avatar !== undefined || email) memberships.forEach((m) => this.realtime.tripChanged(m.tripId));
+    // Turning this off has to take effect right away, not when a current share runs out.
+    if (patch.privacy?.shareLocation === false) {
+      const shares = await this.prisma.liveLocation.findMany({ where: { userId: user.id }, select: { tripId: true } });
+      await this.prisma.liveLocation.deleteMany({ where: { userId: user.id } });
+      shares.forEach((s) => this.realtime.locationsChanged(s.tripId));
+    }
     return { user: toPerson(updated), settings: toSettings(updated), onboarded: updated.onboarded, emailVerified: !!updated.emailVerifiedAt };
   }
 

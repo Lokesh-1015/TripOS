@@ -131,6 +131,7 @@ enum NotificationKind {
 /// signing up with that email claims the row, so every trip reference stays valid.
 model User {
   id                String   @id @default(cuid())
+  liveLocations     LiveLocation[]
   email             String   @unique
   name              String
   avatar            String   @default("")
@@ -194,6 +195,7 @@ model EmailVerificationToken {
 }
 
 model Trip {
+  liveLocations LiveLocation[]
   id                   String   @id
   name                 String
   destination          String
@@ -460,8 +462,12 @@ model Place {
   trip      Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
   name      String
   type      PlaceType
-  x         Float
-  y         Float
+  /// Positions on the old illustrated map. No longer used: real places have lat and lng.
+  x         Float     @default(0)
+  y         Float     @default(0)
+  /// Missing on places saved before maps were real, until someone places them.
+  lat       Float?
+  lng       Float?
   address   String    @default("")
   note      String    @default("")
   version   Int       @default(1)
@@ -469,6 +475,24 @@ model Place {
 
   @@index([tripId])
   @@map("places")
+}
+
+/// The latest position of someone sharing it, and nothing older. Deleted when sharing ends.
+model LiveLocation {
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lat       Float
+  lng       Float
+  accuracy  Float?
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  expiresAt DateTime @db.Timestamptz(6)
+
+  @@id([tripId, userId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("live_locations")
 }
 
 model Poll {

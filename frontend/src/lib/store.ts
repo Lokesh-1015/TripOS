@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { AppNotification, AppState, Person, Settings, Trip, TripCollection, TripEvent } from "./types";
 import { apiDelete, apiErrorMessage, ApiError, apiGet, apiPatch, apiPost, apiPut } from "./api";
 import { clearOfflineCopy, readOfflineCopy, saveOfflineCopy } from "./offline";
+import { queryClient } from "./queryClient";
 import { beginSession, endSession } from "./session";
 import { uid } from "./format";
 
@@ -85,6 +86,7 @@ function connectSocket() {
   socket.on("trip:changed", ({ tripId }: { tripId: string }) => void refreshTrip(tripId));
   socket.on("trips:changed", () => void loadState());
   socket.on("notifications:changed", () => void refreshNotifications());
+  socket.on("locations:changed", ({ tripId }: { tripId: string }) => void queryClient.invalidateQueries({ queryKey: ["live-locations", tripId] }));
   socket.on("connect", () => setOffline(false));
   socket.on("disconnect", (reason) => {
     setOffline(true);
@@ -350,6 +352,8 @@ export const actions = {
     disconnectSocket();
     clearTimeout(offlineCopyTimer);
     await clearOfflineCopy();
+    // Nothing on this device can keep a position up to date after this, so sharing stops too.
+    await apiDelete("/live-locations/mine").catch(() => undefined);
     return endSession("/login");
   },
   /** Join through an invite link. Returns the trip's id. */

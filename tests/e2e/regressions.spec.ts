@@ -226,3 +226,21 @@ test('finishing onboarding on a slow connection reaches the dashboard', async ({
   await expect(page.getByTestId('dashboard-welcome')).toBeVisible();
   await context.close();
 });
+
+test('a live update arriving while someone edits a trip does not wipe what they typed', async ({ browser }) => {
+  const { page, context } = await newUser(browser, 'Typer');
+  const { id } = await createTrip(page);
+  await page.goto(`/app/trips/${id}`);
+  await page.getByTestId('trip-edit-button').click();
+  await page.getByTestId('edit-trip-name-input').fill('Typed name');
+  const update = page.waitForResponse((r) => r.url().endsWith(`/api/trips/${id}`) && r.request().method() === 'GET');
+  expect((await api(page, 'PUT', `/trips/${id}/places/pl-live-${stamp}`, { name: 'From someone else', type: 'stay', address: '', note: '' })).status).toBeLessThan(300);
+  await update;
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('edit-trip-name-input')).toHaveValue('Typed name');
+  await page.getByTestId('edit-trip-save-button').click();
+  await page.locator('[data-sonner-toast]', { hasText: 'Trip details saved' }).waitFor();
+  await page.reload();
+  await expect(page.getByTestId('trip-header-name')).toHaveText('Typed name');
+  await context.close();
+});

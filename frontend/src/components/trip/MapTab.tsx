@@ -1,62 +1,64 @@
-import { useState, type MouseEvent } from "react";
-import { BedDouble, Flag, MapPin, Mountain, Navigation, Plus, Trash2, Utensils, X } from "lucide-react";
-import { toast } from "sonner";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { MapPin, Navigation, Plus, Search, Trash2, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog, Field } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
+import { apiGet } from "@/lib/api";
+import { useLiveLocations, type LiveLocation } from "@/lib/liveLocation";
 import { actions, saved } from "@/lib/store";
 import { uid } from "@/lib/format";
 import type { Place, PlaceType, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import LiveLocationPanel, { isStale, seenLabel } from "./LiveLocationPanel";
+import { PLACE_META } from "./placeMeta";
+import type { LivePin } from "./TripMap";
 
-export const PLACE_META: Record<PlaceType, { label: string; icon: typeof MapPin; color: string }> = {
-  destination: { label: "Destinations", icon: Mountain, color: "#174C3C" },
-  stay: { label: "Hotels & stays", icon: BedDouble, color: "#43546B" },
-  food: { label: "Restaurants", icon: Utensils, color: "#F28B68" },
-  activity: { label: "Activities", icon: Flag, color: "#B98A1E" },
-  meetup: { label: "Meeting points", icon: Navigation, color: "#8C4FB0" },
-};
+const TripMap = lazy(() => import("./TripMap"));
 
-export function IllustratedMap({ places, selected, onSelect, onMapClick, route = false, className }: { places: Place[]; selected?: string; onSelect?: (id: string) => void; onMapClick?: (x: number, y: number) => void; route?: boolean; className?: string }) {
-  const click = (e: MouseEvent<HTMLDivElement>) => {
-    if (!onMapClick) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    onMapClick(Math.round(((e.clientX - r.left) / r.width) * 100), Math.round(((e.clientY - r.top) / r.height) * 100));
-  };
+interface PlaceResult { name: string; address: string; lat: number; lng: number }
+
+const searchPlaces = (q: string, near?: { lat: number; lng: number }) =>
+  apiGet<PlaceResult[]>(`/places/search?q=${encodeURIComponent(q)}${near ? `&lat=${near.lat}&lng=${near.lng}` : ""}`);
+
+export function MapFallback({ className }: { className?: string }) {
+  return <div className={cn("rounded-2xl border border-line bg-muted", className)} data-testid="trip-map-loading" />;
+}
+
+/** Search as you type. Pauses until typing stops, so the shared search service isn't asked for every letter. */
+function PlaceSearch({ near, onPick }: { near?: { lat: number; lng: number }; onPick: (result: PlaceResult) => void }) {
+  const [text, setText] = useState("");
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(text.trim()), 400);
+    return () => clearTimeout(t);
+  }, [text]);
+  const { data, isError, isFetching } = useQuery({
+    queryKey: ["place-search", query, near?.lat, near?.lng],
+    queryFn: () => searchPlaces(query, near),
+    enabled: query.length >= 3,
+    staleTime: Infinity,
+    retry: false,
+  });
   return (
-    <div className={cn("map-grid relative overflow-hidden rounded-2xl border border-line", onMapClick && "cursor-crosshair", className)} onClick={click} data-testid="illustrated-map">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full" aria-hidden>
-        <path d="M-5 70 C 20 60, 30 80, 55 62 S 90 40, 105 48" stroke="#9CC2D6" strokeWidth="2.2" fill="none" opacity=".7" />
-        <path d="M10 -5 C 18 30, 40 40, 48 60 S 60 95, 70 105" stroke="#fff" strokeWidth="1.6" fill="none" />
-        <path d="M-5 30 C 30 35, 60 20, 105 28" stroke="#fff" strokeWidth="1.1" fill="none" />
-        <path d="M70 -5 C 65 30, 80 60, 100 75" stroke="#fff" strokeWidth=".9" fill="none" />
-        {route && places.length > 1 && (
-          <polyline points={places.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#F28B68" strokeWidth=".8" strokeDasharray="2 1.4" strokeLinecap="round" />
-        )}
-      </svg>
-      {places.map((p, i) => {
-        const M = PLACE_META[p.type];
-        const on = selected === p.id;
-        return (
-          <button
-            key={p.id}
-            onClick={(e) => { e.stopPropagation(); onSelect?.(p.id); }}
-            className={cn("absolute -translate-x-1/2 -translate-y-full transition-transform duration-200", on ? "z-10 scale-110" : "hover:scale-105")}
-            style={{ left: `${p.x}%`, top: `${p.y}%` }}
-            aria-label={p.name}
-            data-testid={`map-pin-${p.id}`}
-          >
-            <span className={cn("grid size-8 place-items-center rounded-full rounded-bl-none -rotate-45 border-2 border-white text-white shadow-md", on && "animate-pulse-pin")} style={{ background: M.color }}>
-              <span className="rotate-45">{route ? <span className="num text-[11px] font-bold">{i + 1}</span> : <M.icon className="size-3.5" />}</span>
-            </span>
-            {(on || route) && <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-card px-2 py-0.5 text-[11px] font-semibold text-ink shadow">{p.name}</span>}
-          </button>
-        );
-      })}
-      <span className="absolute bottom-2 right-2 rounded-md bg-card/90 px-2 py-1 text-[10px] font-medium text-ink-muted" data-testid="map-mock-label">Illustrative map · sample locations</span>
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+      <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search for a place or address" className="pl-9" aria-label="Search for a place" data-testid="place-search-input" />
+      {query.length >= 3 && text.trim() === query && !isFetching && (
+        <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-line bg-card shadow-lg" data-testid="place-search-results">
+          {isError ? <p className="px-3 py-3 text-sm text-ink-muted" data-testid="place-search-error">Search isn't available right now. You can still click the map.</p>
+            : !data?.length ? <p className="px-3 py-3 text-sm text-ink-muted">No places found.</p>
+            : data.map((r) => (
+              <button key={`${r.lat},${r.lng}`} type="button" className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted" onClick={() => { onPick(r); setText(""); setQuery(""); }} data-testid="place-search-result">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-ink-muted" />
+                <span className="min-w-0"><span className="block truncate text-sm font-medium">{r.name}</span><span className="block truncate text-xs text-ink-muted">{r.address}</span></span>
+              </button>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -66,11 +68,36 @@ export default function MapTab({ trip }: { trip: Trip }) {
   const [filter, setFilter] = useState<"all" | PlaceType>("all");
   const [selected, setSelected] = useState<string>();
   const [adding, setAdding] = useState(false);
+  // Pins from before maps were real have no coordinates, so they're placed by search or by clicking the map.
+  const [relocating, setRelocating] = useState<Place>();
   const [draft, setDraft] = useState<Place>();
   const [err, setErr] = useState<string>();
   const [deleting, setDeleting] = useState<Place>();
   const places = trip.places.filter((p) => filter === "all" || p.type === filter);
   const sel = trip.places.find((p) => p.id === selected);
+  const locating = adding || !!relocating;
+
+  const { data: destination } = useQuery({
+    queryKey: ["place-search", trip.destination],
+    queryFn: () => searchPlaces(trip.destination),
+    enabled: trip.destination.trim().length >= 3,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const center = destination?.[0] ? { lat: destination[0].lat, lng: destination[0].lng } : undefined;
+
+  const locations = useLiveLocations(trip.id);
+  const live = useMemo<LivePin[]>(() => locations.flatMap((x) => {
+    const person = trip.members.find((m) => m.id === x.userId);
+    return person ? [{ person, lat: x.lat, lng: x.lng, stale: isStale(x), label: `${person.name}: ${seenLabel(x)}` }] : [];
+  }), [locations, trip.members]);
+
+  const placeAt = (at: { lat: number; lng: number; name?: string; address?: string }) => {
+    setErr(undefined);
+    setDraft(relocating
+      ? { ...relocating, lat: at.lat, lng: at.lng, address: at.address ?? relocating.address }
+      : { id: uid("pl"), name: at.name ?? "", type: "activity", lat: at.lat, lng: at.lng, address: at.address ?? "", note: "" });
+  };
 
   const save = () => {
     if (!draft) return;
@@ -80,42 +107,59 @@ export default function MapTab({ trip }: { trip: Trip }) {
     setSelected(draft.id);
     setDraft(undefined);
     setAdding(false);
+    setRelocating(undefined);
   };
+
+  // Stays on this map: opening another maps site would hand someone's position to a third party.
+  const [focus, setFocus] = useState<{ lat: number; lng: number; at: number }>();
+  const showPerson = (x: LiveLocation) => setFocus({ lat: x.lat, lng: x.lng, at: Date.now() });
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-      <div className="grid content-start gap-3">
+      <div className="grid min-w-0 content-start gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {(["all", ...Object.keys(PLACE_META)] as ("all" | PlaceType)[]).map((k) => (
             <button key={k} onClick={() => setFilter(k)} className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition-colors", filter === k ? "border-forest bg-forest text-white" : "border-line bg-card text-ink-muted hover:text-ink")} data-testid={`map-filter-${k}`}>
               {k === "all" ? `All places · ${trip.places.length}` : PLACE_META[k].label}
             </button>
           ))}
-          {canContribute && <Button size="sm" variant={adding ? "secondary" : "default"} className="ml-auto rounded-lg" onClick={() => setAdding(!adding)} data-testid="map-add-place-button">
-            {adding ? <><X className="size-3.5" /> Cancel</> : <><Plus className="size-3.5" /> Add place</>}
+          {canContribute && <Button size="sm" variant={locating ? "secondary" : "default"} className="ml-auto rounded-lg" onClick={() => { setAdding(!locating); setRelocating(undefined); }} data-testid="map-add-place-button">
+            {locating ? <><X className="size-3.5" /> Cancel</> : <><Plus className="size-3.5" /> Add place</>}
           </Button>}
         </div>
-        {adding && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="map-add-hint">Click anywhere on the map to drop a pin.</p>}
-        <IllustratedMap
-          places={places}
-          selected={selected}
-          onSelect={setSelected}
-          onMapClick={adding ? (x, y) => { setErr(undefined); setDraft({ id: uid("pl"), name: "", type: "activity", x, y, address: "", note: "" }); } : undefined}
-          className="aspect-[4/3] w-full lg:aspect-[16/11]"
-        />
+        {locating && (
+          <div className="grid gap-2">
+            <PlaceSearch near={center} onPick={placeAt} />
+            <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="map-add-hint">{relocating ? `Search, or click the map to place “${relocating.name}”.` : "Search above, or click anywhere on the map to drop a pin."}</p>
+          </div>
+        )}
+        <Suspense fallback={<MapFallback className="aspect-[4/3] w-full lg:aspect-[16/11]" />}>
+          <TripMap
+            places={places}
+            selected={selected}
+            onSelect={setSelected}
+            onMapClick={locating ? (lat, lng) => placeAt({ lat, lng }) : undefined}
+            center={center}
+            live={live}
+            focus={focus}
+            className="aspect-[4/3] w-full lg:aspect-[16/11]"
+          />
+        </Suspense>
       </div>
 
       <aside className="grid content-start gap-3">
+        <LiveLocationPanel trip={trip} locations={locations} onShow={showPerson} />
         {sel && (
           <div className="rounded-2xl border border-forest/30 bg-sage/50 p-4 animate-rise" data-testid="map-selected-place">
             <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: PLACE_META[sel.type].color }}>{PLACE_META[sel.type].label}</p>
             <h3 className="mt-1 font-semibold">{sel.name}</h3>
             <p className="text-sm text-ink-muted">{sel.address}</p>
             {sel.note && <p className="mt-2 text-sm">{sel.note}</p>}
-            <div className="mt-3 flex gap-2">
-              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${sel.name} ${sel.address}`)}`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-forest px-3 text-xs font-medium text-white" data-testid="map-open-directions">
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sel.lat != null && sel.lng != null ? `${sel.lat},${sel.lng}` : `${sel.name} ${sel.address}`)}`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-forest px-3 text-xs font-medium text-white" data-testid="map-open-directions">
                 <Navigation className="size-3.5" /> Open in Maps
               </a>
+              {canContribute && sel.lat == null && <Button size="sm" variant="outline" className="h-8 rounded-lg" onClick={() => { setRelocating(sel); setAdding(false); }} data-testid="map-set-location"><MapPin className="size-3.5" /> Set location</Button>}
               {canContribute && <Button size="sm" variant="outline" className="h-8 rounded-lg" onClick={() => setDeleting(sel)} data-testid="map-delete-place"><Trash2 className="size-3.5" /> Remove</Button>}
             </div>
           </div>
@@ -130,7 +174,7 @@ export default function MapTab({ trip }: { trip: Trip }) {
                   <li key={p.id}>
                     <button onClick={() => setSelected(p.id)} className={cn("flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60", selected === p.id && "bg-muted")} data-testid={`map-place-${p.id}`}>
                       <span className="grid size-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: M.color }}><M.icon className="size-4" /></span>
-                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{p.name}</span><span className="block truncate text-xs text-ink-muted">{p.note || p.address}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{p.name}</span><span className="block truncate text-xs text-ink-muted">{p.lat == null ? "Not on the map yet" : p.note || p.address}</span></span>
                     </button>
                   </li>
                 );
