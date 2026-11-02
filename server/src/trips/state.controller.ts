@@ -19,6 +19,7 @@ const profileBody = z.object({
   notify: z.record(z.string(), z.boolean()).optional(),
   privacy: z.object({ profilePublic: z.boolean(), showEmail: z.boolean(), shareLocation: z.boolean() }).optional(),
   onboarded: z.boolean().optional(),
+  seenReleaseNotes: z.string().max(40).optional(),
 });
 const savedBody = z.object({ saved: z.array(z.string().max(40)).max(200) });
 const readBody = z.object({ id: z.string().optional() });
@@ -54,7 +55,7 @@ export class StateController {
   @Get("state")
   async state(@CurrentUser() user: User) {
     const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user)]);
-    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, emailEnabled: this.auth.emailEnabled, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
+    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
   }
 
   @Get("notifications")

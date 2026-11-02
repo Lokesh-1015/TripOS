@@ -7,6 +7,7 @@ import {
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
 import LiveLocationBanner from "@/components/LiveLocationBanner";
+import WhatsNewDialog from "@/components/WhatsNewDialog";
 import { actions, useApp } from "@/lib/store";
 import { Avatar, Logo } from "@/components/common";
 import { NotificationsBell } from "@/components/Notifications";
@@ -117,6 +118,7 @@ export default function AppShell() {
   const reduce = useReducedMotion();
   const [drawer, setDrawer] = useState(false);
   const [help, setHelp] = useState(false);
+  const [whatsNew, setWhatsNew] = useState(false);
   const [q, setQ] = useState("");
 
   if (loading) return <div className="grid min-h-dvh place-items-center bg-background" data-testid="app-loading"><Logo /></div>;
@@ -252,9 +254,11 @@ export default function AppShell() {
               <li><b>Drag activities</b> in the itinerary to reorder your day.</li>
               <li><b>Everything stays in sync.</b> Changes your crew makes appear on your screen as they happen.</li>
             </ul>
-            <a href="mailto:support@tripos.app" className={cn(buttonVariants({ variant: "outline" }), "mt-2")} data-testid="help-contact-link">Email support@tripos.app</a>
+            <button type="button" className={cn(buttonVariants({ variant: "outline" }), "mt-2")} onClick={() => { setHelp(false); setWhatsNew(true); }} data-testid="help-whats-new-button">See what's new</button>
+            <a href="mailto:support@tripos.app" className={buttonVariants({ variant: "outline" })} data-testid="help-contact-link">Email support@tripos.app</a>
           </DialogContent>
         </Dialog>
+        <WhatsNewDialog reopened={whatsNew} onClose={() => setWhatsNew(false)} />
       </div>
     </TooltipProvider>
   );

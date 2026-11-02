@@ -258,6 +258,8 @@ export interface AppState {
   /** False until the server has an email provider: nothing can be sent, so screens say so. */
   emailEnabled: boolean;
   onboarded: boolean;
+  /** The latest "What's new" this person has seen. */
+  seenReleaseNotes?: string | null;
   user: Person;
   settings: Settings;
   saved: string[];

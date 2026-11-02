@@ -8,6 +8,7 @@ import type { AppNotification, AppState, Person, Settings, Trip, TripCollection,
 import { apiDelete, apiErrorMessage, ApiError, apiGet, apiPatch, apiPost, apiPut } from "./api";
 import { clearOfflineCopy, readOfflineCopy, saveOfflineCopy } from "./offline";
 import { queryClient } from "./queryClient";
+import { LATEST_RELEASE } from "./releaseNotes";
 import { beginSession, endSession } from "./session";
 import { uid } from "./format";
 
@@ -337,12 +338,14 @@ export const actions = {
   },
   resendVerification: () => apiPost("/auth/resend-verification"),
   async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[] }) {
-    await apiPatch("/me", { ...patch, onboarded: true });
+    // Someone joining now has nothing to catch up on, so they start with the latest release marked as seen.
+    await apiPatch("/me", { ...patch, onboarded: true, seenReleaseNotes: LATEST_RELEASE.id });
     // Apply this now: a reload may be overlapping (the live connection triggers one), and whichever
     // loses gives up without waiting, so the next screen can't rely on awaiting it.
     set({
       ...state,
       onboarded: true,
+      seenReleaseNotes: LATEST_RELEASE.id,
       user: { ...state.user, name: patch.name },
       settings: { ...state.settings, bio: patch.bio, currency: patch.currency, travelStyles: patch.travelStyles },
     });
@@ -373,6 +376,11 @@ export const actions = {
     const emailChanged = !!patch.email && patch.email.trim().toLowerCase() !== state.user.email;
     set({ ...state, user, emailVerified: emailChanged ? false : state.emailVerified, trips: state.trips.map((t) => ({ ...t, members: t.members.map((m) => (m.id === user.id ? { ...m, ...patch } : m)) })) });
     return saveUser(patch);
+  },
+  /** Quiet if it fails: the worst that happens is seeing the release notes once more. */
+  markReleaseNotesSeen(id: string) {
+    set({ ...state, seenReleaseNotes: id });
+    void apiPatch("/me", { seenReleaseNotes: id }).then(supersedeStaleLoad, () => undefined);
   },
   updateSettings(patch: Partial<Settings>) {
     set({ ...state, settings: { ...state.settings, ...patch } });
