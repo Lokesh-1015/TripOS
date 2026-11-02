@@ -1,7 +1,7 @@
 import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, Put } from "@nestjs/common";
 import { z } from "zod";
 import { AuthService, normalizeEmail } from "../auth/auth.service.js";
-import { CurrentUser } from "../auth/session.guard.js";
+import { AllowUnconfirmed, CurrentUser } from "../auth/session.guard.js";
 import { imageRef, parse } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -52,10 +52,11 @@ export class StateController {
     private readonly auth: AuthService,
   ) {}
 
+  @AllowUnconfirmed()
   @Get("state")
   async state(@CurrentUser() user: User) {
     const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user)]);
-    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
+    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, mustConfirmEmail: user.mustConfirmEmail && !user.emailVerifiedAt, hasPassword: !!user.passwordHash, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
   }
 
   @Get("notifications")
@@ -63,15 +64,17 @@ export class StateController {
     return this.notificationsFor(user);
   }
 
+  @AllowUnconfirmed()
   @Patch("me")
   async updateMe(@CurrentUser() user: User, @Body() body: unknown) {
     const patch = parse(profileBody, body);
     const email = patch.email ? normalizeEmail(patch.email) : undefined;
     if (email && email !== user.email && (await this.prisma.user.findUnique({ where: { email } }))) throw new ConflictException({ message: "That email is already in use" });
     const emailChanged = !!email && email !== user.email;
+    if (emailChanged) await this.auth.assertCanChangeEmailTo(user.id, email);
     // A new address is unproven until its owner clicks the link, so anything sent to it stays hidden until then.
     const updated = await this.prisma.user.update({ where: { id: user.id }, data: { ...patch, email, ...(emailChanged ? { emailVerifiedAt: null } : {}) } });
-    if (emailChanged) await this.auth.sendVerification(updated);
+    if (emailChanged) await this.auth.sendVerificationToNewAddress(updated);
     // Every trip this person belongs to shows their name and avatar.
     const memberships = await this.prisma.tripMember.findMany({ where: { userId: user.id, status: "active" }, select: { tripId: true } });
     if (patch.name || patch.avatar !== undefined || email) memberships.forEach((m) => this.realtime.tripChanged(m.tripId));

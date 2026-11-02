@@ -41,9 +41,15 @@ importers:
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
+      disposable-email-domains:
+        specifier: 1.0.62
+        version: 1.0.62
       dotenv:
         specifier: ^18.0.9
         version: 18.0.9
+      jose:
+        specifier: 6.2.15
+        version: 6.2.15
       nodemailer:
         specifier: ^10.3.1
         version: 10.3.1
@@ -1080,6 +1086,9 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
+  disposable-email-domains@1.0.62:
+    resolution: {integrity: sha512-LBQvhRw7mznQTPoyZbsmYeNOZt1pN5aCsx4BAU/3siVFuiM9f2oyKzUaB8v1jbxFjE3aYqYiMo63kAL4pHgfWQ==}
+
   dotenv-expand@13.0.0:
     resolution: {integrity: sha512-aBfBS8eYIeXmpHI9ThIlA7/WLq+SLt18iXUZhb52rW89QLKQFoIpPG1bPeewoPZsTyjSSO3T7234FBVUM1V2rA==}
     engines: {node: '>=12'}
@@ -1346,6 +1355,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@6.2.15:
+    resolution: {integrity: sha512-qdF6ewcZARtef63fJ9AKKZPgxw+t7USH6HLXYcD4CrdmSvDp79rpJSPFEKc90QBeGS63u1KQtN2MZQHC0yDIzA==}
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
@@ -3069,6 +3081,8 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
+  disposable-email-domains@1.0.62: {}
+
   dotenv-expand@13.0.0:
     dependencies:
       dotenv: 17.4.2
@@ -3340,6 +3354,8 @@ snapshots:
   iterare@1.2.1: {}
 
   jiti@2.7.0: {}
+
+  jose@6.2.15: {}
 
   json-schema-traverse@1.0.0: {}
 

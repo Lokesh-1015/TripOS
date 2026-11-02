@@ -255,6 +255,12 @@ export interface AppState {
   authed: boolean;
   /** Until this is true, email invites can't be seen, accepted or sent. */
   emailVerified: boolean;
+  /** A new account that hasn't confirmed its address yet, so the app stays closed until it does. */
+  mustConfirmEmail: boolean;
+  /** False for someone who only signs in with Google. */
+  hasPassword: boolean;
+  /** The server hasn't answered yet, and is probably waking up. */
+  waking?: boolean;
   /** False until the server has an email provider: nothing can be sent, so screens say so. */
   emailEnabled: boolean;
   onboarded: boolean;

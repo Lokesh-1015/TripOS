@@ -34,6 +34,8 @@ jobs:
       APP_URL: http://localhost:3000
       THROTTLE_DISABLED: "true"
       JOBS_SECRET: local-test-secret
+      EMAIL_CHECK_SKIP_DOMAINS: example.test
+      GOOGLE_TEST_TOKENS: "true"
       MAIL_OPTIONAL_ALLOWANCE: 100000
       SMTP_URL: smtp://localhost:1025
       MAIL_FROM: TripOS <hello@tripos.local>

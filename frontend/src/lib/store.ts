@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: Settings = {
   privacy: { profilePublic: true, showEmail: false, shareLocation: true },
 };
 
-let state: AppState = { version: 1, loading: true, offline: false, offlineCopy: false, authed: false, emailVerified: false, emailEnabled: true, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
+let state: AppState = { version: 1, loading: true, offline: false, offlineCopy: false, authed: false, emailVerified: false, mustConfirmEmail: false, hasPassword: true, emailEnabled: true, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
 const listeners = new Set<() => void>();
 
 let offlineCopyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -58,6 +58,8 @@ export const useTrip = (id: string | undefined) => useApp((s) => s.trips.find((t
 export function rememberNext(path: string) {
   sessionStorage.setItem(NEXT, path);
 }
+/** The same place as takeNext, for a screen that may be left again, without using it up. */
+export const peekNext = (fallback = "/app") => sessionStorage.getItem(NEXT) || fallback;
 export function takeNext(fallback = "/app") {
   const n = sessionStorage.getItem(NEXT);
   sessionStorage.removeItem(NEXT);
@@ -105,6 +107,21 @@ function disconnectSocket() {
   socket = null;
 }
 
+// The free backend sleeps when idle and can take about a minute to wake. Until it answers, nobody knows whether this
+// person is signed in, so the app waits rather than sending them to the login page as if their session had ended.
+const WAKE_RETRY_MS = 3000;
+const WAKE_RETRIES = 40;
+let wakeRetries = 0;
+
+/** Waits until the server is answering, so the first thing someone submits isn't lost to it waking up. */
+async function waitForServer() {
+  for (let i = 0; i < WAKE_RETRIES; i++) {
+    const ok = await fetch("/api/health").then((r) => r.ok, () => false);
+    if (ok || navigator.onLine === false) return;
+    await sleep(WAKE_RETRY_MS);
+  }
+}
+
 let stateRequest = 0;
 let stateLoading = false;
 
@@ -118,7 +135,8 @@ export async function loadState() {
     if (request !== stateRequest) return;
     stateLoading = false;
     tripRequests.clear();
-    set({ ...server, loading: false, offline: state.offline, offlineCopy: false, authed: true });
+    wakeRetries = 0;
+    set({ ...server, loading: false, waking: false, offline: state.offline, offlineCopy: false, authed: true });
     connectSocket();
   } catch (e) {
     if (request !== stateRequest) return;
@@ -126,7 +144,8 @@ export async function loadState() {
     if (e instanceof ApiError && e.status === 401) {
       disconnectSocket();
       void clearOfflineCopy();
-      set({ ...state, loading: false, authed: false, onboarded: false, user: SIGNED_OUT_USER, trips: [], notifications: [], saved: [] });
+      wakeRetries = 0;
+      set({ ...state, loading: false, waking: false, authed: false, onboarded: false, user: SIGNED_OUT_USER, trips: [], notifications: [], saved: [] });
     } else {
       // The API is unreachable: keep what's on screen and let the socket's reconnect retry.
       // Opening the app with no signal has nothing on screen yet, so it uses the copy on this device.
@@ -135,8 +154,13 @@ export async function loadState() {
       if (copy) {
         set({ ...copy, loading: false, offline: true, offlineCopy: true });
         connectSocket();
+      } else if (!state.authed && e instanceof ApiError && wakeRetries < WAKE_RETRIES) {
+        // An error from the host means the server is still waking. No answer at all means this device is offline, so waiting wouldn't help.
+        wakeRetries++;
+        set({ ...state, loading: true, waking: true });
+        setTimeout(() => void loadState(), WAKE_RETRY_MS);
       } else {
-        set({ ...state, loading: false });
+        set({ ...state, loading: false, waking: false });
       }
     }
   }
@@ -266,7 +290,7 @@ function sendVersioned(tripId: string, itemId: string, version: number | undefin
 window.addEventListener("offline", () => setOffline(true));
 window.addEventListener("online", () => {
   setOffline(false);
-  if (state.offlineCopy) void loadState();
+  if (state.offlineCopy || !state.authed) void loadState();
 });
 
 // Leaving with changes still waiting for a connection would lose them.
@@ -320,11 +344,24 @@ function saveUser(patch: Record<string, unknown>) {
 
 export const actions = {
   async signIn(email: string, password: string) {
+    await waitForServer();
     await apiPost("/auth/login", { email, password });
     beginSession();
     await loadState();
   },
+  async signInWithGoogle(credential: string) {
+    await waitForServer();
+    await apiPost("/auth/google", { credential });
+    beginSession();
+    await loadState();
+  },
+  /** Fixes a typo in an address that hasn't been confirmed yet, which sends the email again. */
+  async changeUnconfirmedEmail(email: string) {
+    await apiPatch("/me", { email });
+    await loadState();
+  },
   async signUp(name: string, email: string, password: string) {
+    await waitForServer();
     await apiPost("/auth/signup", { name, email, password });
     beginSession();
     await loadState();
@@ -337,6 +374,7 @@ export const actions = {
     await loadState();
   },
   resendVerification: () => apiPost("/auth/resend-verification"),
+  reload: () => loadState(),
   async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[] }) {
     // Someone joining now has nothing to catch up on, so they start with the latest release marked as seen.
     await apiPatch("/me", { ...patch, onboarded: true, seenReleaseNotes: LATEST_RELEASE.id });

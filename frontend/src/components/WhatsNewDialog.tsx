@@ -1,17 +1,21 @@
 import { Check, Sparkles, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LATEST_RELEASE } from "@/lib/releaseNotes";
+import { LATEST_RELEASE, RELEASES, unseenReleases } from "@/lib/releaseNotes";
 import { actions, useApp } from "@/lib/store";
 
 /** Opens by itself until someone has seen the latest release. Help & support can open it again. */
 export default function WhatsNewDialog({ reopened, onClose }: { reopened: boolean; onClose: () => void }) {
-  const unseen = useApp((s) => s.seenReleaseNotes !== LATEST_RELEASE.id);
+  const seen = useApp((s) => s.seenReleaseNotes);
+  const unseen = seen !== LATEST_RELEASE.id;
   const close = () => {
     if (unseen) actions.markReleaseNotesSeen(LATEST_RELEASE.id);
     onClose();
   };
-  const { features, improved, fixed } = LATEST_RELEASE;
+  const releases = unseen ? unseenReleases(seen) : RELEASES;
+  const features = releases.flatMap((release) => release.features);
+  const improved = releases.flatMap((release) => release.improved);
+  const fixed = releases.flatMap((release) => release.fixed);
   return (
     <Dialog open={unseen || reopened} onOpenChange={(open) => !open && close()}>
       <DialogContent className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-2xl" data-testid="whats-new-dialog">

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { Camera, Check, Laptop, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
@@ -76,6 +77,7 @@ function PasswordForm() {
 }
 
 export default function Settings() {
+  const hasPassword = useApp((s) => s.hasPassword);
   const user = useApp((s) => s.user);
   const settings = useApp((s) => s.settings);
   const { theme, setTheme } = useTheme();
@@ -185,7 +187,7 @@ export default function Settings() {
 
         <TabsContent value="account">
           <section className="grid gap-4 rounded-2xl border border-line bg-card p-5 sm:p-7">
-            <PasswordForm />
+            {hasPassword ? <PasswordForm /> : <div className="grid gap-1" data-testid="settings-password-google-note"><h3 className="font-semibold">Password</h3><p className="text-sm text-ink-muted">You sign in with Google, so there's no password to change. To add one, use <Link to="/forgot-password" className="font-medium text-forest underline">Forgot password</Link>.</p></div>}
           </section>
         </TabsContent>
       </Tabs>

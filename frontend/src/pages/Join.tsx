@@ -5,7 +5,7 @@ import { CalendarDays, Link2Off, MapPin, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AvatarStack, Logo, StatusBadge } from "@/components/common";
-import { apiErrorMessage, apiGet } from "@/lib/api";
+import { ApiError, apiErrorMessage, apiGet } from "@/lib/api";
 import { actions, rememberNext, useApp } from "@/lib/store";
 import { fmtRange } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,14 @@ export default function Join() {
       toast.success(`You joined ${snap?.name}`);
       navigate(`/app/trips/${id}`);
     },
-    onError: (e) => toast.error(apiErrorMessage(e)),
+    onError: (e) => {
+      // Comes back here to join once the address is confirmed.
+      if (e instanceof ApiError && (e.body as { code?: string } | null)?.code === "email_unconfirmed") {
+        rememberNext(`/join/${code}`);
+        return navigate("/confirm-email");
+      }
+      toast.error(apiErrorMessage(e));
+    },
   });
 
   useEffect(() => {

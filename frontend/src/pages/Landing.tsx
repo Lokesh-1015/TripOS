@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useApp } from "@/lib/store";
 import { motion } from "motion/react";
 import { ArrowRight, CalendarRange, CheckSquare, FileText, Images, Map as MapIcon, MessageCircle, Receipt, Sparkles, Vote, Wallet } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
@@ -77,7 +78,10 @@ function ProductPreview() {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const signedIn = useApp((s) => s.authed && !s.loading);
   const demo = () => navigate("/signup");
+  // Coming back to the site's main address, someone signed in goes straight to their trips.
+  if (signedIn) return <Navigate to="/app" replace />;
   return (
     <div className="min-h-dvh bg-background text-ink">
       {/* Hero */}

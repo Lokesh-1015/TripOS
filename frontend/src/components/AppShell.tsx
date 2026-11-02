@@ -112,7 +112,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function AppShell() {
-  const { loading, offline, offlineCopy, authed, onboarded, emailVerified, emailEnabled, email } = useApp((s) => ({ loading: s.loading, offline: s.offline, offlineCopy: s.offlineCopy, authed: s.authed, onboarded: s.onboarded, emailVerified: s.emailVerified, emailEnabled: s.emailEnabled, email: s.user.email }));
+  const { waking, mustConfirmEmail, loading, offline, offlineCopy, authed, onboarded, emailVerified, emailEnabled, email } = useApp((s) => ({ waking: s.waking, mustConfirmEmail: s.mustConfirmEmail, loading: s.loading, offline: s.offline, offlineCopy: s.offlineCopy, authed: s.authed, onboarded: s.onboarded, emailVerified: s.emailVerified, emailEnabled: s.emailEnabled, email: s.user.email }));
   const location = useLocation();
   const navigate = useNavigate();
   const reduce = useReducedMotion();
@@ -121,8 +121,16 @@ export default function AppShell() {
   const [whatsNew, setWhatsNew] = useState(false);
   const [q, setQ] = useState("");
 
-  if (loading) return <div className="grid min-h-dvh place-items-center bg-background" data-testid="app-loading"><Logo /></div>;
+  if (loading) {
+    return (
+      <div className="grid min-h-dvh place-content-center justify-items-center gap-3 bg-background" data-testid="app-loading">
+        <Logo />
+        {waking && <p className="text-sm text-ink-muted" role="status" data-testid="app-waking">Waking TripOS up. This can take up to a minute.</p>}
+      </div>
+    );
+  }
   if (!authed) return <Navigate to="/login" replace />;
+  if (mustConfirmEmail) return <Navigate to="/confirm-email" replace />;
   if (!onboarded) return <Navigate to="/onboarding" replace />;
 
   const title = TITLES.find(([re]) => re.test(location.pathname))?.[1] ?? "TripOS";

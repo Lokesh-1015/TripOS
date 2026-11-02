@@ -4,6 +4,8 @@ import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { AuthController } from "./auth/auth.controller.js";
 import { AuthService } from "./auth/auth.service.js";
+import { EmailCheckService } from "./auth/email-check.service.js";
+import { GoogleAuthService } from "./auth/google-auth.service.js";
 import { SessionGuard } from "./auth/session.guard.js";
 import { TripAccessGuard } from "./authz/trip-access.guard.js";
 import { PrismaExceptionFilter } from "./common/prisma-exception.filter.js";
@@ -48,6 +50,6 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     LiveLocationController,
     JobsController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, RatesService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, EmailCheckService, GoogleAuthService, MailService, RatesService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

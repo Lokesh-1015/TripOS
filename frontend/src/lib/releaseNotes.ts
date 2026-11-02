@@ -1,6 +1,6 @@
 // The "What's new" popup. Each person sees it once, remembered on their account. To announce a new
 // release, add it to the top of this list with a new id, and everyone sees that one once too.
-import { BellRing, CalendarRange, CopyPlus, Download, Globe, Mail, Map as MapIcon, MessagesSquare, Radio, Route, TriangleAlert, Wallet } from "lucide-react";
+import { BellRing, CalendarRange, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Radio, Route, TriangleAlert, Wallet } from "lucide-react";
 
 export interface ReleaseFeature {
   icon: typeof Mail;
@@ -16,6 +16,18 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    id: "2026-11-03",
+    features: [
+      { icon: KeyRound, title: "Sign in with Google", body: "Use your Google account to get in with one click. If you already have an account with the same email, it's the same account, with all your trips." },
+      { icon: MailCheck, title: "Real email addresses only", body: "New accounts now confirm their email before getting started, so invites and reminders always reach the right person." },
+    ],
+    improved: [],
+    fixed: [
+      "Coming back to TripOS after closing it no longer sends you to the login page. You now stay signed in for 60 days after you last used it",
+      "Searching for places on the map now works, and a trip's map opens on its destination",
+    ],
+  },
   {
     id: "2026-11-02",
     features: [
@@ -51,3 +63,9 @@ export const RELEASES: Release[] = [
 ];
 
 export const LATEST_RELEASE = RELEASES[0];
+
+/** Newest first: everything since the release someone last saw, or everything if they haven't seen any. */
+export function unseenReleases(seen: string | null | undefined) {
+  const index = RELEASES.findIndex((release) => release.id === seen);
+  return index === -1 ? RELEASES : RELEASES.slice(0, index);
+}

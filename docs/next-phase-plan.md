@@ -72,6 +72,7 @@ Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is 
 
 ## Known limits of what's built
 - **Exchange rates are daily market rates**, from Exchange Rate API's free service, and they're suggestions. An expense keeps the rate saved with it, so a new day's rates never change a balance. Today's rate is suggested even for an expense dated earlier.
+- **Confirming an email proves someone can read that inbox.** The checks before it catch typos, reserved and throwaway addresses, but a new throwaway service with a working inbox can get through until the list catches up.
 - **Maps use free community services:** OpenFreeMap for tiles and Photon for search, neither with any uptime guarantee. Both are called from the browser, so they see the visitor's IP address and what's searched or viewed, which the privacy policy needs to mention. If search is down, people can still click the map. Mapbox is the upgrade if these prove unreliable.
 - **Trip Replay's route** follows activities linked to places, day by day, in straight lines rather than along roads. Without links, it joins places in the order they were saved.
 - **Past exchange rates** come from the European Central Bank, which doesn't publish every currency. The dirham uses its fixed peg to the dollar.

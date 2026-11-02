@@ -139,6 +139,10 @@ model User {
   name              String
   avatar            String   @default("")
   passwordHash      String?
+  /// Google's permanent id for this person, once they've signed in with Google. Addresses can change; this can't.
+  googleSub         String?  @unique
+  /// New accounts have to confirm their address before using the app. Older ones just see a reminder.
+  mustConfirmEmail  Boolean  @default(false)
   /// Set by clicking an emailed link or resetting a password: both prove the person owns this address.
   emailVerifiedAt   DateTime? @db.Timestamptz(6)
   onboarded         Boolean  @default(false)

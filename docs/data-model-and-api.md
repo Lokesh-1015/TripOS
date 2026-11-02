@@ -37,6 +37,25 @@ Screens read through `useApp` and write through `actions` in `frontend/src/lib/s
 
 Nobody but the uploader can see a private document, including admins.
 
+## Signing in
+
+Sessions last 60 days from when they were last used, and the cookie is renewed with them. The free backend sleeps when idle, so the app waits for it to answer at startup. Only an actual 401 sends someone to the login page.
+
+**One address, one account, whichever way it was created.**
+
+| Signing in with Google when... | What happens |
+|---|---|
+| This Google account has signed in before | Signs in, matched by Google's permanent id |
+| The address has a confirmed account | Links to it. All its data stays, and the password keeps working |
+| The address has an account that never confirmed it | The real owner takes it back: all its data stays, and that password and its sessions stop working, as anyone could have typed this address |
+| The address was invited by email | Becomes that person, and the invites appear |
+| The address is new | Creates a confirmed account |
+| Google hasn't confirmed the address | Refused |
+
+Signing up with a password on an address that already has an account is refused, including a Google-only one. Someone who only uses Google can add a password through Forgot password.
+
+**New accounts prove their address.** Signup turns away reserved domains, throwaway email services and domains that can't receive mail, checked against public DNS. If DNS itself fails, the address is let through. The account then can't reach anything but `/state`, `/me` and `/auth/*` until the emailed link is clicked. Accounts from before this have `mustConfirmEmail` false and just see a reminder. If no email service is configured, nobody is asked to confirm.
+
 ## Reminders and email
 
 A scheduled GitHub workflow (`.github/workflows/daily-reminders.yml`) calls `/jobs/daily` every morning, because the free backend sleeps and can't time anything itself.
@@ -143,6 +162,8 @@ GET    /exchange-rates?date=                signed in; today's rates against USD
 GET    /trips/:tripId/messages?before=&beforeId=&limit=   members; chat older than the 300 that load with the trip
 POST   /trips/:tripId/copy                  members; new trip from this one { id, name, startDate }
 POST   /jobs/daily                          the x-jobs-secret header; sends the day's reminders
+GET    /auth/config                         public; the Google client id, or null if it's not set up
+POST   /auth/google                         public; signs in with a credential from Google { credential }
 GET    /trips/:tripId/live-locations        active members; who is sharing and where
 PUT    /trips/:tripId/live-locations/me     active members; start sharing { lat, lng, accuracy, hours: 1 | 4 | 8 }
 PATCH  /trips/:tripId/live-locations/me     the sharer; new position { lat, lng, accuracy }. Can't extend the end time

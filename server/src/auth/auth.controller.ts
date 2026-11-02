@@ -1,5 +1,4 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { z } from "zod";
@@ -7,23 +6,43 @@ import { parse } from "../common/validation.js";
 import { issueTicket } from "../realtime/ticket.js";
 import type { User } from "../generated/prisma/client.js";
 import { AuthService } from "./auth.service.js";
-import { CurrentUser, Public, SESSION_COOKIE } from "./session.guard.js";
+import { GoogleAuthService } from "./google-auth.service.js";
+import { AllowUnconfirmed, CurrentUser, Public, SESSION_COOKIE } from "./session.guard.js";
 
 const signUpBody = z.object({ name: z.string().trim().min(2).max(100), email: z.email(), password: z.string().min(8).max(200) });
 const logInBody = z.object({ email: z.email(), password: z.string().min(1).max(200) });
 const forgotBody = z.object({ email: z.email() });
 const resetBody = z.object({ token: z.string().min(10), password: z.string().min(8).max(200) });
 const verifyBody = z.object({ token: z.string().min(10) });
+const googleBody = z.object({ credential: z.string().min(10).max(10_000) });
 const changeBody = z.object({ current: z.string().min(1), next: z.string().min(8).max(200) });
 
 @UseGuards(ThrottlerGuard)
 @Throttle({ default: { ttl: 60_000, limit: 30 } })
+@AllowUnconfirmed()
 @Controller("auth")
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly config: ConfigService,
+    private readonly google: GoogleAuthService,
   ) {}
+
+  /** The Google client id is public: it's what the sign-in button identifies this app with. */
+  @Public()
+  @Get("config")
+  authConfig() {
+    return { googleClientId: this.google.clientId ?? null };
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post("google")
+  async signInWithGoogle(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+    const identity = await this.google.verify(parse(googleBody, body).credential);
+    const { token } = await this.auth.signInWithGoogle(identity);
+    this.setCookie(res, token);
+    return { ok: true };
+  }
 
   @Public()
   @Post("signup")
@@ -99,6 +118,6 @@ export class AuthController {
   }
 
   private setCookie(res: Response, token: string) {
-    res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: this.config.get("NODE_ENV") === "production", path: "/", maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie(SESSION_COOKIE, token, this.auth.sessionCookie);
   }
 }
