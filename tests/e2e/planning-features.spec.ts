@@ -10,7 +10,7 @@ let counter = 0;
 async function newUser(browser: Browser, name = 'Planner') {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.route('**/tiles.openfreemap.org/**', (route) => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }));
-  await context.route('**/api/places/search*', (route) => route.fulfill({ json: [] }));
+  await context.route('**/photon.komoot.io/**', (route) => route.fulfill({ headers: { 'access-control-allow-origin': '*' }, json: { features: [] } }));
   await context.route('**/api/exchange-rates*', (route) => {
     const date = new URL(route.request().url()).searchParams.get('date');
     // Weekends answer with the Friday before, as the real service does.

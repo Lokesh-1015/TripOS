@@ -12,7 +12,7 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
   const page = await context.newPage();
   // An empty map style, so this doesn't depend on the tile service. maps-and-live-location.spec.ts covers the map.
   await page.route('**/tiles.openfreemap.org/**', (route) => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }));
-  await page.route('**/api/places/search*', (route) => route.fulfill({ json: [] }));
+  await page.route('**/photon.komoot.io/**', (route) => route.fulfill({ headers: { 'access-control-allow-origin': '*' }, json: { features: [] } }));
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {

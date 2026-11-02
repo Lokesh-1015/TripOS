@@ -143,7 +143,6 @@ GET    /exchange-rates?date=                signed in; today's rates against USD
 GET    /trips/:tripId/messages?before=&beforeId=&limit=   members; chat older than the 300 that load with the trip
 POST   /trips/:tripId/copy                  members; new trip from this one { id, name, startDate }
 POST   /jobs/daily                          the x-jobs-secret header; sends the day's reminders
-GET    /places/search?q=&lat=&lng=          signed in; finds places through Photon, cached for a day
 GET    /trips/:tripId/live-locations        active members; who is sharing and where
 PUT    /trips/:tripId/live-locations/me     active members; start sharing { lat, lng, accuracy, hours: 1 | 4 | 8 }
 PATCH  /trips/:tripId/live-locations/me     the sharer; new position { lat, lng, accuracy }. Can't extend the end time

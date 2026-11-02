@@ -98,7 +98,7 @@ cd server && ./node_modules/.bin/prisma migrate deploy && node dist/main.js
 
 ## Maps
 
-Maps need no keys or accounts: [MapLibre](https://maplibre.org) draws them, [OpenFreeMap](https://openfreemap.org) serves the tiles, and the backend searches places through [Photon](https://photon.komoot.io).
+Maps need no keys or accounts: [MapLibre](https://maplibre.org) draws them, [OpenFreeMap](https://openfreemap.org) serves the tiles, and the browser searches places through [Photon](https://photon.komoot.io), which refuses connections from Render's servers.
 
 ## Installable app and offline access
 

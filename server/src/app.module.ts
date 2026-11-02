@@ -13,8 +13,6 @@ import { JobsController } from "./jobs/jobs.controller.js";
 import { RemindersService } from "./jobs/reminders.service.js";
 import { MailService } from "./mail/mail.service.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
-import { PlaceSearchController } from "./places/place-search.controller.js";
-import { PlaceSearchService } from "./places/place-search.service.js";
 import { RatesController } from "./rates/rates.controller.js";
 import { RatesService } from "./rates/rates.service.js";
 import { RealtimeGateway } from "./realtime/realtime.gateway.js";
@@ -47,10 +45,9 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     SharingController,
     FilesController,
     RatesController,
-    PlaceSearchController,
     LiveLocationController,
     JobsController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, RatesService, PlaceSearchService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, RatesService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

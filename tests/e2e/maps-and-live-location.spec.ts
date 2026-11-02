@@ -5,12 +5,15 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 const COVER = 'https://images.unsplash.com/photo-1614082242765-7c98ca0f3df3';
 const MUMBAI = { latitude: 18.922, longitude: 72.8347 };
 const GATEWAY = { name: 'Gateway of India', address: 'Apollo Bandar, Mumbai, India', lat: 18.922, lng: 72.8347 };
+// What Photon really answers with.
+const PHOTON_GATEWAY = { geometry: { coordinates: [GATEWAY.lng, GATEWAY.lat] }, properties: { name: GATEWAY.name, street: 'Apollo Bandar', city: 'Mumbai', country: 'India' } };
+const CORS = { 'access-control-allow-origin': '*' };
 const stamp = Date.now().toString(36);
 let counter = 0;
 
 async function stubOutsideServices(context: BrowserContext) {
   await context.route('**/tiles.openfreemap.org/**', (route) => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }));
-  await context.route('**/api/places/search*', (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.get('q')?.startsWith('Gateway') ? [GATEWAY] : [] }));
+  await context.route('**/photon.komoot.io/**', (route) => route.fulfill({ headers: CORS, json: { features: new URL(route.request().url()).searchParams.get('q')?.startsWith('Gateway') ? [PHOTON_GATEWAY, { properties: { name: 'Has no position' } }] : [] } }));
 }
 
 async function newUser(browser: Browser, name: string, options: { located?: boolean } = {}) {
@@ -127,7 +130,7 @@ test('a place saved before real maps can be given a position', async ({ browser 
 test('when search is down, the page says so and clicking the map still works', async ({ browser }) => {
   const { page, context } = await newUser(browser, 'Down');
   const { id } = await createTrip(page);
-  await page.route('**/api/places/search*', (route) => route.fulfill({ status: 503, json: { message: 'down' } }));
+  await context.route('**/photon.komoot.io/**', (route) => route.fulfill({ status: 503, headers: CORS, json: { message: 'down' } }));
   await openMap(page, id);
   await page.getByTestId('map-add-place-button').click();
   await page.getByTestId('place-search-input').fill('Anywhere');

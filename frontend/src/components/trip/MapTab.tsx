@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog, Field } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
-import { apiGet } from "@/lib/api";
 import { useLiveLocations, type LiveLocation } from "@/lib/liveLocation";
+import { searchPlaces, type PlaceResult } from "@/lib/placeSearch";
 import { actions, saved } from "@/lib/store";
 import { uid } from "@/lib/format";
 import type { Place, PlaceType, Trip } from "@/lib/types";
@@ -18,11 +18,6 @@ import { PLACE_META } from "./placeMeta";
 import type { LivePin } from "./TripMap";
 
 const TripMap = lazy(() => import("./TripMap"));
-
-interface PlaceResult { name: string; address: string; lat: number; lng: number }
-
-const searchPlaces = (q: string, near?: { lat: number; lng: number }) =>
-  apiGet<PlaceResult[]>(`/places/search?q=${encodeURIComponent(q)}${near ? `&lat=${near.lat}&lng=${near.lng}` : ""}`);
 
 export function MapFallback({ className }: { className?: string }) {
   return <div className={cn("rounded-2xl border border-line bg-muted", className)} data-testid="trip-map-loading" />;
