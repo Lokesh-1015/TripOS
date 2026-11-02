@@ -69,6 +69,7 @@
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "8.1.5",
+    "vite-plugin-pwa": "2.0.0",
     "vitest": "4.1.11"
   }
 }

@@ -95,6 +95,21 @@ Render start command, which also applies migrations:
 cd server && ./node_modules/.bin/prisma migrate deploy && node dist/main.js
 ```
 
+## Installable app and offline access
+
+The service worker only runs in a built app, so to try it or test it:
+
+```bash
+cd frontend
+yarn build
+yarn preview --port 3001
+```
+
+```bash
+cd tests
+PREVIEW_URL=http://localhost:3001 npx playwright test --project=desktop e2e/installable-app.spec.ts
+```
+
 ## Documentation
 
 - [Data model and API](docs/data-model-and-api.md): schema, routes, permissions and live updates

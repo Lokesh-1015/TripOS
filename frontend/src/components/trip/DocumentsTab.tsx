@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, ConfirmDialog, EmptyState, Field } from "@/components/common";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { useTripAccess } from "@/lib/access";
-import { actions, saved } from "@/lib/store";
+import { actions, saved, useApp } from "@/lib/store";
 import { fmtDate, todayISO, uid } from "@/lib/format";
 import type { DocCategory, Trip, TripDoc } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,13 @@ import { cn } from "@/lib/utils";
 export const DOC_LABEL: Record<DocCategory, string> = {
   tickets: "Tickets", hotel: "Hotel confirmations", identity: "Identity documents", insurance: "Insurance", bookings: "Bookings", emergency: "Emergency contacts", other: "Other",
 };
+
+/** Documents can hold passports and IDs, so they aren't kept on the device. */
+export function OfflineDocumentsNote() {
+  const offlineCopy = useApp((s) => s.offlineCopy);
+  if (!offlineCopy) return null;
+  return <p className="rounded-xl bg-coral-soft px-4 py-3 text-sm text-[#8A3B22]" role="status" data-testid="documents-offline-note">Documents aren't stored on this device for your privacy. Reconnect to see them.</p>;
+}
 
 export function DocIcon({ type }: { type: string }) {
   const img = ["JPG", "JPEG", "PNG", "WEBP", "HEIC"].includes(type);
@@ -71,6 +78,7 @@ export default function DocumentsTab({ trip }: { trip: Trip }) {
 
   return (
     <div className="grid grid-cols-1 gap-5">
+      <OfflineDocumentsNote />
       <div className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-4 sm:flex-row sm:items-center">
         <div className="flex rounded-xl bg-muted p-1 sm:inline-flex" role="tablist">
           {([["shared", "Shared with trip", Users], ["private", "Private to me", Lock]] as const).map(([k, l, I]) => (

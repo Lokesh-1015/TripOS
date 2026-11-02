@@ -6,6 +6,9 @@ import { ThemeProvider } from 'next-themes'
 import './index.css'
 import App from './App.tsx'
 import { queryClient } from './lib/queryClient'
+import { startServiceWorker } from './lib/pwa'
+
+startServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -247,6 +247,8 @@ export interface AppState {
   loading: boolean;
   /** The server can't be reached; changes are held and sent on reconnect. */
   offline: boolean;
+  /** Showing the copy saved on this device, because the server couldn't be reached at startup. */
+  offlineCopy: boolean;
   authed: boolean;
   /** Until this is true, email invites can't be seen, accepted or sent. */
   emailVerified: boolean;

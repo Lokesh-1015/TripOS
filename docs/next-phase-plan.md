@@ -66,13 +66,13 @@ Move to PRD Phase 4 when all of these are true:
 - There have been no data-loss or privacy incidents, and no incorrect balances.
 
 ## After the beta: PRD Phase 4
-Mapbox with real coordinates (this also makes Trip Replay's route real), optional live location with auto-expiry, installable PWA and offline access. Passports and IDs stay out of offline storage. Order these by beta feedback.
+Mapbox with real coordinates (this also makes Trip Replay's route real) and optional live location with auto-expiry. Order these by beta feedback.
 
 Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is in the baseline commit.
 
 ## Known limits of what's built
-- **Exchange rates are typed in by people.** Automatic rates can follow if beta groups ask for them.
-- **Cross-trip totals only add up INR trips**, in the Expenses hub.
+- **Exchange rates are daily market rates**, from Exchange Rate API's free service, and they're suggestions. An expense keeps the rate saved with it, so a new day's rates never change a balance. Today's rate is suggested even for an expense dated earlier.
+- **Offline access is for reading, plus changes while the app stays open.** The app and trips open with no signal, but photos and files need a connection, documents are never stored on the device, and a change made offline is lost if the app is closed before reconnecting.
 - **Default email sender:** set `MAIL_FROM` to a real address on your domain before going live.
 - **Dark mode** covers the signed-in app. A few fixed colours, such as note and priority badges, stay the same in both themes.
 

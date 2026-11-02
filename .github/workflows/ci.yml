@@ -81,14 +81,21 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           npx playwright install --with-deps chromium
+      - name: Start the built frontend
+        working-directory: frontend
+        run: |
+          nohup yarn preview --port 3001 > ../preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3001/api/health && break; sleep 1; done
       - name: Browser tests
         working-directory: tests
+        env:
+          PREVIEW_URL: http://localhost:3001
         run: npx playwright test --project=desktop
 
       - name: Show server logs
         if: failure()
         run: |
-          tail -n 60 backend.log frontend.log
+          tail -n 60 backend.log frontend.log preview.log
       - name: Keep test results
         if: failure()
         uses: actions/upload-artifact@v4

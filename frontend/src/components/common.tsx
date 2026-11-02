@@ -125,6 +125,11 @@ export function Progress({ value, className, tone = "forest" }: { value: number;
   );
 }
 
+/** The rate provider's terms ask for this wherever its rates are shown. */
+export function RatesCredit() {
+  return <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer" className="underline">Rates By Exchange Rate API</a>;
+}
+
 export function PageHeader({ title, subtitle, actions, eyebrow }: { title: string; subtitle?: string; actions?: ReactNode; eyebrow?: string }) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

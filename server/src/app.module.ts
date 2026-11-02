@@ -11,6 +11,8 @@ import { FilesController } from "./files/files.controller.js";
 import { HealthController } from "./health/health.controller.js";
 import { MailService } from "./mail/mail.service.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
+import { RatesController } from "./rates/rates.controller.js";
+import { RatesService } from "./rates/rates.service.js";
 import { RealtimeGateway } from "./realtime/realtime.gateway.js";
 import { ExpensesController } from "./trips/expenses.controller.js";
 import { ItineraryController } from "./trips/itinerary.controller.js";
@@ -39,7 +41,8 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     PlanningController,
     SharingController,
     FilesController,
+    RatesController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, TripAccessGuard, RealtimeGateway, TripWriter],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, MailService, RatesService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

@@ -4,11 +4,12 @@ import { Link } from "react-router-dom";
 import { ArrowRight, FileText, Images, ListTodo, Lock, Play, Receipt, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, EmptyState, PageHeader, Progress, Stat } from "@/components/common";
+import { Avatar, EmptyState, PageHeader, Progress, RatesCredit, Stat } from "@/components/common";
 import { TaskRow } from "@/components/trip/TasksTab";
-import { DocIcon, DOC_LABEL } from "@/components/trip/DocumentsTab";
+import { DocIcon, DOC_LABEL, OfflineDocumentsNote } from "@/components/trip/DocumentsTab";
 import { useApp } from "@/lib/store";
-import { balances, CATEGORY_COLOR, fmtDate, fmtRange, money, todayISO, totalSpent, tripStatus } from "@/lib/format";
+import { balances, CATEGORY_COLOR, CURRENCIES, fmtDate, fmtRange, money, todayISO, totalSpent, tripStatus } from "@/lib/format";
+import { sumAcross, useExchangeRates } from "@/lib/rates";
 import { cn } from "@/lib/utils";
 
 import type { Trip } from "@/lib/types";
@@ -20,18 +21,36 @@ export function ExpensesHub() {
   const me = useApp((s) => s.user.id);
   const list = activeTrips(trips);
   const rows = list.map((t) => ({ t, spent: totalSpent(t), bal: balances(t.members, t.expenses, t.settlements)[me] ?? 0 }));
-  const owe = rows.filter((r) => r.bal < -0.009 && r.t.currency === "INR").reduce((s, r) => s - r.bal, 0);
-  const get = rows.filter((r) => r.bal > 0.009 && r.t.currency === "INR").reduce((s, r) => s + r.bal, 0);
+  const home = useApp((s) => s.settings.currency);
+  const [shownIn, setShownIn] = useState(home);
+  const { data: rates } = useExchangeRates();
+  const owe = sumAcross(rows.filter((r) => r.bal < -0.009).map((r) => ({ amount: -r.bal, currency: r.t.currency })), shownIn, rates);
+  const get = sumAcross(rows.filter((r) => r.bal > 0.009).map((r) => ({ amount: r.bal, currency: r.t.currency })), shownIn, rates);
+  const logged = sumAcross(rows.map((r) => ({ amount: r.spent, currency: r.t.currency })), shownIn, rates);
+  const hint = (total: typeof owe) => (total.unavailable ? "By currency, as rates aren't available" : total.converted ? "Converted at today's rates" : "Across all trips");
   const recent = list.flatMap((t) => t.expenses.map((e) => ({ e, t }))).sort((a, b) => b.e.date.localeCompare(a.e.date)).slice(0, 10);
   return (
     <div>
-      <PageHeader title="Expenses" subtitle="Your balances and spending across every trip." />
+      <PageHeader
+        title="Expenses"
+        subtitle="Your balances and spending across every trip."
+        actions={
+          <div className="flex items-center gap-2 text-sm text-ink-muted">
+            Show totals in
+            <Select value={shownIn} onValueChange={(v) => setShownIn(v as string)}>
+              <SelectTrigger size="sm" className="w-24 rounded-lg" data-testid="hub-expenses-currency-select"><SelectValue /></SelectTrigger>
+              <SelectContent>{CURRENCIES.map((x) => <SelectItem key={x.code} value={x.code}>{x.code}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        }
+      />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="You owe" value={<span className="text-[#C2462F]">{money(owe)}</span>} hint="Across all trips (INR)" testId="hub-expenses-owe" />
-        <Stat label="You're owed" value={<span className="text-[#1E7B58]">{money(get)}</span>} hint="Across all trips (INR)" testId="hub-expenses-owed" />
+        <Stat label="You owe" value={<span className="text-[#C2462F]">{owe.text}</span>} hint={hint(owe)} testId="hub-expenses-owe" />
+        <Stat label="You're owed" value={<span className="text-[#1E7B58]">{get.text}</span>} hint={hint(get)} testId="hub-expenses-owed" />
         <Stat label="Trips tracked" value={rows.length} testId="hub-expenses-trips" />
-        <Stat label="Total logged" value={money(rows.filter((r) => r.t.currency === "INR").reduce((s, r) => s + r.spent, 0))} testId="hub-expenses-total" />
+        <Stat label="Total logged" value={logged.text} hint={hint(logged)} testId="hub-expenses-total" />
       </div>
+      {[owe, get, logged].some((x) => x.converted) && <p className="mt-2 text-xs text-ink-muted" data-testid="hub-expenses-rates-credit"><RatesCredit /></p>}
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <section className="divide-y rounded-2xl border border-line bg-card">
           {rows.map(({ t, spent, bal }) => (
@@ -137,6 +156,7 @@ export function DocumentsHub() {
   return (
     <div>
       <PageHeader title="Shared Documents" subtitle="Every ticket, booking and contact across your trips." />
+      <div className="mb-4 empty:hidden"><OfflineDocumentsNote /></div>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <label className="relative flex-1"><span className="sr-only">Search</span><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search all documents" className="h-10 pl-9" data-testid="hub-documents-search-input" /></label>
         <Select value={trip} onValueChange={setTrip}>

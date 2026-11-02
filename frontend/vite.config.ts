@@ -2,6 +2,7 @@ import path from "node:path";
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
 import { visualEdits } from "@emergentbase/visual-edits/vite";
 
 // Supervisor exports DISABLE_HOT_RELOAD=true when the platform sets ENABLE_RELOAD=false.
@@ -40,6 +41,32 @@ export default defineConfig(async () => {
     plugins: [
       react(),
       tailwindcss(),
+      VitePWA({
+        // A new version waits for the person to reload (see lib/pwa.ts), so it can't interrupt an edit.
+        registerType: "prompt",
+        manifest: {
+          name: "TripOS",
+          short_name: "TripOS",
+          description: "Plan group trips together: itinerary, expenses, tasks, packing, chat and memories in one place.",
+          start_url: "/app",
+          scope: "/",
+          display: "standalone",
+          theme_color: "#174C3C",
+          background_color: "#FFFFFF",
+          icons: [
+            { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+            { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+            { src: "/maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          ],
+        },
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+          navigateFallback: "/index.html",
+          // The API is never cached by the service worker: private data only goes where lib/offline.ts puts it.
+          navigateFallbackDenylist: [/^\/api\//],
+        },
+      }),
       ...(visualEditsDisabled ? [] : [visualEdits()]),
       // No isServe guard: this factory takes no ConfigEnv arg, so build purity here rests
       // on the package's own `apply: "serve"`.

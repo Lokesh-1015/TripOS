@@ -6,6 +6,7 @@ import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
 import type { AppNotification, AppState, Person, Settings, Trip, TripCollection, TripEvent } from "./types";
 import { apiDelete, apiErrorMessage, ApiError, apiGet, apiPatch, apiPost, apiPut } from "./api";
+import { clearOfflineCopy, readOfflineCopy, saveOfflineCopy } from "./offline";
 import { beginSession, endSession } from "./session";
 import { uid } from "./format";
 
@@ -19,12 +20,21 @@ const DEFAULT_SETTINGS: Settings = {
   privacy: { profilePublic: true, showEmail: false, shareLocation: true },
 };
 
-let state: AppState = { version: 1, loading: true, offline: false, authed: false, emailVerified: false, emailEnabled: true, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
+let state: AppState = { version: 1, loading: true, offline: false, offlineCopy: false, authed: false, emailVerified: false, emailEnabled: true, onboarded: false, user: SIGNED_OUT_USER, settings: DEFAULT_SETTINGS, saved: [], trips: [], notifications: [] };
 const listeners = new Set<() => void>();
+
+let offlineCopyTimer: ReturnType<typeof setTimeout> | undefined;
 
 function set(next: AppState) {
   state = next;
   listeners.forEach((l) => l());
+  clearTimeout(offlineCopyTimer);
+  if (next.authed && !next.loading) {
+    offlineCopyTimer = setTimeout(() => {
+      const { loading: _loading, offline: _offline, offlineCopy: _offlineCopy, ...copy } = state;
+      void saveOfflineCopy(copy);
+    }, 1000);
+  }
 }
 
 const subscribe = (cb: () => void) => {
@@ -57,7 +67,7 @@ export const inviteLink = (trip: Trip) => (trip.joinCode ? `${window.location.or
 
 // --- Loading and live updates ---------------------------------------------------------------
 
-type ServerState = Omit<AppState, "loading" | "authed"> & { authed: true };
+type ServerState = Omit<AppState, "loading" | "offlineCopy" | "authed"> & { authed: true };
 
 let socket: Socket | null = null;
 
@@ -105,17 +115,26 @@ export async function loadState() {
     if (request !== stateRequest) return;
     stateLoading = false;
     tripRequests.clear();
-    set({ ...server, loading: false, offline: state.offline, authed: true });
+    set({ ...server, loading: false, offline: state.offline, offlineCopy: false, authed: true });
     connectSocket();
   } catch (e) {
     if (request !== stateRequest) return;
     stateLoading = false;
     if (e instanceof ApiError && e.status === 401) {
       disconnectSocket();
+      void clearOfflineCopy();
       set({ ...state, loading: false, authed: false, onboarded: false, user: SIGNED_OUT_USER, trips: [], notifications: [], saved: [] });
     } else {
       // The API is unreachable: keep what's on screen and let the socket's reconnect retry.
-      set({ ...state, loading: false });
+      // Opening the app with no signal has nothing on screen yet, so it uses the copy on this device.
+      const copy = state.authed ? undefined : await readOfflineCopy();
+      if (request !== stateRequest) return;
+      if (copy) {
+        set({ ...copy, loading: false, offline: true, offlineCopy: true });
+        connectSocket();
+      } else {
+        set({ ...state, loading: false });
+      }
     }
   }
 }
@@ -242,7 +261,10 @@ function sendVersioned(tripId: string, itemId: string, version: number | undefin
 
 // The browser knows it's offline before a socket does, and an open socket can outlive the connection.
 window.addEventListener("offline", () => setOffline(true));
-window.addEventListener("online", () => setOffline(false));
+window.addEventListener("online", () => {
+  setOffline(false);
+  if (state.offlineCopy) void loadState();
+});
 
 // Leaving with changes still waiting for a connection would lose them.
 window.addEventListener("beforeunload", (e) => {
@@ -324,8 +346,10 @@ export const actions = {
     });
     void loadState();
   },
-  signOut() {
+  async signOut() {
     disconnectSocket();
+    clearTimeout(offlineCopyTimer);
+    await clearOfflineCopy();
     return endSession("/login");
   },
   /** Join through an invite link. Returns the trip's id. */

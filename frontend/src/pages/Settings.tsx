@@ -12,6 +12,7 @@ import { Avatar, Field, PageHeader } from "@/components/common";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
 import { CURRENCIES } from "@/lib/format";
+import { useInstallApp } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
 
 const STYLES = ["Adventure", "Mountains", "Beaches", "Food trails", "Heritage", "Road trips", "Backpacking", "Luxury", "Wellness"];
@@ -25,6 +26,21 @@ const NOTIFY: [string, string, string][] = [
   ["documents", "Document uploads", "New shared documents"],
   ["email", "Email digest", "A weekly summary (coming soon)"],
 ];
+
+function InstallCard() {
+  const app = useInstallApp();
+  return (
+    <section className="mt-4 grid gap-3 rounded-2xl border border-line bg-card p-5 sm:p-7" data-testid="settings-install-card">
+      <div>
+        <h3 className="font-semibold">Install TripOS</h3>
+        <p className="text-sm text-ink-muted">Open it from your home screen and read your trips with no signal. Documents stay online only, for your privacy.</p>
+      </div>
+      {app.installed ? <p className="text-sm font-medium text-forest">Installed on this device.</p>
+        : app.canPrompt ? <Button className="w-fit" onClick={() => void app.install()} data-testid="settings-install-button">Install app</Button>
+        : <p className="text-sm text-ink-muted" data-testid="settings-install-hint">{app.ios ? "In Safari, tap Share, then Add to Home Screen." : "Open your browser's menu and choose Install or Add to Home Screen."}</p>}
+    </section>
+  );
+}
 
 function PasswordForm() {
   const [f, setF] = useState({ current: "", next: "" });
@@ -162,6 +178,7 @@ export default function Settings() {
               ))}
             </div>
           </section>
+          <InstallCard />
         </TabsContent>
 
         <TabsContent value="account">

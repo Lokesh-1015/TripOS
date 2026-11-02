@@ -6,6 +6,8 @@ const stamp = Date.now().toString(36);
 const RECEIPT = path.join(__dirname, '..', 'fixtures', 'receipt.png');
 
 test('itinerary, packing, documents, map, memories, settings and hubs all persist', async ({ browser }) => {
+  // This walks through nearly every screen, so it needs longer than the default.
+  test.setTimeout(120_000);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
   const errors: string[] = [];

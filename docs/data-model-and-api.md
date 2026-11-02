@@ -114,6 +114,7 @@ DELETE /trips/:tripId/expenses/:id
 PUT    /trips/:tripId/settlements/:id
 GET    /trips/:tripId/balances
 POST   /trips/:tripId/convert-currency      admin or owner; { currency, rate }
+GET    /exchange-rates                      signed in; today's rates against USD, cached for 6 hours
 
 PUT    /trips/:tripId/tasks/:id
 DELETE /trips/:tripId/tasks/:id

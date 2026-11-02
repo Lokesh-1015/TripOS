@@ -9,8 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, ConfirmDialog, EmptyState, Field, Progress, Stat } from "@/components/common";
+import { Avatar, ConfirmDialog, EmptyState, Field, Progress, RatesCredit, Stat } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
+import { rateBetween, useExchangeRates } from "@/lib/rates";
 import { actions, saved, useApp } from "@/lib/store";
 import { balances, CATEGORY_COLOR, CATEGORY_LABEL, CURRENCIES, equalShares, fmtDate, hasAmounts, money, round2, suggestTransfers, todayISO, totalSpent, uid } from "@/lib/format";
 import type { Expense, ExpenseCategory, Trip } from "@/lib/types";
@@ -27,11 +28,18 @@ function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boo
   const me = useApp((s) => s.user.id);
   const [d, setD] = useState<Draft>(() => toDraft(initial, trip, me));
   const [err, setErr] = useState<Record<string, string>>({});
+  // A saved expense keeps the rate it was paid at; only a new choice of currency gets today's rate.
+  const [rateChosen, setRateChosen] = useState(false);
   useEffect(() => {
-    if (open) { setD(toDraft(initial, trip, me)); setErr({}); }
+    if (open) { setD(toDraft(initial, trip, me)); setErr({}); setRateChosen(!!initial?.original); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, trip.id, me]);
   const foreign = d.currency !== trip.currency;
+  const { data: rates } = useExchangeRates();
+  const todaysRate = foreign ? rateBetween(rates, d.currency, trip.currency) : null;
+  useEffect(() => {
+    if (open && !rateChosen && todaysRate) setD((x) => ({ ...x, rate: String(todaysRate) }));
+  }, [open, rateChosen, todaysRate]);
   const entered = +d.amount || 0;
   const rate = +d.rate || 0;
   // Everything below works in the trip's currency, so balances stay comparable.
@@ -67,7 +75,7 @@ function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boo
           <div className="grid grid-cols-[1fr_110px] gap-3">
             <Field label="Amount" htmlFor="ex-amt" error={err.amount}><Input id="ex-amt" inputMode="decimal" value={d.amount} onChange={(e) => setD({ ...d, amount: e.target.value.replace(/[^\d.]/g, "") })} className="num" placeholder="0" data-testid="expense-amount-input" /></Field>
             <Field label="Currency">
-              <Select value={d.currency} onValueChange={(v) => setD({ ...d, currency: v as string })}>
+              <Select value={d.currency} onValueChange={(v) => { setD({ ...d, currency: v as string, rate: "" }); setRateChosen(false); }}>
                 <SelectTrigger className="w-full" data-testid="expense-currency-select"><SelectValue /></SelectTrigger>
                 <SelectContent>{CURRENCIES.map((x) => <SelectItem key={x.code} value={x.code}>{x.code}</SelectItem>)}</SelectContent>
               </Select>
@@ -75,7 +83,10 @@ function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boo
           </div>
           {foreign && (
             <Field label={`Exchange rate: 1 ${d.currency} in ${trip.currency}`} htmlFor="ex-rate" error={err.rate} hint={amount > 0 ? `Counts as ${money(amount, trip.currency)} on this trip` : "Use the rate you actually paid"}>
-              <Input id="ex-rate" inputMode="decimal" value={d.rate} onChange={(e) => { setD({ ...d, rate: e.target.value.replace(/[^\d.]/g, "") }); setErr({ ...err, rate: "" }); }} className="num" placeholder="83.50" data-testid="expense-rate-input" />
+              <Input id="ex-rate" inputMode="decimal" value={d.rate} onChange={(e) => { setD({ ...d, rate: e.target.value.replace(/[^\d.]/g, "") }); setErr({ ...err, rate: "" }); setRateChosen(true); }} className="num" placeholder="83.50" data-testid="expense-rate-input" />
+              {todaysRate !== null && (+d.rate === todaysRate
+                ? <p className="text-xs text-ink-muted" data-testid="expense-rate-source">Today's market rate. Change it if you paid a different rate. <RatesCredit /></p>
+                : <button type="button" className="w-fit text-xs font-medium text-forest underline" onClick={() => { setD({ ...d, rate: String(todaysRate) }); setErr({ ...err, rate: "" }); setRateChosen(false); }} data-testid="expense-rate-today-button">Use today's rate ({todaysRate})</button>)}
             </Field>
           )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -143,7 +154,11 @@ function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boo
 function ConvertDialog({ trip, currency, onClose }: { trip: Trip; currency: string | undefined; onClose: () => void }) {
   const [rate, setRate] = useState("");
   const [err, setErr] = useState<string>();
-  useEffect(() => { setRate(""); setErr(undefined); }, [currency]);
+  const [rateChosen, setRateChosen] = useState(false);
+  const { data: rates } = useExchangeRates();
+  const todaysRate = currency ? rateBetween(rates, trip.currency, currency) : null;
+  useEffect(() => { setRate(""); setErr(undefined); setRateChosen(false); }, [currency]);
+  useEffect(() => { if (!rateChosen && todaysRate) setRate(String(todaysRate)); }, [rateChosen, todaysRate]);
   const value = +rate || 0;
   const spent = totalSpent(trip);
   const convert = () => {
@@ -161,7 +176,8 @@ function ConvertDialog({ trip, currency, onClose }: { trip: Trip; currency: stri
           <DialogDescription>Every expense, payment, budget and balance on this trip will be converted for everyone. To undo it, you'd have to convert back.</DialogDescription>
         </DialogHeader>
         <Field label={`Exchange rate: 1 ${trip.currency} in ${currency}`} htmlFor="convert-rate" error={err} hint={value > 0 && currency ? `${money(spent, trip.currency)} spent becomes ${money(round2(spent * value), currency)}` : undefined}>
-          <Input id="convert-rate" inputMode="decimal" value={rate} onChange={(e) => { setRate(e.target.value.replace(/[^\d.]/g, "")); setErr(undefined); }} className="num" data-testid="convert-rate-input" />
+          <Input id="convert-rate" inputMode="decimal" value={rate} onChange={(e) => { setRate(e.target.value.replace(/[^\d.]/g, "")); setErr(undefined); setRateChosen(true); }} className="num" data-testid="convert-rate-input" />
+          {todaysRate !== null && value === todaysRate && <p className="text-xs text-ink-muted" data-testid="convert-rate-source">Today's market rate. Change it if your group agreed on another. <RatesCredit /></p>}
         </Field>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
