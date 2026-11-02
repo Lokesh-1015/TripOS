@@ -7,7 +7,7 @@
 | Milestone | Status |
 |---|---|
 | 1. Version control and CI | **Done.** Code is at `Lokesh-1015/TripOS`, and CI runs every test on each push. |
-| 2. Real email and verified accounts | **Built and tested locally.** Off in production until an email provider is connected. |
+| 2. Real email and verified accounts | **Built and tested locally, with Resend sending ready.** Off in production until a domain is verified and `RESEND_API_KEY` is set. |
 | 3. Production file storage | **Interim.** Files live in Postgres and survive restarts, but R2 is still needed. |
 | 4. Deployment | **Live on free plans:** https://tripos-travel.vercel.app. Needs paid plans and a custom domain before real groups rely on it. |
 | 5. Reliability and monitoring | Not started |
@@ -30,7 +30,7 @@ The app is deployed on free plans. Before real groups rely on it:
 - Move the database to a paid plan with automatic backups, and test a restore once. **The free database expires on 1 December 2026.**
 - Move the backend to a paid plan, so it doesn't sleep after 15 idle minutes.
 - Connect a custom domain.
-- Connect the production email provider, with SPF and DKIM set up so mail doesn't land in spam.
+- Verify the email domain in Resend, with SPF and DKIM set up so mail doesn't land in spam, and set `RESEND_API_KEY` and `MAIL_FROM` on Render.
 - Review Vercel's plan: Hobby is for non-commercial use.
 
 **Done when:** two people on different networks sign up from a real email, and plan a trip together on the live site.
@@ -47,7 +47,7 @@ Passports and financial records need this before real data arrives.
 ### D. Reliability and monitoring (M)
 - Add Sentry, structured logs with request IDs, and uptime alerts.
 - Add security headers, and rate limits per account on uploads, invites and chat. Today's limits are per IP address and cover login and invites only.
-- Send emails through a background queue with retries (BullMQ). A failed send is currently only logged, though people can ask for verification and reset emails again.
+- Send emails through a durable background queue (BullMQ). Failed sends are retried three times in memory and then only logged, and a restart loses retries in progress, though people can ask for verification and reset emails again.
 - Add older-message loading: only the latest 300 messages load today, and all trip data loads at startup.
 - Load test against a target of 200 concurrent users. Add the Redis adapter if this needs more than one server.
 
@@ -82,6 +82,6 @@ Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is 
 |---|---|---|
 | Should the repository stay public? | Make it private until launch: the PRD and all code are readable by anyone | Now |
 | Domain name | Yours to choose | B |
-| Email provider | Resend, using its SMTP settings in `SMTP_URL` | B |
+| Email domain | Verify a domain or subdomain in Resend, which is needed to email anyone but yourself | B |
 | File storage account | Cloudflare R2, as the PRD says | A |
 | Paid hosting | Render's starter plans for the backend and database | B, before 1 December 2026 |

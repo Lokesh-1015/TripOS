@@ -80,7 +80,8 @@ How they connect:
 
 - **API calls:** `frontend/vercel.json` forwards `/api` to Render, so the login cookie stays first-party on the frontend's domain.
 - **Live updates:** Vercel can't carry a socket, so the browser connects straight to Render (`VITE_SOCKET_URL`) and proves who it is with a short-lived ticket from `/api/auth/realtime-ticket`.
-- **Render settings:** `DATABASE_URL`, `APP_URL`, `CORS_ORIGINS`, `NODE_ENV=production`, `NODE_VERSION`. Add `SMTP_URL` and `MAIL_FROM` to turn on email.
+- **Render settings:** `DATABASE_URL`, `APP_URL`, `CORS_ORIGINS`, `NODE_ENV=production`, `NODE_VERSION`.
+- **Email:** add `RESEND_API_KEY` and `MAIL_FROM` (an address on a domain verified in Resend) to turn it on. It uses Resend's HTTPS API because Render's free plan blocks SMTP ports.
 
 Render build command:
 
