@@ -33,6 +33,8 @@ jobs:
       PORT: 4000
       APP_URL: http://localhost:3000
       THROTTLE_DISABLED: "true"
+      JOBS_SECRET: local-test-secret
+      MAIL_OPTIONAL_ALLOWANCE: 100000
       SMTP_URL: smtp://localhost:1025
       MAIL_FROM: TripOS <hello@tripos.local>
     steps:

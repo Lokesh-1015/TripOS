@@ -132,6 +132,7 @@ enum NotificationKind {
 model User {
   id                String   @id @default(cuid())
   liveLocations     LiveLocation[]
+  remindersSent     ReminderSent[]
   email             String   @unique
   name              String
   avatar            String   @default("")
@@ -261,6 +262,9 @@ model Activity {
   start       String
   end         String
   location    String   @default("")
+  /// The saved map place this happens at, which gives Trip Replay its route.
+  placeId     String?
+  place       Place?   @relation(fields: [placeId], references: [id], onDelete: SetNull)
   description String   @default("")
   costMinor   Int      @default(0)
   notes       String   @default("")
@@ -472,9 +476,21 @@ model Place {
   note      String    @default("")
   version   Int       @default(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  activities Activity[]
 
   @@index([tripId])
   @@map("places")
+}
+
+/// Reminders already sent, so running the daily job twice can't send one twice.
+model ReminderSent {
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  sentAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([userId, key])
+  @@map("reminders_sent")
 }
 
 /// The latest position of someone sharing it, and nothing older. Deleted when sharing ends.

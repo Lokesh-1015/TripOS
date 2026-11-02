@@ -37,6 +37,21 @@ Screens read through `useApp` and write through `actions` in `frontend/src/lib/s
 
 Nobody but the uploader can see a private document, including admins.
 
+## Reminders and email
+
+A scheduled GitHub workflow (`.github/workflows/daily-reminders.yml`) calls `/jobs/daily` every morning, because the free backend sleeps and can't time anything itself.
+
+| Email | When | Who gets it |
+|---|---|---|
+| Trip starts in 3 days, task due today or tomorrow | Daily | Everyone, unless `notify.reminders` is off |
+| Money you owe | Mondays | Everyone, unless `notify.reminders` is off |
+| Digest of unread updates | Mondays | Only if `notify.email` is on |
+| Updates as they happen, except chat | Right away | Only if `notify.emailAlerts` is on |
+
+- Each person gets one reminder email a day, and `reminders_sent` stops the same reminder going out twice.
+- Only verified addresses are emailed. Reminders still appear in the app for everyone else.
+- Reminders and updates stop at 250 emails a day, so verification and reset emails always fit in Brevo's free 300. A reminder that doesn't fit is sent the next day. The count resets if the backend restarts.
+
 ## Live location
 
 | Rule | Why |
@@ -124,7 +139,10 @@ DELETE /trips/:tripId/expenses/:id
 PUT    /trips/:tripId/settlements/:id
 GET    /trips/:tripId/balances
 POST   /trips/:tripId/convert-currency      admin or owner; { currency, rate }
-GET    /exchange-rates                      signed in; today's rates against USD, cached for 6 hours
+GET    /exchange-rates?date=                signed in; today's rates against USD, cached for 6 hours, or a past date's
+GET    /trips/:tripId/messages?before=&beforeId=&limit=   members; chat older than the 300 that load with the trip
+POST   /trips/:tripId/copy                  members; new trip from this one { id, name, startDate }
+POST   /jobs/daily                          the x-jobs-secret header; sends the day's reminders
 GET    /places/search?q=&lat=&lng=          signed in; finds places through Photon, cached for a day
 GET    /trips/:tripId/live-locations        active members; who is sharing and where
 PUT    /trips/:tripId/live-locations/me     active members; start sharing { lat, lng, accuracy, hours: 1 | 4 | 8 }

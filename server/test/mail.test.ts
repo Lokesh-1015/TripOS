@@ -78,6 +78,35 @@ describe("MailService with Brevo", () => {
   });
 });
 
+describe("optional emails", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("stop at the day's allowance, and essential emails keep going", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => answer(201));
+    vi.stubGlobal("fetch", fetchMock);
+    const mail = service({ BREVO_API_KEY: "xkeysib_test", MAIL_OPTIONAL_ALLOWANCE: "2" });
+    vi.spyOn((mail as unknown as { logger: { warn: () => void } }).logger, "warn").mockImplementation(() => undefined);
+    const summary = () => mail.sendSummary("friend@example.org", "Reminder", ["Line"], { label: "Open", path: "/app" });
+    expect(await summary()).toBe(true);
+    expect(await summary()).toBe(true);
+    expect(await summary()).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await mail.sendPasswordReset("friend@example.org", "token");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("say where to change them, and report a failed send", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => answer(400));
+    vi.stubGlobal("fetch", fetchMock);
+    const mail = service({ BREVO_API_KEY: "xkeysib_test", APP_URL: "https://app.example.org" });
+    vi.spyOn((mail as unknown as { logger: { error: () => void } }).logger, "error").mockImplementation(() => undefined);
+    expect(await mail.sendSummary("friend@example.org", "Reminder", ["Line"], { label: "Open", path: "/app/trips/x" })).toBe(false);
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.textContent).toContain("in Settings, under Notifications");
+    expect(body.textContent).toContain("https://app.example.org/app/trips/x");
+  });
+});
+
 describe("MailService configuration", () => {
   it("is on with either setting and off with neither", () => {
     expect(service({ BREVO_API_KEY: "xkeysib_test" }).enabled).toBe(true);

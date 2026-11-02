@@ -35,11 +35,15 @@ function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, trip.id, me]);
   const foreign = d.currency !== trip.currency;
-  const { data: rates } = useExchangeRates();
-  const todaysRate = foreign ? rateBetween(rates, d.currency, trip.currency) : null;
+  // An expense from earlier gets that day's rate, falling back to today's if the past one isn't available.
+  const pastDate = d.date && d.date < todayISO() ? d.date : undefined;
+  const { data: latestRates } = useExchangeRates();
+  const { data: pastRates } = useExchangeRates(pastDate);
+  const usedPast = !!pastDate && !!pastRates?.date;
+  const marketRate = foreign ? rateBetween(usedPast ? pastRates : latestRates, d.currency, trip.currency) : null;
   useEffect(() => {
-    if (open && !rateChosen && todaysRate) setD((x) => ({ ...x, rate: String(todaysRate) }));
-  }, [open, rateChosen, todaysRate]);
+    if (open && !rateChosen && marketRate) setD((x) => ({ ...x, rate: String(marketRate) }));
+  }, [open, rateChosen, marketRate]);
   const entered = +d.amount || 0;
   const rate = +d.rate || 0;
   // Everything below works in the trip's currency, so balances stay comparable.
@@ -84,9 +88,9 @@ function ExpenseDialog({ trip, open, initial, onClose }: { trip: Trip; open: boo
           {foreign && (
             <Field label={`Exchange rate: 1 ${d.currency} in ${trip.currency}`} htmlFor="ex-rate" error={err.rate} hint={amount > 0 ? `Counts as ${money(amount, trip.currency)} on this trip` : "Use the rate you actually paid"}>
               <Input id="ex-rate" inputMode="decimal" value={d.rate} onChange={(e) => { setD({ ...d, rate: e.target.value.replace(/[^\d.]/g, "") }); setErr({ ...err, rate: "" }); setRateChosen(true); }} className="num" placeholder="83.50" data-testid="expense-rate-input" />
-              {todaysRate !== null && (+d.rate === todaysRate
-                ? <p className="text-xs text-ink-muted" data-testid="expense-rate-source">Today's market rate. Change it if you paid a different rate. <RatesCredit /></p>
-                : <button type="button" className="w-fit text-xs font-medium text-forest underline" onClick={() => { setD({ ...d, rate: String(todaysRate) }); setErr({ ...err, rate: "" }); setRateChosen(false); }} data-testid="expense-rate-today-button">Use today's rate ({todaysRate})</button>)}
+              {marketRate !== null && (+d.rate === marketRate
+                ? <p className="text-xs text-ink-muted" data-testid="expense-rate-source">{usedPast && pastRates?.date ? `Market rate for ${fmtDate(pastRates.date)}` : "Today's market rate"}. Change it if you paid a different rate. <RatesCredit past={usedPast} /></p>
+                : <button type="button" className="w-fit text-xs font-medium text-forest underline" onClick={() => { setD({ ...d, rate: String(marketRate) }); setErr({ ...err, rate: "" }); setRateChosen(false); }} data-testid="expense-rate-today-button">Use the market rate ({marketRate})</button>)}
             </Field>
           )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

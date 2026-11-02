@@ -9,7 +9,7 @@ let counter = 0;
 async function newUser(browser: Browser, rates: 'available' | 'unavailable' = 'available') {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  await page.route('**/api/exchange-rates', (route) => (rates === 'available' ? route.fulfill({ json: RATES }) : route.fulfill({ status: 503, json: { message: 'unavailable' } })));
+  await page.route('**/api/exchange-rates*', (route) => (rates === 'available' ? route.fulfill({ json: RATES }) : route.fulfill({ status: 503, json: { message: 'unavailable' } })));
   await page.goto('/signup');
   await page.getByTestId('signup-name-input').fill('Rate Tester');
   await page.getByTestId('signup-email-input').fill(`rates-${stamp}-${++counter}@example.test`);
@@ -74,7 +74,7 @@ test('a foreign expense gets today\'s rate, which can be changed, and saved expe
   });
 
   await test.step('editing later keeps the rate it was paid at', async () => {
-    await page.route('**/api/exchange-rates', (route) => route.fulfill({ json: { ...RATES, rates: { ...RATES.rates, EUR: 0.25 } } }));
+    await page.route('**/api/exchange-rates*', (route) => route.fulfill({ json: { ...RATES, rates: { ...RATES.rates, EUR: 0.25 } } }));
     await page.reload();
     await page.locator('[data-testid^="expense-row-"]').hover();
     await page.locator('[data-testid^="expense-edit-"]').click();

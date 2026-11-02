@@ -11,7 +11,7 @@ const VERIFY_MS = 24 * 60 * 60 * 1000;
 // Asking again within this window sends nothing, so these routes can't be used to flood an inbox.
 const RESEND_COOLDOWN_MS = 60 * 1000;
 
-export const DEFAULT_NOTIFY = { invites: true, messages: true, tasks: true, expenses: true, votes: true, itinerary: false, documents: true, email: false };
+export const DEFAULT_NOTIFY = { invites: true, messages: true, tasks: true, expenses: true, votes: true, itinerary: false, documents: true, email: false, emailAlerts: false, reminders: true };
 export const DEFAULT_PRIVACY = { profilePublic: true, showEmail: false, shareLocation: true };
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();

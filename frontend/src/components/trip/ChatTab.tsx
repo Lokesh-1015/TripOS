@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, Tip } from "@/components/common";
-import { apiErrorMessage, uploadFile } from "@/lib/api";
+import { apiErrorMessage, apiGet, uploadFile } from "@/lib/api";
 import { useTripAccess } from "@/lib/access";
 import { actions, saved, useApp } from "@/lib/store";
 import { uid } from "@/lib/format";
@@ -14,6 +14,9 @@ import type { Message, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NewPollDialog, PollCard } from "./OverviewTab";
 import { PLACE_META } from "./placeMeta";
+
+// How many recent messages come with the trip itself. The server has the same number.
+const LOADED_WITH_TRIP = 300;
 
 export default function ChatTab({ trip }: { trip: Trip }) {
   const { me, canContribute } = useTripAccess(trip);
@@ -26,6 +29,35 @@ export default function ChatTab({ trip }: { trip: Trip }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const people = Object.fromEntries(trip.members.map((m) => [m.id, m]));
   const pinned = trip.messages.filter((m) => m.pinned);
+  // Older messages are fetched on request. Once any are loaded, everything seen stays on screen, so a
+  // new message moving the server's window along can't leave a gap.
+  const [loadedOlder, setLoadedOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState<boolean>();
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const seen = useRef(new Map<string, Message>());
+  const scrollBox = useRef<HTMLDivElement>(null);
+  trip.messages.forEach((m) => seen.current.set(m.id, m));
+  const messages = loadedOlder ? [...seen.current.values()].sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id)) : trip.messages;
+  const canLoadOlder = hasOlder ?? trip.messages.length >= LOADED_WITH_TRIP;
+  const loadOlder = async () => {
+    const first = messages[0];
+    const box = scrollBox.current;
+    if (!first || !box) return;
+    const height = box.scrollHeight;
+    setLoadingOlder(true);
+    try {
+      const older = await apiGet<{ messages: Message[]; hasMore: boolean }>(`/trips/${trip.id}/messages?before=${encodeURIComponent(first.at)}&beforeId=${encodeURIComponent(first.id)}`);
+      older.messages.forEach((m) => seen.current.set(m.id, m));
+      setLoadedOlder(true);
+      setHasOlder(older.hasMore);
+      // Keeps the message being read in place rather than jumping to the top.
+      requestAnimationFrame(() => { box.scrollTop += box.scrollHeight - height; });
+    } catch (e) {
+      toast.error(apiErrorMessage(e));
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -51,11 +83,12 @@ export default function ChatTab({ trip }: { trip: Trip }) {
             {pinned.length > 1 && <span className="text-xs text-ink-muted">+{pinned.length - 1} pinned</span>}
           </div>
         )}
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" data-testid="chat-messages">
+        <div ref={scrollBox} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" data-testid="chat-messages">
           {trip.messages.length === 0 && <p className="py-16 text-center text-sm text-ink-muted">Say hi to the crew 👋</p>}
-          {trip.messages.map((m, i) => {
+          {canLoadOlder && <div className="text-center"><Button variant="outline" size="sm" disabled={loadingOlder} onClick={() => void loadOlder()} data-testid="chat-load-older">{loadingOlder ? "Loading..." : "Load earlier messages"}</Button></div>}
+          {messages.map((m, i) => {
             const mine = m.authorId === me;
-            const prev = trip.messages[i - 1];
+            const prev = messages[i - 1];
             const grouped = prev && prev.authorId === m.authorId && parseISO(m.at).getTime() - parseISO(prev.at).getTime() < 10 * 60 * 1000;
             const day = format(parseISO(m.at), "EEE, dd MMM");
             const showDay = day !== lastDay;
@@ -88,7 +121,7 @@ export default function ChatTab({ trip }: { trip: Trip }) {
                     <span className="flex items-center gap-1.5 px-1 text-[10px] text-ink-muted">
                       {m.pinned && <Pin className="size-3 text-forest" />}
                       {format(parseISO(m.at), "HH:mm")}
-                      {canContribute && <button onClick={() => { actions.upsert(trip.id, "messages", { ...m, pinned: !m.pinned }); saved(m.pinned ? "Message unpinned" : "Message pinned"); }} className="opacity-0 transition-opacity hover:text-forest group-hover:opacity-100 focus-visible:opacity-100" aria-label={m.pinned ? "Unpin" : "Pin message"} data-testid={`chat-pin-${m.id}`}>
+                      {canContribute && trip.messages.includes(m) && <button onClick={() => { actions.upsert(trip.id, "messages", { ...m, pinned: !m.pinned }); saved(m.pinned ? "Message unpinned" : "Message pinned"); }} className="opacity-0 transition-opacity hover:text-forest group-hover:opacity-100 focus-visible:opacity-100" aria-label={m.pinned ? "Unpin" : "Pin message"} data-testid={`chat-pin-${m.id}`}>
                         {m.pinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}
                       </button>}
                     </span>

@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Delete, NotFoundException, Param, Put, UnprocessableEntityException, UseGuards } from "@nestjs/common";
+import { Body, ConflictException, Controller, Delete, Get, NotFoundException, Param, Put, Query, UnprocessableEntityException, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import { CurrentUser } from "../auth/session.guard.js";
 import { Actor, enforce, RequiresTripRole, TripAccessGuard } from "../authz/trip-access.guard.js";
@@ -7,7 +7,14 @@ import type { TripActor } from "../authz/trip-roles.js";
 import { asDate, clientId, isoDate, parse, shortText } from "../common/validation.js";
 import type { Prisma, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { toMessage } from "./trip.serializer.js";
 import { TripWriter } from "./trip-writer.service.js";
+
+const olderMessagesQuery = z.object({
+  before: z.iso.datetime(),
+  beforeId: z.string().max(64),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+});
 
 const fileRef = z.string().regex(/^\/api\/files\/[\w-]+$/);
 const fileIdOf = (url: string) => url.slice("/api/files/".length);
@@ -95,6 +102,19 @@ export class SharingController {
       if (doc.fileId) await tx.storedFile.deleteMany({ where: { id: doc.fileId } });
     });
     return { ok: true };
+  }
+
+  /** Older messages, newest first from the cursor, for scrolling back past what the trip loads with. */
+  @Get("messages")
+  async olderMessages(@Param("tripId") tripId: string, @Query() query: unknown) {
+    const { before, beforeId, limit } = parse(olderMessagesQuery, query);
+    const at = new Date(before);
+    const rows = await this.prisma.message.findMany({
+      where: { tripId, OR: [{ at: { lt: at } }, { at, id: { lt: beforeId } }] },
+      orderBy: [{ at: "desc" }, { id: "desc" }],
+      take: limit + 1,
+    });
+    return { messages: rows.slice(0, limit).reverse().map(toMessage), hasMore: rows.length > limit };
   }
 
   @Put("messages/:id")

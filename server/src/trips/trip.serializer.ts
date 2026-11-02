@@ -3,7 +3,21 @@ import { dateString } from "../common/validation.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
 // Latest window of the append-heavy collections; the UI holds these in memory.
-const MESSAGE_WINDOW = 300;
+export const MESSAGE_WINDOW = 300;
+
+export const toMessage = (m: { id: string; authorId: string; text: string; at: Date; kind: string; pollId: string | null; placeId: string | null; imageUrl: string | null; fileName: string | null; fileUrl: string | null; pinned: boolean }) => ({
+  id: m.id,
+  authorId: m.authorId,
+  text: m.text,
+  at: m.at.toISOString(),
+  kind: m.kind,
+  pollId: m.pollId ?? undefined,
+  placeId: m.placeId ?? undefined,
+  imageUrl: m.imageUrl ?? undefined,
+  fileName: m.fileName ?? undefined,
+  fileUrl: m.fileUrl ?? undefined,
+  pinned: m.pinned,
+});
 const EVENT_WINDOW = 200;
 
 export const tripInclude = {
@@ -64,6 +78,7 @@ export function toTrip(t: TripRow, viewerId: string) {
       start: a.start,
       end: a.end,
       location: a.location,
+      placeId: a.placeId ?? undefined,
       description: a.description,
       cost: fromMinor(a.costMinor),
       notes: a.notes,
@@ -122,19 +137,7 @@ export function toTrip(t: TripRow, viewerId: string) {
         votes: o.votes.map((v) => v.userId),
       })),
     })),
-    messages: [...t.messages].reverse().map((m) => ({
-      id: m.id,
-      authorId: m.authorId,
-      text: m.text,
-      at: m.at.toISOString(),
-      kind: m.kind,
-      pollId: undefIfNull(m.pollId),
-      placeId: undefIfNull(m.placeId),
-      imageUrl: undefIfNull(m.imageUrl),
-      fileName: undefIfNull(m.fileName),
-      fileUrl: undefIfNull(m.fileUrl),
-      pinned: m.pinned,
-    })),
+    messages: [...t.messages].reverse().map(toMessage),
     photos: t.photos.map((p) => ({ id: p.id, url: p.url, caption: p.caption, authorId: p.authorId, day: p.day, album: p.album, kind: p.kind })),
     events: t.events.map((e) => ({ id: e.id, actorId: e.actorId, text: e.text, at: e.at.toISOString(), kind: e.kind })),
     highlights: t.highlights,

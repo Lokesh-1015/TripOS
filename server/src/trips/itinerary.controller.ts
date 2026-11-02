@@ -19,6 +19,7 @@ const activityBody = z
     start: hhmm,
     end: hhmm,
     location: shortText.default(""),
+    placeId: clientId.nullable().optional(),
     description: longText.default(""),
     cost: money.default(0),
     notes: longText.default(""),
@@ -48,6 +49,10 @@ export class ItineraryController {
     const data = { ...input, costMinor: toMinor(cost) };
     const existing = await this.prisma.activity.findUnique({ where: { id } });
     if (existing && existing.tripId !== tripId) throw new ConflictException({ message: "Please try again" });
+    // Someone else may have just removed it, and a place from another trip must never be linked here.
+    if (input.placeId && !(await this.prisma.place.findFirst({ where: { id: input.placeId, tripId }, select: { id: true } }))) {
+      throw new ConflictException({ message: "That place is no longer on this trip's map" });
+    }
     await this.writer.run(tripId, user.id, async ({ tx, log, notify, tripName }) => {
       if (existing) {
         await updateVersioned(tx.activity as never, { id, tripId }, expected, data);

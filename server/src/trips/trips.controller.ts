@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { z } from "zod";
@@ -40,6 +40,8 @@ const createBody = z
     polls: z.array(pollBody).max(5).default([]),
   })
   .refine((t) => t.endDate >= t.startDate, { message: "End date must be on or after the start date", path: ["endDate"] });
+
+const copyBody = z.object({ id: clientId, name, startDate: isoDate });
 
 const patchBody = z.object({
   name: name.optional(),
@@ -181,6 +183,73 @@ export class TripsController {
       else await log("updated trip details", "trip");
     });
     return this.load(tripId, user.id);
+  }
+
+  /**
+   * Starts a new trip from this one: its plan and packing lists, but nothing about the people or money.
+   * Anyone on the trip can do this, and only gets what they can already see.
+   */
+  @UseGuards(TripAccessGuard)
+  @RequiresTripRole("viewer")
+  @Post(":tripId/copy")
+  async copy(@Param("tripId") tripId: string, @CurrentUser() user: User, @Body() body: unknown) {
+    const { id, name, startDate } = parse(copyBody, body);
+    if (await this.prisma.trip.findUnique({ where: { id }, select: { id: true } })) {
+      const mine = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: id, userId: user.id } } });
+      if (!mine) throw new ConflictException({ message: "Please try again" });
+      return this.load(id, user.id);
+    }
+    const source = await this.prisma.trip.findUniqueOrThrow({
+      where: { id: tripId },
+      include: { activities: { orderBy: [{ day: "asc" }, { position: "asc" }] }, places: { orderBy: { createdAt: "asc" } }, packing: { where: { OR: [{ scope: "shared" }, { assignee: user.id }] }, orderBy: { createdAt: "asc" } } },
+    });
+    const start = asDate(startDate);
+    const end = new Date(start.getTime() + (source.endDate.getTime() - source.startDate.getTime()));
+    const placeIds = new Map(source.places.map((p) => [p.id, `pl-${randomUUID()}`]));
+    await this.prisma.$transaction(async (tx) => {
+      await tx.trip.create({
+        data: {
+          id,
+          name,
+          destination: source.destination,
+          description: source.description,
+          cover: source.cover,
+          startDate: start,
+          endDate: end,
+          flexibleDates: source.flexibleDates,
+          currency: source.currency,
+          budgetMinor: source.budgetMinor,
+          perPersonBudgetMinor: source.perPersonBudgetMinor,
+          highlights: [],
+          joinCode: randomBytes(18).toString("base64url"),
+          createdById: user.id,
+          members: { create: { userId: user.id, role: "owner", status: "active" } },
+          events: { create: { actorId: user.id, text: `created the trip “${name}” from “${source.name}”`, kind: "trip" } },
+        },
+      });
+      await tx.place.createMany({ data: source.places.map((p) => ({ id: placeIds.get(p.id) as string, tripId: id, name: p.name, type: p.type, lat: p.lat, lng: p.lng, address: p.address, note: p.note })) });
+      await tx.activity.createMany({
+        data: source.activities.map((a) => ({
+          id: `act-${randomUUID()}`,
+          tripId: id,
+          day: a.day,
+          position: a.position,
+          type: a.type,
+          title: a.title,
+          start: a.start,
+          end: a.end,
+          location: a.location,
+          placeId: a.placeId ? placeIds.get(a.placeId) : null,
+          description: a.description,
+          costMinor: a.costMinor,
+          notes: a.notes,
+          assignees: [],
+        })),
+      });
+      await tx.packingItem.createMany({ data: source.packing.map((p) => ({ id: `pack-${randomUUID()}`, tripId: id, name: p.name, category: p.category, qty: p.qty, scope: p.scope, assignee: user.id, packed: false })) });
+    });
+    this.realtime.membershipChanged(user.id, id, true);
+    return this.load(id, user.id);
   }
 
   @UseGuards(TripAccessGuard)

@@ -47,7 +47,7 @@ Passports and financial records need this before real data arrives.
 ### D. Reliability and monitoring (M)
 - Add Sentry, structured logs with request IDs, and uptime alerts.
 - Add security headers, and rate limits per account on uploads, invites and chat. Today's limits are per IP address and cover login and invites only.
-- Send emails through a durable background queue (BullMQ). Failed sends are retried three times in memory and then only logged, and a restart loses retries in progress, though people can ask for verification and reset emails again.
+- Send emails through a durable background queue (BullMQ). Failed sends are retried three times in memory and then only logged, and a restart loses retries in progress and the daily email count, though people can ask for verification and reset emails again.
 - Add older-message loading: only the latest 300 messages load today, and all trip data loads at startup.
 - Load test against a target of 200 concurrent users. Add the Redis adapter if this needs more than one server.
 
@@ -73,7 +73,9 @@ Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is 
 ## Known limits of what's built
 - **Exchange rates are daily market rates**, from Exchange Rate API's free service, and they're suggestions. An expense keeps the rate saved with it, so a new day's rates never change a balance. Today's rate is suggested even for an expense dated earlier.
 - **Maps use free community services:** OpenFreeMap for tiles and Photon for search, neither with any uptime guarantee. If search is down, people can still click the map. Mapbox is the upgrade if these prove unreliable.
-- **Trip Replay's route joins saved places in the order they were saved**, in straight lines rather than along roads.
+- **Trip Replay's route** follows activities linked to places, day by day, in straight lines rather than along roads. Without links, it joins places in the order they were saved.
+- **Past exchange rates** come from the European Central Bank, which doesn't publish every currency. The dirham uses its fixed peg to the dollar.
+- **Reminders depend on a scheduled GitHub workflow.** GitHub can run these late, and pauses them after 60 days with no activity in a public repository.
 - **Places saved on the old illustrated map have no real position** until someone sets it, because those pins were never real locations.
 - **Live location only updates while TripOS is open on the device**, because browsers stop sending location in the background. Others see when the person was last seen. Continuous tracking would need the native apps.
 - **Offline access is for reading, plus changes while the app stays open.** The app and trips open with no signal, but photos and files need a connection, documents are never stored on the device, and a change made offline is lost if the app is closed before reconnecting.

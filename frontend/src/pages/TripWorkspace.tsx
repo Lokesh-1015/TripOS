@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Archive, ArchiveRestore, CalendarDays, ChevronLeft, Copy, MapPin, MoreHorizontal, Pencil, Play, Share2, Trash2, UserPlus, Users } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarDays, ChevronLeft, Copy, CopyPlus, MapPin, MoreHorizontal, Pencil, Play, Share2, Trash2, UserPlus, Users } from "lucide-react";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,6 +104,49 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
   );
 }
 
+/** Takes the plan and packing lists into a new trip, leaving the people and money behind. */
+function CopyTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const navigate = useNavigate();
+  const [name, setName] = useState(`${trip.name} again`);
+  const [startDate, setStartDate] = useState("");
+  const [err, setErr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const create = async () => {
+    if (name.trim().length < 3) return setErr("Name must be at least 3 characters");
+    if (!startDate) return setErr("Pick a start date");
+    setErr(undefined);
+    setBusy(true);
+    try {
+      const id = await actions.copyTrip(trip.id, { id: uid("trip"), name: name.trim(), startDate });
+      onOpenChange(false);
+      toast.success("New trip created from this one");
+      navigate(`/app/trips/${id}`);
+    } catch (e) {
+      setErr(apiErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid="copy-trip-dialog">
+        <DialogHeader>
+          <DialogTitle>Start a new trip from this one</DialogTitle>
+          <DialogDescription>Brings the itinerary, map places, budget and packing lists. Members, expenses, tasks, chat, documents and photos stay here. You'll be the owner.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <Field label="Trip name" htmlFor="copy-name"><Input id="copy-name" value={name} onChange={(e) => setName(e.target.value)} data-testid="copy-trip-name-input" /></Field>
+          <Field label="Starts on" htmlFor="copy-start" error={err}><Input id="copy-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} data-testid="copy-trip-start-input" /></Field>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button disabled={busy} onClick={() => void create()} data-testid="copy-trip-submit">{busy ? "Creating..." : "Create trip"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [f, setF] = useState({ name: trip.name, destination: trip.destination, description: trip.description, startDate: trip.startDate, endDate: trip.endDate, budget: String(trip.budget || ""), currency: trip.currency });
   const [err, setErr] = useState<Record<string, string>>({});
@@ -115,6 +160,10 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
     if (f.name.trim().length < 3) e.name = "Name must be at least 3 characters";
     if (!f.destination.trim()) e.destination = "Destination is required";
     if (!f.startDate || !f.endDate || f.endDate < f.startDate) e.endDate = "End date must be on or after the start date";
+    else {
+      const left = trip.activities.filter((a) => a.day >= differenceInCalendarDays(parseISO(f.endDate), parseISO(f.startDate)) + 1).length;
+      if (left) e.endDate = `${left} planned ${left === 1 ? "activity is" : "activities are"} after these dates. Move or delete ${left === 1 ? "it" : "them"} first.`;
+    }
     setErr(e);
     if (Object.keys(e).length) return;
     actions.patchTrip(trip.id, { ...f, name: f.name.trim(), budget: +f.budget || 0 }, "updated trip details");
@@ -160,6 +209,7 @@ export default function TripWorkspace() {
   const [members, setMembers] = useState(params.get("invite") === "1");
   const [edit, setEdit] = useState(false);
   const [del, setDel] = useState(false);
+  const [copying, setCopying] = useState(false);
   const access = useTripAccess(trip ?? { members: [] });
 
   useEffect(() => {
@@ -204,6 +254,7 @@ export default function TripWorkspace() {
             <button onClick={() => setMembers(true)} className="mr-1 rounded-full" aria-label="Manage members" data-testid="trip-header-members-button"><AvatarStack people={trip.members} size={32} max={5} /></button>
             <Button onClick={() => setMembers(true)} className="h-9 rounded-xl bg-white text-forest hover:bg-sage" data-testid="trip-invite-button">{access.canAdmin ? <><UserPlus className="size-4" /> Invite</> : <><Users className="size-4" /> Members</>}</Button>
             {access.canAdmin && <Tip label="Edit trip"><Button size="icon" onClick={() => setEdit(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Edit trip" data-testid="trip-edit-button"><Pencil className="size-4" /></Button></Tip>}
+            <Tip label="Use as a template"><Button size="icon" onClick={() => setCopying(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Use as a template" data-testid="trip-copy-button"><CopyPlus className="size-4" /></Button></Tip>
             {access.canAdmin && <Tip label="Share"><Button size="icon" onClick={share} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Share trip" data-testid="trip-share-button"><Share2 className="size-4" /></Button></Tip>}
             {(access.canAdmin || status === "completed" || status === "archived") && <DropdownMenu>
               <DropdownMenuTrigger className="grid size-9 place-items-center rounded-xl bg-white/15 backdrop-blur transition-colors hover:bg-white/25" aria-label="More actions" data-testid="trip-more-menu-button"><MoreHorizontal className="size-4" /></DropdownMenuTrigger>
@@ -261,6 +312,7 @@ export default function TripWorkspace() {
 
       <MembersDialog trip={trip} open={members} onOpenChange={setMembers} />
       <EditTripDialog trip={trip} open={edit} onOpenChange={setEdit} />
+      <CopyTripDialog trip={trip} open={copying} onOpenChange={setCopying} />
       <ConfirmDialog
         open={del}
         onOpenChange={setDel}

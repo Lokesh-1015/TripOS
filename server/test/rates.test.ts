@@ -61,6 +61,40 @@ describe("RatesService", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  describe("on a past date", () => {
+    const history = () => new Response(JSON.stringify({ date: "2026-10-16", rates: { INR: 94.96, EUR: 0.88, GBP: 0.75, SGD: 1.28, THB: 33.4 } }));
+
+    it("uses the day's real rates, says which day they're from, and adds the pegged dirham", async () => {
+      fetchMock.mockImplementation(async () => history());
+      const rates = await quietly().onDate("2026-10-17");
+      expect(rates).toMatchObject({ date: "2026-10-16", base: "USD" });
+      expect(rates?.rates).toEqual({ INR: 94.96, USD: 1, EUR: 0.88, GBP: 0.75, AED: 3.6725, SGD: 1.28, THB: 33.4 });
+      expect(String(fetchMock.mock.calls[0][0])).toContain("/2026-10-17?base=USD");
+    });
+
+    it("remembers a past day, as those rates never change", async () => {
+      fetchMock.mockImplementation(async () => history());
+      const service = quietly();
+      await service.onDate("2026-10-17");
+      await service.onDate("2026-10-17");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the latest rates for today", async () => {
+      fetchMock.mockImplementation(async () => answer());
+      const today = new Date().toISOString().slice(0, 10);
+      expect((await quietly().onDate(today))?.date).toBeUndefined();
+    });
+
+    it("reports a failure, and doesn't remember it", async () => {
+      fetchMock.mockRejectedValueOnce(new Error("provider down"));
+      fetchMock.mockImplementation(async () => history());
+      const service = quietly();
+      expect(await service.onDate("2026-10-17")).toBeNull();
+      expect(await service.onDate("2026-10-17")).not.toBeNull();
+    });
+  });
+
   it("has nothing to offer if the provider has never answered", async () => {
     fetchMock.mockRejectedValue(new Error("provider down"));
     expect(await quietly().latest()).toBeNull();

@@ -126,8 +126,10 @@ export function Progress({ value, className, tone = "forest" }: { value: number;
 }
 
 /** The rate provider's terms ask for this wherever its rates are shown. */
-export function RatesCredit() {
-  return <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer" className="underline">Rates By Exchange Rate API</a>;
+export function RatesCredit({ past = false }: { past?: boolean }) {
+  return past
+    ? <a href="https://frankfurter.dev" target="_blank" rel="noreferrer" className="underline">European Central Bank rates via Frankfurter</a>
+    : <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer" className="underline">Rates By Exchange Rate API</a>;
 }
 
 export function PageHeader({ title, subtitle, actions, eyebrow }: { title: string; subtitle?: string; actions?: ReactNode; eyebrow?: string }) {

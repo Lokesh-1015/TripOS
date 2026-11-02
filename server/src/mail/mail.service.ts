@@ -6,6 +6,8 @@ import nodemailer from "nodemailer";
 const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 const BREVO_ATTEMPTS = 3;
 const BREVO_TIMEOUT_MS = 10_000;
+// Brevo's free plan sends 300 a day. Reminders and updates stop here, so verification and reset emails always get through.
+const DEFAULT_OPTIONAL_ALLOWANCE = 250;
 
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
@@ -87,6 +89,9 @@ export class MailService {
   private readonly deliver: ((message: Message) => Promise<unknown>) | null;
   private readonly from: string;
   private readonly appUrl: string;
+  private readonly optionalAllowance: number;
+  private sentOn = "";
+  private sentToday = 0;
 
   constructor(config: ConfigService) {
     const apiKey = config.get<string>("BREVO_API_KEY");
@@ -102,6 +107,7 @@ export class MailService {
     }
     this.from = config.get<string>("MAIL_FROM", "TripOS <hello@tripos.local>");
     this.appUrl = config.get<string>("APP_URL", "http://localhost:3000");
+    this.optionalAllowance = Number(config.get<string>("MAIL_OPTIONAL_ALLOWANCE")) || DEFAULT_OPTIONAL_ALLOWANCE;
   }
 
   get enabled() {
@@ -137,8 +143,34 @@ export class MailService {
     });
   }
 
+  /** Reminders, digests and update emails. Returns whether it was sent, so the caller can try again another day. */
+  async sendSummary(to: string, subject: string, paragraphs: string[], action: { label: string; path: string }) {
+    if (this.countToday() >= this.optionalAllowance) {
+      this.logger.warn("Today's allowance for optional emails is used up");
+      return false;
+    }
+    return this.send({
+      to,
+      subject,
+      paragraphs: [...paragraphs, "You can change which emails you get in Settings, under Notifications."],
+      action: { label: action.label, url: `${this.appUrl}${action.path}` },
+    });
+  }
+
+  private countToday() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.sentOn !== today) {
+      this.sentOn = today;
+      this.sentToday = 0;
+    }
+    return this.sentToday;
+  }
+
   private async send(email: Email) {
-    if (!this.deliver) return this.logger.warn(`Email not configured, skipped: ${email.subject}`);
+    if (!this.deliver) {
+      this.logger.warn(`Email not configured, skipped: ${email.subject}`);
+      return false;
+    }
     try {
       await this.deliver({
         from: this.from,
@@ -147,9 +179,13 @@ export class MailService {
         text: [...email.paragraphs, `${email.action.label}: ${email.action.url}`].join("\n\n"),
         html: html(email),
       });
+      this.countToday();
+      this.sentToday++;
+      return true;
     } catch (err) {
       // Never log the message: it contains a sign-in token.
       this.logger.error(`Could not send "${email.subject}"`, err instanceof Error ? err.stack : String(err));
+      return false;
     }
   }
 }

@@ -147,7 +147,7 @@ test('switching currency converts everything for everyone, instead of relabellin
   const owner = await newUser(browser, 'Convert');
   const member = await newUser(browser, 'Member');
   // With no rates to suggest, people can still type their own. Automatic rates are in exchange-rates.spec.ts.
-  await owner.page.route('**/api/exchange-rates', (route) => route.abort());
+  await owner.page.route('**/api/exchange-rates*', (route) => route.abort());
   const { id, joinCode } = await trip(owner.page, { budget: 60000 });
   await api(member.page, 'POST', `/invites/${joinCode}/accept`);
   await Promise.all([owner.page.goto(`/app/trips/${id}/expenses`), member.page.goto(`/app/trips/${id}/expenses`)]);

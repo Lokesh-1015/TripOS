@@ -69,7 +69,8 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
       await page.getByTestId('activity-save-button').click();
       await expect(page.getByTestId('itinerary-timeline')).toContainText(title);
     }
-    const hike = page.locator('[data-testid^="activity-card-"]', { hasText: 'Morning hike' });
+    // By title, because another card can mention this one when their times overlap.
+    const hike = page.locator('[data-testid^="activity-card-"]', { has: page.getByRole('heading', { name: 'Morning hike' }) });
     await hike.locator('[data-testid^="activity-toggle-details-"]').click();
     await hike.locator('[data-testid^="activity-comment-input-"]').fill('Bring water');
     await hike.locator('[data-testid^="activity-comment-send-"]').click();
@@ -77,10 +78,10 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
     await hike.locator('[data-testid^="activity-attach-"] input').setInputFiles(RECEIPT);
     await expect(hike).toContainText('receipt.png');
     await hike.locator('[data-testid^="activity-move-down-"]').click();
-    await expect(page.locator('[data-testid^="activity-card-"]').first()).toContainText('Lunch stop');
+    await expect(page.locator('[data-testid^="activity-card-"]').first().getByRole('heading')).toHaveText('Lunch stop');
     await page.reload();
-    await expect(page.locator('[data-testid^="activity-card-"]').first()).toContainText('Lunch stop');
-    const reloaded = page.locator('[data-testid^="activity-card-"]', { hasText: 'Morning hike' });
+    await expect(page.locator('[data-testid^="activity-card-"]').first().getByRole('heading')).toHaveText('Lunch stop');
+    const reloaded = page.locator('[data-testid^="activity-card-"]', { has: page.getByRole('heading', { name: 'Morning hike' }) });
     await reloaded.locator('[data-testid^="activity-toggle-details-"]').click();
     await expect(reloaded).toContainText('Bring water');
     await expect(reloaded).toContainText('receipt.png');

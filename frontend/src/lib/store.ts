@@ -356,6 +356,12 @@ export const actions = {
     await apiDelete("/live-locations/mine").catch(() => undefined);
     return endSession("/login");
   },
+  /** Starts a new trip from an existing one. Returns the new trip's id. */
+  async copyTrip(tripId: string, input: { id: string; name: string; startDate: string }) {
+    const trip = await apiPost<Trip>(`/trips/${tripId}/copy`, input);
+    set({ ...state, trips: [...state.trips.filter((t) => t.id !== trip.id), trip] });
+    return trip.id;
+  },
   /** Join through an invite link. Returns the trip's id. */
   async joinTrip(code: string) {
     const trip = await apiPost<Trip>(`/invites/${code}/accept`);

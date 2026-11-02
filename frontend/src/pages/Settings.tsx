@@ -24,7 +24,9 @@ const NOTIFY: [string, string, string][] = [
   ["votes", "Voting updates", "New polls and results"],
   ["itinerary", "Itinerary changes", "Edits to the day-by-day plan"],
   ["documents", "Document uploads", "New shared documents"],
-  ["email", "Email digest", "A weekly summary (coming soon)"],
+  ["reminders", "Email reminders", "Tasks due soon, trips starting soon, and money you owe on Mondays"],
+  ["emailAlerts", "Email me about updates", "Tasks, expenses, polls, itinerary changes and documents, as they happen"],
+  ["email", "Weekly email digest", "Updates you haven't read, every Monday"],
 ];
 
 function InstallCard() {
@@ -152,7 +154,7 @@ export default function Settings() {
             {NOTIFY.map(([k, l, d]) => (
               <label key={k} className="flex items-center justify-between gap-4 px-5 py-4">
                 <span><span className="block text-sm font-medium">{l}</span><span className="block text-xs text-ink-muted">{d}</span></span>
-                <Switch checked={settings.notify[k] ?? false} onCheckedChange={(v) => { actions.updateSettings({ notify: { ...settings.notify, [k]: v } }); saved(`${l} ${v ? "on" : "off"}`); }} data-testid={`settings-notify-${k}`} />
+                <Switch checked={settings.notify[k] ?? k === "reminders"} onCheckedChange={(v) => { actions.updateSettings({ notify: { ...settings.notify, [k]: v } }); saved(`${l} ${v ? "on" : "off"}`); }} data-testid={`settings-notify-${k}`} />
               </label>
             ))}
           </section>

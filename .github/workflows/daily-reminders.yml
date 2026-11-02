@@ -1,0 +1,24 @@
+name: Daily reminders
+
+on:
+  schedule:
+    # 03:30 UTC is 09:00 in India.
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the daily job
+        env:
+          JOBS_SECRET: ${{ secrets.JOBS_SECRET }}
+        run: |
+          if [ -z "$JOBS_SECRET" ]; then
+            echo "::notice::JOBS_SECRET isn't set, so no reminders were sent."
+            exit 0
+          fi
+          # The free backend may be asleep, so this allows time for it to wake.
+          curl --fail --silent --show-error --retry 3 --retry-delay 30 --max-time 180 \
+            -X POST -H "x-jobs-secret: $JOBS_SECRET" -H "Content-Type: application/json" -d '{}' \
+            https://tripos-api-z0ux.onrender.com/api/jobs/daily

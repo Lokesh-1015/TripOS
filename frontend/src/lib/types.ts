@@ -37,6 +37,8 @@ export interface Activity {
   start: string; // HH:mm
   end: string;
   location: string;
+  /** The saved map place this happens at. Null clears it. */
+  placeId?: string | null;
   description: string;
   cost: number;
   notes: string;

@@ -287,3 +287,22 @@ test('positions aren\'t kept in the offline copy on the device', async ({ browse
   expect(copy).not.toContain(String(MUMBAI.longitude));
   await context.close();
 });
+
+test('a browser with no WebGL gets a clear message, and places and search still work', async ({ browser }) => {
+  const { page, context } = await newUser(browser, 'NoWebgl');
+  const { id } = await createTrip(page);
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+      return type.startsWith('webgl') ? null : (original as (...args: unknown[]) => unknown).call(this, type, ...rest);
+    } as typeof original;
+  });
+  await page.goto(`/app/trips/${id}/map`);
+  await expect(page.getByTestId('trip-map-unsupported')).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId('map-add-place-button').click();
+  await page.getByTestId('place-search-input').fill('Gateway');
+  await page.getByTestId('place-search-result').click();
+  await page.getByTestId('place-save-button').click();
+  await expect(page.getByTestId('map-places-list')).toContainText('Gateway of India');
+  await context.close();
+});

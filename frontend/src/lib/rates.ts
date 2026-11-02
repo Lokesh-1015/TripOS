@@ -9,6 +9,8 @@ export interface ExchangeRates {
   /** How much 1 unit of the base buys in each currency. */
   rates: Record<string, number>;
   updatedAt: string;
+  /** For past rates: the day they're from, which can be a little before the day asked for, as markets close at weekends. */
+  date?: string;
 }
 
 const STORAGE_KEY = "tripos:exchange-rates";
@@ -24,10 +26,12 @@ function storedRates(): ExchangeRates | undefined {
   }
 }
 
-export function useExchangeRates() {
+/** Today's rates, or a past date's if one is given. */
+export function useExchangeRates(date?: string) {
   return useQuery({
-    queryKey: ["exchange-rates"],
+    queryKey: ["exchange-rates", date ?? "latest"],
     queryFn: async () => {
+      if (date) return apiGet<ExchangeRates>(`/exchange-rates?date=${date}`);
       const rates = await apiGet<ExchangeRates>("/exchange-rates");
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(rates));
@@ -36,9 +40,10 @@ export function useExchangeRates() {
       }
       return rates;
     },
-    initialData: storedRates,
-    initialDataUpdatedAt: 0,
-    staleTime: FRESH_MS,
+    initialData: date ? undefined : storedRates,
+    initialDataUpdatedAt: date ? undefined : 0,
+    // A past day's rates never change.
+    staleTime: date ? Infinity : FRESH_MS,
     retry: 1,
   });
 }

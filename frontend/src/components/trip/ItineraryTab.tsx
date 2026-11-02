@@ -12,6 +12,7 @@ import { Avatar, AvatarStack, ConfirmDialog, EmptyState, Field, Tip } from "@/co
 import { useTripAccess } from "@/lib/access";
 import { actions, saved } from "@/lib/store";
 import { ago, money, tripDays, uid } from "@/lib/format";
+import { overlapsWith } from "@/lib/planning";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import type { Activity, ActivityType, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ function ActivityDialog({ trip, value, onClose }: { trip: Trip; value: Activity 
   }, [value]);
   if (!a) return null;
   const days = tripDays(trip);
+  const clashes = a.end > a.start ? overlapsWith(a, trip.activities) : [];
   const save = () => {
     const e: Record<string, string> = {};
     if (a.title.trim().length < 2) e.title = "Give the activity a title";
@@ -74,6 +76,21 @@ function ActivityDialog({ trip, value, onClose }: { trip: Trip; value: Activity 
             <Field label="Location" htmlFor="act-loc"><Input id="act-loc" value={a.location} onChange={(e) => setA({ ...a, location: e.target.value })} data-testid="activity-location-input" /></Field>
             <Field label={`Est. cost (${trip.currency})`} htmlFor="act-cost" error={err.cost}><Input id="act-cost" inputMode="numeric" value={a.cost || ""} onChange={(e) => setA({ ...a, cost: +e.target.value.replace(/[^\d.]/g, "") || 0 })} className="num" data-testid="activity-cost-input" /></Field>
           </div>
+          {trip.places.length > 0 && (
+            <Field label="Place on the map" hint="Trip Replay follows these, day by day">
+              <Select value={a.placeId ?? "none"} onValueChange={(v) => {
+                const place = trip.places.find((p) => p.id === v);
+                setA({ ...a, placeId: place?.id ?? null, location: a.location || place?.name || "" });
+              }}>
+                <SelectTrigger className="w-full" data-testid="activity-place-select"><SelectValue>{(v) => trip.places.find((p) => p.id === v)?.name ?? "Not linked"}</SelectValue></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not linked</SelectItem>
+                  {trip.places.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+          {clashes.length > 0 && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" role="status" data-testid="activity-conflict-warning">This overlaps with {clashes.map((c) => `“${c.title}” (${c.start}–${c.end})`).join(", ")}. You can still save it.</p>}
           <Field label="Description" htmlFor="act-desc"><Textarea id="act-desc" value={a.description} onChange={(e) => setA({ ...a, description: e.target.value })} rows={2} data-testid="activity-description-input" /></Field>
           <Field label="Notes" htmlFor="act-notes"><Input id="act-notes" value={a.notes} onChange={(e) => setA({ ...a, notes: e.target.value })} placeholder="Bring cash, book ahead…" data-testid="activity-notes-input" /></Field>
           <Field label="Who's going">
@@ -199,7 +216,8 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
                       </p>
                       <h3 className="mt-1 font-semibold">{a.title}</h3>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
-                        {a.location && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{a.location}</span>}
+                        {a.location && <span className="flex items-center gap-1" data-testid={`activity-location-${a.id}`}><MapPin className={cn("size-3.5", a.placeId && "text-coral")} />{a.location}</span>}
+                        {overlapsWith(a, trip.activities).length > 0 && <span className="flex items-center gap-1 font-medium text-[#8A3B22]" data-testid={`activity-conflict-${a.id}`}><Clock className="size-3.5" />Overlaps with {overlapsWith(a, trip.activities).map((c) => c.title).join(", ")}</span>}
                         {a.cost > 0 && <span className="num flex items-center gap-1"><Wallet className="size-3.5" />{money(a.cost, trip.currency)}</span>}
                         {a.attachments.length > 0 && <span className="flex items-center gap-1"><Paperclip className="size-3.5" />{a.attachments.length}</span>}
                         {a.comments.length > 0 && <span className="flex items-center gap-1"><MessageSquare className="size-3.5" />{a.comments.length}</span>}

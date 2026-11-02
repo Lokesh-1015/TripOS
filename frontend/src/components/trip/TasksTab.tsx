@@ -54,7 +54,7 @@ export function TaskDialog({ trip, task, onClose }: { trip: Trip; task: Task | n
                 <SelectContent>{trip.members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
-            <Field label="Due date" htmlFor="tk-due"><Input id="tk-due" type="date" value={t.due} onChange={(e) => setT({ ...t, due: e.target.value })} data-testid="task-due-input" /></Field>
+            <Field label="Due date" htmlFor="tk-due" hint={t.due > trip.endDate ? "That's after the trip ends" : undefined}><Input id="tk-due" type="date" value={t.due} onChange={(e) => setT({ ...t, due: e.target.value })} data-testid="task-due-input" /></Field>
             <Field label="Priority">
               <Select value={t.priority} onValueChange={(v) => setT({ ...t, priority: v as Priority })}>
                 <SelectTrigger className="w-full capitalize" data-testid="task-priority-select"><SelectValue>{(v) => <span className="capitalize">{v as string}</span>}</SelectValue></SelectTrigger>
