@@ -74,7 +74,7 @@ CI runs all of this on every push to `main` and on every pull request.
 |---|---|---|
 | Frontend | Vercel, project `tripos`, deploys from `main` | https://tripos-travel.vercel.app |
 | Backend | Render, service `tripos-api`, deploys from `main` | https://tripos-api-z0ux.onrender.com |
-| Database | Render Postgres `tripos-db` | Internal to Render |
+| Database | Neon project `TripOS Singapore`, database `tripos` | Set in Render's `DATABASE_URL`, without connection pooling |
 
 How they connect:
 

@@ -8,8 +8,8 @@
 |---|---|
 | 1. Version control and CI | **Done.** Code is at `Lokesh-1015/TripOS`, and CI runs every test on each push. |
 | 2. Real email and verified accounts | **Built and tested locally, with Brevo sending ready.** Uses a Gmail sender, so mail may land in spam until a domain is connected. |
-| 3. Production file storage | **Interim.** Files live in Postgres and survive restarts, but R2 is still needed. |
-| 4. Deployment | **Live on free plans:** https://tripos-travel.vercel.app. Needs paid plans and a custom domain before real groups rely on it. |
+| 3. Production file storage | **Interim.** Files live in Postgres and survive restarts, but use up the database's 1 GB limit. |
+| 4. Deployment | **Live on free plans:** https://tripos-travel.vercel.app, with the database on Neon. |
 | 5. Reliability and monitoring | Not started |
 | 6. Trust and legal | Not started |
 | 7. Measure the beta | Not started |
@@ -19,7 +19,7 @@
 
 ### A. Production file storage (M), launch blocker
 Files are in Postgres for now, which uses up the small free database quickly.
-- Move file storage to Cloudflare R2 behind the existing `FileStorage` class, with short-lived signed links.
+- Move file storage to Neon Object Storage (5 GB free, S3-compatible), with short-lived signed links.
 - Strip location data from uploaded photos, because holiday photos reveal where people are staying.
 - Check file types by content rather than trusting the browser, and set storage limits per trip.
 
@@ -27,8 +27,8 @@ Files are in Postgres for now, which uses up the small free database quickly.
 
 ### B. Production-grade hosting (M), launch blocker
 The app is deployed on free plans. Before real groups rely on it:
-- Move the database to a paid plan with automatic backups, and test a restore once. **The free database expires on 1 December 2026.**
-- Move the backend to a paid plan, so it doesn't sleep after 15 idle minutes.
+- Automate backups, because Neon's free plan keeps only 6 hours of history and one manual snapshot, and test a restore once.
+- Decide whether the backend's sleep after 15 idle minutes is acceptable. Don't keep it awake by pinging `/api/health`, because that also keeps the database awake and uses up its 100 free compute hours a month.
 - Connect a custom domain.
 - Authenticate a domain in Brevo, with SPF, DKIM and DMARC set up so mail doesn't land in spam, and change `MAIL_FROM` on Render to use it.
 - Review Vercel's plan: Hobby is for non-commercial use.
@@ -83,5 +83,5 @@ Receipt scanning waits for PRD Phase 5 (AI features). The old Python version is 
 | Should the repository stay public? | Make it private until launch: the PRD and all code are readable by anyone | Now |
 | Domain name | Yours to choose | B |
 | Email domain | Authenticate a domain in Brevo. Sending from Gmail works without one, but Brevo replaces the sender address and more mail may land in spam | B |
-| File storage account | Cloudflare R2, as the PRD says | A |
-| Paid hosting | Render's starter plans for the backend and database | B, before 1 December 2026 |
+| File storage | Neon Object Storage, to stay on free plans | A |
+| Paid hosting | Stay on free plans for now, and watch Neon's compute and storage use | B |
