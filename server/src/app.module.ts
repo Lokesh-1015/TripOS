@@ -20,6 +20,8 @@ import { PrismaModule } from "./prisma/prisma.module.js";
 import { RatesController } from "./rates/rates.controller.js";
 import { RatesService } from "./rates/rates.service.js";
 import { RealtimeGateway } from "./realtime/realtime.gateway.js";
+import { SocialController } from "./social/social.controller.js";
+import { SocialService } from "./social/social.service.js";
 import { ContactController } from "./support/contact.controller.js";
 import { ExpensesController } from "./trips/expenses.controller.js";
 import { ItineraryController } from "./trips/itinerary.controller.js";
@@ -53,7 +55,8 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     LiveLocationController,
     JobsController,
     ContactController,
+    SocialController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AccountService, AuthService, EmailCheckService, FileStorage, GoogleAuthService, MailService, RatesService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AccountService, AuthService, EmailCheckService, FileStorage, GoogleAuthService, MailService, RatesService, RemindersService, SocialService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCheck, CheckSquare, FileText, Map, MessageCircle, Receipt, UserPlus, Vote, X } from "lucide-react";
+import { Bell, CheckCheck, CheckSquare, FileText, Map, MessageCircle, Receipt, UserPlus, Users, Vote, X } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import type { AppNotification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<AppNotification["kind"], typeof Bell> = {
-  invite: UserPlus, message: MessageCircle, task: CheckSquare, expense: Receipt, vote: Vote, itinerary: Map, document: FileText,
+  invite: UserPlus, message: MessageCircle, task: CheckSquare, expense: Receipt, vote: Vote, itinerary: Map, document: FileText, friend_request: UserPlus, friend_accept: Users,
 };
 
 export function NotificationsBell({ dark = false }: { dark?: boolean }) {

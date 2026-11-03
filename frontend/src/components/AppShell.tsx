@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  Compass, FileText, HelpCircle, Home, Images, LogOut, Map as MapIcon, Menu, Plus, Receipt, Search, Settings, CheckSquare, ChevronsUpDown, User,
+  Compass, Flag, Users, FileText, HelpCircle, Home, Images, LogOut, Map as MapIcon, Menu, Plus, Receipt, Search, Settings, CheckSquare, ChevronsUpDown, User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
@@ -11,6 +11,7 @@ import WhatsNewDialog from "@/components/WhatsNewDialog";
 import { actions, useApp } from "@/lib/store";
 import { Avatar, Logo } from "@/components/common";
 import { NotificationsBell } from "@/components/Notifications";
+import { useOwnProfile } from "@/lib/social";
 import TermsDialog from "@/components/TermsDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/app", label: "Overview", icon: Home, end: true },
   { to: "/app/trips", label: "My Trips", icon: MapIcon },
   { to: "/app/explore", label: "Explore", icon: Compass },
+  { to: "/app/people", label: "People", icon: Users },
   { to: "/app/expenses", label: "Expenses", icon: Receipt },
   { to: "/app/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/app/memories", label: "Memories", icon: Images },
@@ -35,6 +37,9 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/trips\/.+/, "Trip workspace"],
   [/^\/app\/trips/, "My Trips"],
   [/^\/app\/explore/, "Explore"],
+  [/^\/app\/people/, "People"],
+  [/^\/app\/u\//, "Profile"],
+  [/^\/app\/admin/, "Reports"],
   [/^\/app\/expenses/, "Expenses"],
   [/^\/app\/tasks/, "Tasks"],
   [/^\/app\/memories/, "Memories"],
@@ -42,6 +47,14 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/settings/, "Settings"],
   [/^\/app/, "Overview"],
 ];
+
+/** Only appears for accounts allowed to review reports. */
+function AdminMenuItem() {
+  const navigate = useNavigate();
+  const { data } = useOwnProfile();
+  if (!data?.isAdmin) return null;
+  return <DropdownMenuItem onClick={() => navigate("/app/admin/reports")} data-testid="account-menu-reports"><Flag /> Reports</DropdownMenuItem>;
+}
 
 function AccountMenu({ onHelp, compact = false }: { onHelp: () => void; compact?: boolean }) {
   const user = useApp((s) => s.user);
@@ -68,6 +81,8 @@ function AccountMenu({ onHelp, compact = false }: { onHelp: () => void; compact?
         <DropdownMenuGroup><DropdownMenuLabel>{user.name}</DropdownMenuLabel></DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/app/settings")} data-testid="account-menu-profile"><User /> Profile & settings</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/app/people")} data-testid="account-menu-people"><Users /> People</DropdownMenuItem>
+        <AdminMenuItem />
         <DropdownMenuItem onClick={onHelp} data-testid="account-menu-help"><HelpCircle /> Help & support</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

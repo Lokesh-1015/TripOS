@@ -88,7 +88,11 @@ function connectSocket() {
   });
   socket.on("trip:changed", ({ tripId }: { tripId: string }) => void refreshTrip(tripId));
   socket.on("trips:changed", () => void loadState());
-  socket.on("notifications:changed", () => void refreshNotifications());
+  socket.on("notifications:changed", () => {
+    void refreshNotifications();
+    // A friend request may have arrived or been answered.
+    void queryClient.invalidateQueries({ queryKey: ["social"] });
+  });
   socket.on("locations:changed", ({ tripId }: { tripId: string }) => void queryClient.invalidateQueries({ queryKey: ["live-locations", tripId] }));
   socket.on("connect", () => setOffline(false));
   socket.on("disconnect", (reason) => {

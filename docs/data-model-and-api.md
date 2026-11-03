@@ -56,6 +56,31 @@ Signing up with a password on an address that already has an account is refused,
 
 **New accounts prove their address.** Signup turns away reserved domains, throwaway email services and domains that can't receive mail, checked against public DNS. If DNS itself fails, the address is let through. The account then can't reach anything but `/state`, `/me` and `/auth/*` until the emailed link is clicked. Accounts from before this have `mustConfirmEmail` false and just see a reminder. If no email service is configured, nobody is asked to confirm.
 
+## Files
+
+Uploads are checked by their real contents, not what the browser claims. JPG, PNG and WebP images are rewritten without hidden details such as GPS, and photos are shrunk in the browser first. Videos and other files keep whatever details they contain. Each person can store 500 MB.
+
+With `OBJECT_STORAGE_*` set, contents go to object storage. Otherwise they go in the database, as they always did, and `/api/files/:id` works the same either way. A timer on the server, and `POST /jobs/storage`, clean older photos and move older files across, comparing each copy with the original before removing it. A database trigger records the storage key of every deleted file row, including through a deleted trip, so the contents are removed too.
+
+## Travellers and friends
+
+Profile, post, trip and document visibility are separate. Making a profile public changes nothing else, and being friends gives no access to any trip.
+
+| Looking at a profile | Sees |
+|---|---|
+| Stranger, private profile | Name, username, photo |
+| Stranger, public profile | Everything on the profile |
+| Friend | Everything on the profile |
+| Blocked, either way | "Not found", the same as someone who doesn't exist |
+
+Email addresses are never in any of these responses. Nobody can be found until they've confirmed their email, finished onboarding and opened their profile, which is what gives them a username, so invited placeholders and existing accounts stay out of search until then.
+
+Two people have one `friendships` row, ordered so it's the same row whoever asked, so duplicates can't exist. A declined request looks finished to the sender, who can't ask again for 30 days, and stays in the decliner's list in case they change their mind. Friend notifications are in-app only, to protect the daily email allowance.
+
+## Deleting an account
+
+The `users` row stays as a nameless "Former member", because other people's expenses and chat refer to it. Name, email, photo, profile, username, sessions, notifications, friendships, blocks, shared locations and private documents go. Trips with nobody else on them are deleted, and owned trips pass to an admin, or else the longest-standing member.
+
 ## Reminders and email
 
 A scheduled GitHub workflow (`.github/workflows/daily-reminders.yml`) calls `/jobs/daily` every morning, because the free backend sleeps and can't time anything itself.
@@ -162,6 +187,20 @@ GET    /exchange-rates?date=                signed in; today's rates against USD
 GET    /trips/:tripId/messages?before=&beforeId=&limit=   members; chat older than the 300 that load with the trip
 POST   /trips/:tripId/copy                  members; new trip from this one { id, name, startDate }
 POST   /jobs/daily                          the x-jobs-secret header; sends the day's reminders
+POST   /jobs/storage                        the x-jobs-secret header; finishes deletes, cleans older photos, moves older files
+POST   /contact                             public, 5 per 10 minutes; emails whoever runs TripOS
+POST   /me/accept-terms                     an older account confirming it's 18+ and accepts the terms
+POST   /me/delete                           { password } or, with no password, { email }
+GET    /me/profile   PATCH /me/profile      your own traveller profile; opening it gives you a username
+GET    /profiles/:username                  respects who's looking; blocked and unconfirmed people are "not found"
+GET    /people/search?q=                    by name or username, never by email
+GET    /friends                             DELETE /friends/:userId
+GET    /friends/requests                    POST /friends/requests { username }
+POST   /friends/requests/:id/accept | decline   DELETE /friends/requests/:id
+GET    /blocks                              POST /blocks { userId }   DELETE /blocks/:userId
+POST   /reports                             { targetType: "profile", targetId, reason, details }
+GET    /admin/reports                       ADMIN_EMAILS only, otherwise 404; also POST /admin/reports/:id/review
+POST   /admin/users/:id/suspend | unsuspend ADMIN_EMAILS only
 GET    /auth/config                         public; the Google client id, or null if it's not set up
 POST   /auth/google                         public; signs in with a credential from Google { credential }
 GET    /trips/:tripId/live-locations        active members; who is sharing and where

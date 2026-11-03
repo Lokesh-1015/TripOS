@@ -384,7 +384,7 @@ export function Onboarding() {
       ) : (
         <div data-testid="onboarding-step-styles">
           <h1 className="text-2xl font-semibold tracking-tight">How do you like to travel?</h1>
-          <p className="mt-1 text-sm text-ink-muted">Pick a few - we'll tailor Explore for you.</p>
+          <p className="mt-1 text-sm text-ink-muted">Pick a few. They'll show on your profile, and help you find travellers like you.</p>
           <div className="mt-7 flex flex-wrap gap-2">
             {STYLES.map((s) => {
               const on = styles.includes(s);

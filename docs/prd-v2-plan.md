@@ -2,7 +2,7 @@
 
 Source: `prd_v2.md`. Goal: add profiles, friends, public trips, the new Explore, posts, dated memories and actionable chat locations without changing how today's private trips work.
 
-Status: proposed. Nothing here is built yet.
+Status: phases 0, 1 and 2 are built. Phase 3 is next.
 
 ## What the code analysis found
 

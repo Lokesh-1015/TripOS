@@ -1,6 +1,6 @@
 // The "What's new" popup. Each person sees it once, remembered on their account. To announce a new
 // release, add it to the top of this list with a new id, and everyone sees that one once too.
-import { BellRing, CalendarDays, CalendarRange, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Radio, Route, ShieldCheck, TriangleAlert, UserX, Wallet } from "lucide-react";
+import { BellRing, CalendarDays, CalendarRange, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Radio, Route, ShieldCheck, TriangleAlert, Users, UserX, Wallet } from "lucide-react";
 
 export interface ReleaseFeature {
   icon: typeof Mail;
@@ -16,6 +16,15 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    id: "2026-11-05",
+    features: [
+      { icon: Users, title: "Meet other travellers", body: "You now have a traveller profile. Search for people, send friend requests and see what you have in common. Your profile starts private, so only you decide who sees more than your name and photo." },
+      { icon: ShieldCheck, title: "Block and report", body: "You can block or report anyone from their profile. They aren't told who did it, and being friends never gives anyone access to your trips." },
+    ],
+    improved: [],
+    fixed: [],
+  },
   {
     id: "2026-11-04",
     features: [

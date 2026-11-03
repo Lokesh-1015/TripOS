@@ -81,6 +81,8 @@ How they connect:
 - **API calls:** `frontend/vercel.json` forwards `/api` to Render, so the login cookie stays first-party on the frontend's domain.
 - **Live updates:** Vercel can't carry a socket, so the browser connects straight to Render (`VITE_SOCKET_URL`) and proves who it is with a short-lived ticket from `/api/auth/realtime-ticket`.
 - **Render settings:** `DATABASE_URL`, `APP_URL`, `CORS_ORIGINS`, `NODE_ENV=production`, `NODE_VERSION`.
+- **File storage:** without these, files stay in the database. Create a private bucket and a storage credential in Neon Object Storage, then set `OBJECT_STORAGE_ENDPOINT` (the branch's S3 endpoint), `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY` and `OBJECT_STORAGE_SECRET_KEY`. Older files then move across by themselves, each one checked first.
+- **Moderation:** set `ADMIN_EMAILS` to the confirmed addresses that can see reports and suspend accounts. Contact form messages and reports go to `OWNER_EMAIL`, or to the `MAIL_FROM` address if that's not set.
 - **Sign in with Google:** set `GOOGLE_CLIENT_ID` to a Google Cloud web client id, with the site's address as an authorized JavaScript origin. It's public, and there's no client secret. Without it the button doesn't show.
 - **Reminders:** set the same long random `JOBS_SECRET` on Render and as a GitHub Actions secret, so the daily workflow can run them.
 - **Email:** add `BREVO_API_KEY` and `MAIL_FROM` (a sender verified in Brevo) to turn it on. It uses Brevo's HTTPS API because Render's free plan blocks SMTP ports. Brevo blocks API calls from unknown IP addresses by default, so turn that off or authorize Render's outbound addresses in Brevo's security settings.

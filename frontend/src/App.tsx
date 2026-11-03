@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Contact, Privacy, Terms } from "@/pages/Legal";
+import People from "@/pages/People";
+import Profile from "@/pages/Profile";
+import AdminReports from "@/pages/AdminReports";
 import { Toaster } from "@/components/ui/sonner";
 import Landing from "@/pages/Landing";
 import { ConfirmEmail, ForgotPassword, Login, Onboarding, ResetPassword, Signup, VerifyEmail } from "@/pages/Auth";
@@ -43,6 +46,9 @@ export default function App() {
           <Route path="memories" element={<MemoriesHub />} />
           <Route path="documents" element={<DocumentsHub />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="people" element={<People />} />
+          <Route path="u/:username" element={<Profile />} />
+          <Route path="admin/reports" element={<AdminReports />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

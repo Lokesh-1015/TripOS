@@ -233,7 +233,7 @@ export interface Trip {
 export interface AppNotification {
   id: string;
   tripId?: string;
-  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document";
+  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept";
   title: string;
   body: string;
   at: string;

@@ -15,6 +15,7 @@ import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
 import { CURRENCIES } from "@/lib/format";
 import { useInstallApp } from "@/lib/pwa";
+import { useOwnProfile, useSocialActions } from "@/lib/social";
 import { cn } from "@/lib/utils";
 
 const STYLES = ["Adventure", "Mountains", "Beaches", "Food trails", "Heritage", "Road trips", "Backpacking", "Luxury", "Wellness"];
@@ -26,6 +27,7 @@ const NOTIFY: [string, string, string][] = [
   ["votes", "Voting updates", "New polls and results"],
   ["itinerary", "Itinerary changes", "Edits to the day-by-day plan"],
   ["documents", "Document uploads", "New shared documents"],
+  ["social", "Friend requests", "When someone sends or accepts a friend request"],
   ["reminders", "Email reminders", "Tasks due soon, trips starting soon, and money you owe on Mondays"],
   ["emailAlerts", "Email me about updates", "Tasks, expenses, polls, itinerary changes and documents, as they happen"],
   ["email", "Weekly email digest", "Updates you haven't read, every Monday"],
@@ -43,6 +45,30 @@ function InstallCard() {
         : app.canPrompt ? <Button className="w-fit" onClick={() => void app.install()} data-testid="settings-install-button">Install app</Button>
         : <p className="text-sm text-ink-muted" data-testid="settings-install-hint">{app.ios ? "In Safari, tap Share, then Add to Home Screen." : "Open your browser's menu and choose Install or Add to Home Screen."}</p>}
     </section>
+  );
+}
+
+/** Who can see your profile and send you requests. Separate from trips, documents and chat, which this never changes. */
+function ProfilePrivacy() {
+  const { data: me } = useOwnProfile();
+  const social = useSocialActions();
+  if (!me) return null;
+  const save = (patch: Parameters<typeof social.updateProfile>[0]) => void social.updateProfile(patch).then(() => saved("Privacy setting saved"), (err) => toast.error(apiErrorMessage(err)));
+  return (
+    <div className="divide-y" data-testid="settings-profile-privacy">
+      <label className="flex items-center justify-between gap-4 px-5 py-4">
+        <span><span className="block text-sm font-medium">Public profile</span><span className="block text-xs text-ink-muted">Your profile is {me.visibility}. When it's public, any signed-in traveller can see it. When it's private, only friends see more than your name, username and photo. Your email, trips, documents and chat never become public because of this.</span></span>
+        <Switch checked={me.visibility === "public"} onCheckedChange={(on) => save({ profileVisibility: on ? "public" : "private" })} data-testid="settings-profile-public" />
+      </label>
+      <label className="flex items-center justify-between gap-4 px-5 py-4">
+        <span><span className="block text-sm font-medium">Friend requests</span><span className="block text-xs text-ink-muted">Turn this off to stop new requests from anyone.</span></span>
+        <Switch checked={me.friendRequestsFrom === "everyone"} onCheckedChange={(on) => save({ friendRequestsFrom: on ? "everyone" : "nobody" })} data-testid="settings-friend-requests" />
+      </label>
+      <div className="flex items-center justify-between gap-4 px-5 py-4">
+        <span><span className="block text-sm font-medium">Blocked people</span><span className="block text-xs text-ink-muted">See and manage who you've blocked.</span></span>
+        <Link to="/app/people?tab=blocked" className="text-sm font-medium text-forest underline" data-testid="settings-blocked-link">Manage</Link>
+      </div>
+    </div>
   );
 }
 
@@ -197,7 +223,7 @@ export default function Settings() {
             {NOTIFY.map(([k, l, d]) => (
               <label key={k} className="flex items-center justify-between gap-4 px-5 py-4">
                 <span><span className="block text-sm font-medium">{l}</span><span className="block text-xs text-ink-muted">{d}</span></span>
-                <Switch checked={settings.notify[k] ?? k === "reminders"} onCheckedChange={(v) => { actions.updateSettings({ notify: { ...settings.notify, [k]: v } }); saved(`${l} ${v ? "on" : "off"}`); }} data-testid={`settings-notify-${k}`} />
+                <Switch checked={settings.notify[k] ?? (k === "reminders" || k === "social")} onCheckedChange={(v) => { actions.updateSettings({ notify: { ...settings.notify, [k]: v } }); saved(`${l} ${v ? "on" : "off"}`); }} data-testid={`settings-notify-${k}`} />
               </label>
             ))}
           </section>
@@ -205,7 +231,8 @@ export default function Settings() {
 
         <TabsContent value="privacy">
           <section className="divide-y rounded-2xl border border-line bg-card">
-            {([["profilePublic", "Public profile", "Trip members of shared trips can view your bio and travel styles"], ["showEmail", "Show my email", "Let trip members see your email address"], ["shareLocation", "Location sharing in chat", "Allow sharing saved places as location cards"]] as const).map(([k, l, d]) => (
+            <ProfilePrivacy />
+            {([["showEmail", "Show my email", "Let trip members see your email address"], ["shareLocation", "Location sharing in chat", "Allow sharing saved places as location cards"]] as const).map(([k, l, d]) => (
               <label key={k} className="flex items-center justify-between gap-4 px-5 py-4">
                 <span><span className="block text-sm font-medium">{l}</span><span className="block text-xs text-ink-muted">{d}</span></span>
                 <Switch checked={settings.privacy[k]} onCheckedChange={(v) => { actions.updateSettings({ privacy: { ...settings.privacy, [k]: v } }); saved("Privacy setting saved"); }} data-testid={`settings-privacy-${k}`} />

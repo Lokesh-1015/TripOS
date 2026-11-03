@@ -12,6 +12,8 @@ const PREF_KEY: Record<NotificationKind, string> = {
   vote: "votes",
   itinerary: "itinerary",
   document: "documents",
+  friend_request: "social",
+  friend_accept: "social",
 };
 
 interface EmailUpdate {

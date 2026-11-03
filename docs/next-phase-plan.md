@@ -8,10 +8,10 @@
 |---|---|
 | 1. Version control and CI | **Done.** Code is at `Lokesh-1015/TripOS`, and CI runs every test on each push. |
 | 2. Real email and verified accounts | **Built and tested locally, with Brevo sending ready.** Uses a Gmail sender, so mail may land in spam until a domain is connected. |
-| 3. Production file storage | **Interim.** Files live in Postgres and survive restarts, but use up the database's 1 GB limit. |
+| 3. Production file storage | **Built.** Neon Object Storage once its settings are added, with files moving across by themselves. Location data is removed from photos. |
 | 4. Deployment | **Live on free plans:** https://tripos-travel.vercel.app, with the database on Neon. |
 | 5. Reliability and monitoring | Not started |
-| 6. Trust and legal | Not started |
+| 6. Trust and legal | **Started.** Privacy policy, terms, 18+ confirmation, account deletion, blocking and reporting are in. A lawyer hasn't reviewed the wording, and data export isn't built. |
 | 7. Measure the beta | Not started |
 | 8. Product gaps | **Done**, including the currency fix. |
 

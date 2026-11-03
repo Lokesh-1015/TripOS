@@ -91,11 +91,15 @@ export class AuthService {
   async signInWithGoogle(identity: GoogleIdentity) {
     if (!identity.emailVerified) throw new ForbiddenException({ message: "Google hasn't confirmed this email address, so it can't be used to sign in." });
     const known = await this.prisma.user.findUnique({ where: { googleSub: identity.sub } });
-    if (known) return { user: known, token: await this.createSession(known.id) };
+    if (known) {
+      this.assertNotSuspended(known);
+      return { user: known, token: await this.createSession(known.id) };
+    }
 
     const email = normalizeEmail(identity.email);
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing?.googleSub) throw new ConflictException({ message: "This email is already linked to a different Google account." });
+    if (existing) this.assertNotSuspended(existing);
     if (!existing) {
       const user = await this.prisma.user.create({
         data: { email, name: identity.name || nameFrom(email), avatar: identity.picture, googleSub: identity.sub, emailVerifiedAt: new Date(), termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
@@ -148,7 +152,12 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email: normalizeEmail(rawEmail) } });
     if (user?.googleSub && !user.passwordHash) throw new UnauthorizedException({ message: "This account uses Sign in with Google. Use the Google button, or reset your password to add one." });
     if (!(await verifyPassword(password, user?.passwordHash ?? null)) || !user) throw new UnauthorizedException({ message: "Incorrect email or password" });
+    this.assertNotSuspended(user);
     return { user, token: await this.createSession(user.id) };
+  }
+
+  private assertNotSuspended(user: User) {
+    if (user.suspendedAt) throw new ForbiddenException({ message: "This account has been suspended. If you think this is a mistake, please use the contact form." });
   }
 
   async logOut(token?: string) {

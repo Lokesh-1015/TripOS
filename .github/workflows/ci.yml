@@ -38,6 +38,7 @@ jobs:
       GOOGLE_TEST_TOKENS: "true"
       MAIL_OPTIONAL_ALLOWANCE: 100000
       SMTP_URL: smtp://localhost:1025
+      ADMIN_EMAILS: reports-admin@example.test
       MAIL_FROM: TripOS <hello@tripos.local>
     steps:
       - uses: actions/checkout@v4

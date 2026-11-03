@@ -51,6 +51,8 @@ export class AccountService {
         await tx.tripDocument.deleteMany({ where: { uploadedBy: user.id, visibility: "private" } });
         const avatar = fileIdOf(user.avatar);
         await tx.storedFile.deleteMany({ where: { id: { in: [...privateFiles.map((f) => f.id), ...(avatar ? [avatar] : [])] } } });
+        await tx.friendship.deleteMany({ where: { OR: [{ userLowId: user.id }, { userHighId: user.id }] } });
+        await tx.block.deleteMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] } });
         await tx.liveLocation.deleteMany({ where: { userId: user.id } });
         await tx.notification.deleteMany({ where: { userId: user.id } });
         await tx.session.deleteMany({ where: { userId: user.id } });
@@ -69,6 +71,13 @@ export class AccountService {
             mustConfirmEmail: false,
             travelStyles: [],
             savedDestinations: [],
+            username: null,
+            coverPhoto: "",
+            location: "",
+            interests: [],
+            favouriteDestinations: [],
+            placesVisited: [],
+            profileVisibility: "private",
             deletedAt: new Date(),
           },
         });

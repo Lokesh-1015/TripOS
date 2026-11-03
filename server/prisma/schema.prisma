@@ -125,6 +125,29 @@ enum NotificationKind {
   vote
   itinerary
   document
+  friend_request
+  friend_accept
+}
+
+enum ProfileVisibility {
+  public
+  private
+}
+
+enum FriendRequestsFrom {
+  everyone
+  nobody
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+  declined
+}
+
+enum ReportStatus {
+  open
+  reviewed
 }
 
 /// UI: Person + Settings. A null passwordHash is a placeholder created by an email invite;
@@ -156,6 +179,17 @@ model User {
   notify            Json
   privacy           Json
   savedDestinations String[]
+  /// Chosen by the person, or given when they first open their profile. Null means they can't be found by anyone.
+  username              String?  @unique
+  coverPhoto            String   @default("")
+  location              String   @default("")
+  profileVisibility     ProfileVisibility @default(private)
+  friendRequestsFrom    FriendRequestsFrom @default(everyone)
+  interests             String[] @default([])
+  favouriteDestinations String[] @default([])
+  placesVisited         String[] @default([])
+  /// Set by a moderator. They can't sign in, and can't be found, until it's lifted.
+  suspendedAt           DateTime? @db.Timestamptz(6)
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @db.Timestamptz(6)
 
@@ -164,8 +198,56 @@ model User {
   verifyTokens  EmailVerificationToken[]
   memberships   TripMember[]
   notifications Notification[]
+  friendshipsLow  Friendship[] @relation("FriendshipLow")
+  friendshipsHigh Friendship[] @relation("FriendshipHigh")
+  blocksMade      Block[]      @relation("BlockMade")
+  blocksReceived  Block[]      @relation("BlockReceived")
 
   @@map("users")
+}
+
+/// One row per pair of people, ordered so it's the same row whoever asked, which makes duplicates impossible.
+model Friendship {
+  id          String           @id @default(cuid())
+  userLowId   String
+  userLow     User             @relation("FriendshipLow", fields: [userLowId], references: [id], onDelete: Cascade)
+  userHighId  String
+  userHigh    User             @relation("FriendshipHigh", fields: [userHighId], references: [id], onDelete: Cascade)
+  requesterId String
+  status      FriendshipStatus @default(pending)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  respondedAt DateTime?        @db.Timestamptz(6)
+
+  @@unique([userLowId, userHighId])
+  @@index([userHighId])
+  @@map("friendships")
+}
+
+model Block {
+  blockerId String
+  blocker   User     @relation("BlockMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlockReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  /// What's being reported: "profile" for now. Later phases add posts and trips.
+  targetType String
+  targetId   String
+  reason     String
+  details    String       @default("")
+  status     ReportStatus @default(open)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@map("reports")
 }
 
 model Session {
