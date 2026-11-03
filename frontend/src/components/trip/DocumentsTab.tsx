@@ -105,7 +105,7 @@ export default function DocumentsTab({ trip }: { trip: Trip }) {
       </div>
 
       {docs.length === 0 ? (
-        <EmptyState icon={FileText} title="No documents here" body={vis === "shared" ? "Upload tickets, bookings and emergency contacts for the group." : "Keep your own IDs and passport scans handy — just for you."} action={access.canContribute && <Button onClick={() => fileRef.current?.click()} data-testid="documents-empty-upload">Upload a document</Button>} testId="documents-empty-state" />
+        <EmptyState icon={FileText} title="No documents here" body={vis === "shared" ? "Upload tickets, bookings and emergency contacts for the group." : "Keep your own IDs and passport scans handy - just for you."} action={access.canContribute && <Button onClick={() => fileRef.current?.click()} data-testid="documents-empty-upload">Upload a document</Button>} testId="documents-empty-state" />
       ) : (
         <ul className="divide-y rounded-2xl border border-line bg-card" data-testid="documents-list">
           {docs.map((d) => (
@@ -161,7 +161,7 @@ export default function DocumentsTab({ trip }: { trip: Trip }) {
           <div className="grid min-h-64 place-items-center overflow-hidden rounded-xl border border-line bg-muted/60">
             {preview?.dataUrl && ["JPG", "JPEG", "PNG", "WEBP", "GIF"].includes(preview.fileType) ? <img src={preview.dataUrl} alt={preview.name} className="max-h-[60dvh] object-contain" />
               : preview?.dataUrl && preview.fileType === "PDF" ? <iframe src={preview.dataUrl} title={preview.name} className="h-[60dvh] w-full" />
-              : <div className="p-8 text-center"><FileText className="mx-auto size-10 text-sage-ink" /><p className="mt-3 text-sm font-medium">Preview not available</p><p className="mt-1 text-xs text-ink-muted">This file type can't be previewed — download it instead.</p></div>}
+              : <div className="p-8 text-center"><FileText className="mx-auto size-10 text-sage-ink" /><p className="mt-3 text-sm font-medium">Preview not available</p><p className="mt-1 text-xs text-ink-muted">This file type can't be previewed - download it instead.</p></div>}
           </div>
           <DialogFooter><Button onClick={() => preview && download(preview)} data-testid="document-preview-download-button"><Download className="size-4" /> Download</Button></DialogFooter>
         </DialogContent>

@@ -12,7 +12,7 @@ import type { TripStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const FILTERS: ("all" | TripStatus)[] = ["all", "upcoming", "ongoing", "completed", "archived"];
-const SORTS: Record<string, string> = { soonest: "Start date (soonest)", latest: "Start date (latest)", name: "Name (A–Z)" };
+const SORTS: Record<string, string> = { soonest: "Start date (soonest)", latest: "Start date (latest)", name: "Name (A-Z)" };
 
 export default function Trips() {
   const trips = useApp((s) => s.trips);

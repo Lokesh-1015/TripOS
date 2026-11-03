@@ -11,7 +11,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const res = host.switchToHttp().getResponse<Response>();
     const mapped: HttpException | null =
       err.code === "P2002" || err.code === "P2034"
-        ? new ConflictException({ code: "VERSION_CONFLICT", message: "Someone else just changed this. Your screen has been refreshed — please try again." })
+        ? new ConflictException({ code: "VERSION_CONFLICT", message: "Someone else just changed this. Your screen has been refreshed - please try again." })
         : err.code === "P2025"
           ? new NotFoundException({ message: "That no longer exists" })
           : null;

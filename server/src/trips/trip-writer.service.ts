@@ -106,5 +106,5 @@ export async function updateVersioned(
     where: { ...where, ...(version === undefined ? {} : { version }) },
     data: { ...data, version: { increment: 1 } },
   });
-  if (count === 0) throw new ConflictException({ code: "VERSION_CONFLICT", message: "Someone else just changed this. Your screen has been refreshed — please try again." });
+  if (count === 0) throw new ConflictException({ code: "VERSION_CONFLICT", message: "Someone else just changed this. Your screen has been refreshed - please try again." });
 }

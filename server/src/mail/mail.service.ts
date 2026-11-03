@@ -67,10 +67,10 @@ async function sendWithBrevo(apiKey: string, message: Message) {
   }
 }
 
-function html({ paragraphs, action }: Email) {
+function html({ paragraphs, action }: Email, appUrl: string) {
   const body = paragraphs.map((p) => `<p style="margin:0 0 16px;line-height:1.5">${escapeHtml(p)}</p>`).join("");
   return `<div style="font-family:system-ui,sans-serif;color:#202824;max-width:480px;margin:0 auto;padding:24px">
-<p style="margin:0 0 24px;font-size:18px;font-weight:600;color:#174C3C">TripOS</p>
+<p style="margin:0 0 24px;font-size:18px;font-weight:700;line-height:32px;color:#202824"><img src="${escapeHtml(appUrl)}/pwa-192x192.png" width="32" height="32" alt="" style="vertical-align:top;margin-right:8px;border:0">Trip<span style="color:#EE7654">OS</span></p>
 ${body}
 <p style="margin:24px 0"><a href="${escapeHtml(action.url)}" style="background:#174C3C;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">${escapeHtml(action.label)}</a></p>
 <p style="margin:0;font-size:13px;color:#7A827D">Or open this link: ${escapeHtml(action.url)}</p>
@@ -177,7 +177,7 @@ export class MailService {
         to: email.to,
         subject: email.subject,
         text: [...email.paragraphs, `${email.action.label}: ${email.action.url}`].join("\n\n"),
-        html: html(email),
+        html: html(email, this.appUrl),
       });
       this.countToday();
       this.sentToday++;

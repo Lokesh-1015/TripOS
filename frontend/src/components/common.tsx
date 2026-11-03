@@ -10,15 +10,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 export function Logo({ light = false, className }: { light?: boolean; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 font-semibold tracking-tight", className)} data-testid="brand-logo">
-      <span className={cn("grid size-8 place-items-center rounded-[10px]", light ? "bg-white/10" : "bg-forest")}>
-        <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" aria-hidden>
-          <path d="M4 18c3-7 6-11 8-11s5 4 8 11" stroke={light ? "#fff" : "#fff"} strokeWidth="2" strokeLinecap="round" />
-          <circle cx="12" cy="5" r="2.2" fill="#F28B68" />
-        </svg>
-      </span>
+    <span className={cn("inline-flex items-center gap-2 font-bold tracking-tight", className)} data-testid="brand-logo">
+      <svg viewBox="14 14 772 772" className={cn("size-8 shrink-0 rounded-[10px]", light && "ring-1 ring-white/20")} aria-hidden>
+        <rect x="14" y="14" width="772" height="772" rx="200" fill="#0F4335" />
+        <path d="M401 357 351 281a61 61 0 1 1 100 0Z" fill="#EE7654" />
+        <circle cx="401" cy="247" r="25" fill="#0F4335" />
+        <path d="M208 563C268 455 303 381 363 349M594 563C534 455 499 381 439 349" fill="none" stroke="#fff" strokeWidth="47" />
+        <circle cx="208" cy="563" r="23.5" fill="#fff" />
+        <circle cx="594" cy="563" r="23.5" fill="#fff" />
+      </svg>
       <span className={cn("text-[17px]", light ? "text-white" : "text-ink")}>
-        Trip<span className="text-coral">OS</span>
+        Trip<span className="text-[#EE7654]">OS</span>
       </span>
     </span>
   );

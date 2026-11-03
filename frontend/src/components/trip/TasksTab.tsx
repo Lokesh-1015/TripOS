@@ -153,7 +153,7 @@ export default function TasksTab({ trip }: { trip: Trip }) {
       </div>
 
       {list.length === 0 ? (
-        <EmptyState icon={ListTodo} title={trip.tasks.length ? "Nothing matches these filters" : "No tasks yet"} body={trip.tasks.length ? "Try a different view or filter." : "Split up the planning — who books what, who brings what."} action={canContribute && <Button onClick={() => setEditing(newTask())} data-testid="tasks-empty-add">Create a task</Button>} testId="tasks-empty-state" />
+        <EmptyState icon={ListTodo} title={trip.tasks.length ? "Nothing matches these filters" : "No tasks yet"} body={trip.tasks.length ? "Try a different view or filter." : "Split up the planning - who books what, who brings what."} action={canContribute && <Button onClick={() => setEditing(newTask())} data-testid="tasks-empty-add">Create a task</Button>} testId="tasks-empty-state" />
       ) : (
         <ul className="divide-y rounded-2xl border border-line bg-card" data-testid="tasks-list">
           {list.map((t) => <TaskRow key={t.id} trip={trip} task={t} onEdit={canContribute ? () => setEditing(t) : undefined} onDelete={canContribute ? () => setDeleting(t) : undefined} />)}

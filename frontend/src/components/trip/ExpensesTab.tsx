@@ -242,9 +242,9 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Total budget" value={trip.budget ? money(trip.budget, c) : "—"} hint={trip.perPersonBudget ? `${money(trip.perPersonBudget, c)} per person` : undefined} testId="expenses-stat-budget" />
+        <Stat label="Total budget" value={trip.budget ? money(trip.budget, c) : "-"} hint={trip.perPersonBudget ? `${money(trip.perPersonBudget, c)} per person` : undefined} testId="expenses-stat-budget" />
         <Stat label="Spent" value={<span data-testid="expenses-total-spent">{money(spent, c)}</span>} hint={trip.budget ? <Progress value={(spent / trip.budget) * 100} className="mt-1.5" tone={spent > trip.budget ? "coral" : "forest"} /> : `${trip.expenses.length} expenses`} testId="expenses-stat-spent" />
-        <Stat label="Remaining" value={<span className={cn(trip.budget && spent > trip.budget && "text-destructive")} data-testid="expenses-remaining">{trip.budget ? money(trip.budget - spent, c) : "—"}</span>} hint={trip.budget && spent > trip.budget ? "Over budget" : "Left to spend"} testId="expenses-stat-remaining" />
+        <Stat label="Remaining" value={<span className={cn(trip.budget && spent > trip.budget && "text-destructive")} data-testid="expenses-remaining">{trip.budget ? money(trip.budget - spent, c) : "-"}</span>} hint={trip.budget && spent > trip.budget ? "Over budget" : "Left to spend"} testId="expenses-stat-remaining" />
         <Stat label="Your share" value={money(myShare, c)} hint={`Avg ${money(round2(spent / Math.max(1, trip.members.length)), c)} / person`} testId="expenses-stat-my-share" />
       </div>
 
@@ -351,7 +351,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
           </div>
         </div>
         {list.length === 0 ? (
-          <div className="p-5"><EmptyState icon={Receipt} title={trip.expenses.length ? "No matching expenses" : "No expenses yet"} body={trip.expenses.length ? "Try another search or category." : "Log the first one — tickets, stays, that chai stop."} action={!trip.expenses.length && access.canContribute && <Button onClick={() => setDialog({ open: true, exp: null })} data-testid="expenses-empty-add">Add expense</Button>} /></div>
+          <div className="p-5"><EmptyState icon={Receipt} title={trip.expenses.length ? "No matching expenses" : "No expenses yet"} body={trip.expenses.length ? "Try another search or category." : "Log the first one - tickets, stays, that chai stop."} action={!trip.expenses.length && access.canContribute && <Button onClick={() => setDialog({ open: true, exp: null })} data-testid="expenses-empty-add">Add expense</Button>} /></div>
         ) : (
           <ul className="divide-y">
             {list.map((e) => {
@@ -387,7 +387,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
         onOpenChange={(o) => !o && setSettle(undefined)}
         destructive={false}
         title="Record this payment?"
-        body={settle ? `${people[settle.from]?.name ?? "A former member"} pays ${people[settle.to]?.name ?? "a former member"} ${money(settle.amount, c)}. TripOS doesn't move money — this just marks it as settled.` : ""}
+        body={settle ? `${people[settle.from]?.name ?? "A former member"} pays ${people[settle.to]?.name ?? "a former member"} ${money(settle.amount, c)}. TripOS doesn't move money - this just marks it as settled.` : ""}
         confirmLabel="Mark as settled"
         onConfirm={() => { if (settle) { actions.upsert(trip.id, "settlements", { id: uid("set"), ...settle, date: todayISO() }, { text: `recorded a settlement of ${money(settle.amount, c)}`, kind: "expense" }); saved("Payment recorded"); } }}
       />

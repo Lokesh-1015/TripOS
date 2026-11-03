@@ -25,8 +25,8 @@ export const fmtDate = (iso: string, f = "dd MMM yyyy") => format(parseISO(iso),
 export const fmtRange = (a: string, b: string) => {
   const s = parseISO(a), e = parseISO(b);
   return s.getFullYear() === e.getFullYear()
-    ? `${format(s, "dd MMM")} – ${format(e, "dd MMM yyyy")}`
-    : `${format(s, "dd MMM yyyy")} – ${format(e, "dd MMM yyyy")}`;
+    ? `${format(s, "dd MMM")} - ${format(e, "dd MMM yyyy")}`
+    : `${format(s, "dd MMM yyyy")} - ${format(e, "dd MMM yyyy")}`;
 };
 export const ago = (iso: string) => formatDistanceToNowStrict(parseISO(iso), { addSuffix: true });
 export const tripDays = (t: Trip) => differenceInCalendarDays(parseISO(t.endDate), parseISO(t.startDate)) + 1;

@@ -12,7 +12,7 @@ const FEATURES = [
   { icon: Wallet, title: "Splitwise-grade expenses", body: "Equal or custom splits, live balances and the fewest transfers to settle up." },
   { icon: Vote, title: "Decide together", body: "Vote on destinations, dates, hotels and that one restaurant everyone argues about." },
   { icon: CheckSquare, title: "Tasks & packing", body: "Assign who books what, track due dates, and tick off shared packing lists." },
-  { icon: FileText, title: "One document vault", body: "Tickets, bookings and emergency contacts — shared or private, always findable." },
+  { icon: FileText, title: "One document vault", body: "Tickets, bookings and emergency contacts - shared or private, always findable." },
   { icon: Images, title: "Memories & Trip Replay", body: "A shared gallery that turns into a beautiful scrapbook when you're back home." },
 ];
 
@@ -146,7 +146,7 @@ export default function Landing() {
         <motion.div {...fade} className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-sage-ink">Everything in one place</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Plan together. Travel together. Remember together.</h2>
-          <p className="mt-4 text-ink-muted">Nine connected modules in one workspace per trip — so nobody asks “wait, where's the booking?” ever again.</p>
+          <p className="mt-4 text-ink-muted">Nine connected modules in one workspace per trip - so nobody asks “wait, where's the booking?” ever again.</p>
         </motion.div>
         <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, body }, i) => (
@@ -216,7 +216,7 @@ export default function Landing() {
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Your next trip deserves better than a group chat.</h2>
             <p className="mx-auto mt-3 max-w-lg text-[#D2E2DB]">Free for groups. Set up your first trip in under two minutes.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link to="/signup" className={cn(buttonVariants({ size: "lg" }), "h-12 rounded-xl bg-coral px-6 text-white hover:bg-[#e97a56]")} data-testid="landing-cta-get-started">Get Started — it's free</Link>
+              <Link to="/signup" className={cn(buttonVariants({ size: "lg" }), "h-12 rounded-xl bg-coral px-6 text-white hover:bg-[#e97a56]")} data-testid="landing-cta-get-started">Get Started - it's free</Link>
               <button onClick={demo} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-12 rounded-xl border-white/25 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white")} data-testid="landing-cta-demo">Create an account</button>
             </div>
           </div>

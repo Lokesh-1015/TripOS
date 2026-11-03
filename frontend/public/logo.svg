@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="14 14 772 772" role="img" aria-label="TripOS">
+  <rect x="14" y="14" width="772" height="772" rx="200" fill="#0F4335"/>
+  <path d="M401 357 351 281a61 61 0 1 1 100 0Z" fill="#EE7654"/>
+  <circle cx="401" cy="247" r="25" fill="#0F4335"/>
+  <path d="M208 563C268 455 303 381 363 349M594 563C534 455 499 381 439 349" fill="none" stroke="#fff" stroke-width="47"/>
+  <circle cx="208" cy="563" r="23.5" fill="#fff"/>
+  <circle cx="594" cy="563" r="23.5" fill="#fff"/>
+</svg>

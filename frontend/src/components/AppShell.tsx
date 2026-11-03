@@ -258,7 +258,7 @@ export default function AppShell() {
             </DialogHeader>
             <ul className="grid gap-3 text-sm">
               <li><b>Create a trip</b> from the sidebar, then invite friends from the trip header.</li>
-              <li><b>Split expenses</b> equally or by custom amounts — the Settle up view suggests the fewest transfers.</li>
+              <li><b>Split expenses</b> equally or by custom amounts - the Settle up view suggests the fewest transfers.</li>
               <li><b>Drag activities</b> in the itinerary to reorder your day.</li>
               <li><b>Everything stays in sync.</b> Changes your crew makes appear on your screen as they happen.</li>
             </ul>

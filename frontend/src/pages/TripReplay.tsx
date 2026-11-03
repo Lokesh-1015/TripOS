@@ -94,7 +94,7 @@ export default function TripReplay() {
       <section className="mt-10" data-testid="replay-timeline">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold tracking-tight">The journey, day by day</h2>
-          <Button variant="outline" className="rounded-xl" onClick={() => { if (!playing && day >= days - 1) setDay(0); setPlaying(!playing); if (!playing) toast("Replay playing", { description: "Sit back — we'll step through each day." }); }} data-testid="replay-play-button">
+          <Button variant="outline" className="rounded-xl" onClick={() => { if (!playing && day >= days - 1) setDay(0); setPlaying(!playing); if (!playing) toast("Replay playing", { description: "Sit back - we'll step through each day." }); }} data-testid="replay-play-button">
             {playing ? <><Pause className="size-4" /> Pause</> : <><Play className="size-4" /> Play replay</>}
           </Button>
         </div>
@@ -109,7 +109,7 @@ export default function TripReplay() {
         <AnimatePresence mode="wait">
           <motion.div key={day} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.3 }} className="mt-5 grid gap-5 lg:grid-cols-[1fr_1.3fr]">
             <ol className="grid content-start gap-3">
-              {dayActs.length === 0 && <li className="rounded-2xl border border-dashed border-line p-6 text-sm text-ink-muted">A slow day — no plans logged. The best kind.</li>}
+              {dayActs.length === 0 && <li className="rounded-2xl border border-dashed border-line p-6 text-sm text-ink-muted">A slow day - no plans logged. The best kind.</li>}
               {dayActs.map((a) => (
                 <li key={a.id} className="flex gap-3 rounded-2xl border border-line bg-card p-4">
                   <span className="num w-12 shrink-0 text-xs font-semibold text-sage-ink">{a.start}</span>

@@ -232,7 +232,7 @@ export default function CreateTrip() {
             {step === 3 && (
               <div className="grid gap-5" data-testid="create-trip-budget">
                 <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
-                  <Field label="Estimated total budget" htmlFor="ct-budget" error={err.budget} hint="Optional — helps track spending against plan">
+                  <Field label="Estimated total budget" htmlFor="ct-budget" error={err.budget} hint="Optional - helps track spending against plan">
                     <Input id="ct-budget" inputMode="numeric" value={d.budget} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ""); set({ budget: v, perPerson: v ? String(Math.round(+v / d.members.length)) : "" }); }} placeholder="50000" className="num h-11 rounded-xl" data-testid="create-trip-budget-input" />
                   </Field>
                   <Field label="Currency">

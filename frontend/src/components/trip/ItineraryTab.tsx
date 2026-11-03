@@ -90,7 +90,7 @@ function ActivityDialog({ trip, value, onClose }: { trip: Trip; value: Activity 
               </Select>
             </Field>
           )}
-          {clashes.length > 0 && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" role="status" data-testid="activity-conflict-warning">This overlaps with {clashes.map((c) => `“${c.title}” (${c.start}–${c.end})`).join(", ")}. You can still save it.</p>}
+          {clashes.length > 0 && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" role="status" data-testid="activity-conflict-warning">This overlaps with {clashes.map((c) => `“${c.title}” (${c.start}-${c.end})`).join(", ")}. You can still save it.</p>}
           <Field label="Description" htmlFor="act-desc"><Textarea id="act-desc" value={a.description} onChange={(e) => setA({ ...a, description: e.target.value })} rows={2} data-testid="activity-description-input" /></Field>
           <Field label="Notes" htmlFor="act-notes"><Input id="act-notes" value={a.notes} onChange={(e) => setA({ ...a, notes: e.target.value })} placeholder="Bring cash, book ahead…" data-testid="activity-notes-input" /></Field>
           <Field label="Who's going">
@@ -192,7 +192,7 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
         </div>
 
         {list.length === 0 ? (
-          <EmptyState icon={CalendarPlus} title="A blank day — full of possibilities" body="Add a hike, a café, a long lunch or simply ‘rest day’. Your crew will see it instantly." action={canContribute && <Button onClick={() => setEditing(blank(day, trip.members.map((m) => m.id)))} data-testid="itinerary-empty-add">Plan this day</Button>} testId="itinerary-empty-state" />
+          <EmptyState icon={CalendarPlus} title="A blank day - full of possibilities" body="Add a hike, a café, a long lunch or simply ‘rest day’. Your crew will see it instantly." action={canContribute && <Button onClick={() => setEditing(blank(day, trip.members.map((m) => m.id)))} data-testid="itinerary-empty-add">Plan this day</Button>} testId="itinerary-empty-state" />
         ) : (
           <ol className="relative grid gap-3 pl-6 before:absolute before:bottom-4 before:left-[7px] before:top-4 before:w-px before:bg-line" data-testid="itinerary-timeline">
             {list.map((a, idx) => (
@@ -211,7 +211,7 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
                   <div className="flex items-start gap-3">
                     {canContribute && <GripVertical className="mt-0.5 hidden size-4 shrink-0 cursor-grab text-ink-muted sm:block" aria-hidden />}
                     <div className="min-w-0 flex-1">
-                      <p className="num flex items-center gap-1.5 text-xs font-semibold text-sage-ink"><Clock className="size-3.5" /> {a.start} – {a.end}
+                      <p className="num flex items-center gap-1.5 text-xs font-semibold text-sage-ink"><Clock className="size-3.5" /> {a.start} - {a.end}
                         <span className="ml-1 inline-flex items-center gap-1 font-sans font-medium" data-testid={`activity-type-${a.id}`}>{(() => { const T = ACTIVITY_TYPES[a.type]; return <><T.icon className="size-3.5" /> {T.label}</>; })()}</span>
                       </p>
                       <h3 className="mt-1 font-semibold">{a.title}</h3>

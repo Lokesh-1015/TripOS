@@ -140,7 +140,7 @@ export default function ChatTab({ trip }: { trip: Trip }) {
             <PopoverTrigger className="grid size-9 place-items-center rounded-lg text-ink transition-colors hover:bg-muted" aria-label="Share location" data-testid="chat-location-button"><MapPin className="size-4" /></PopoverTrigger>
             <PopoverContent align="start" side="top" className="w-64 p-1">
               <p className="px-2 py-1.5 text-xs font-medium text-ink-muted">Share a saved place</p>
-              {trip.places.length === 0 && <p className="px-2 py-3 text-sm text-ink-muted">No saved places yet — add some on the Map tab.</p>}
+              {trip.places.length === 0 && <p className="px-2 py-3 text-sm text-ink-muted">No saved places yet - add some on the Map tab.</p>}
               {trip.places.map((p) => (
                 <button key={p.id} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted" onClick={() => { post({ kind: "location", text: "", placeId: p.id }); setLocOpen(false); }} data-testid={`chat-share-place-${p.id}`}>
                   <MapPin className="size-3.5" style={{ color: PLACE_META[p.type].color }} /> {p.name}

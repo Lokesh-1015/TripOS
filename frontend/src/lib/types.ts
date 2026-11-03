@@ -273,7 +273,7 @@ export interface AppState {
   notifications: AppNotification[];
 }
 
-// Collections inside a trip that hold `{ id }` records — used by the generic store helpers.
+// Collections inside a trip that hold `{ id }` records - used by the generic store helpers.
 export type TripCollection =
   | "activities" | "expenses" | "settlements" | "tasks" | "packing" | "documents"
   | "places" | "messages" | "polls" | "photos" | "members";

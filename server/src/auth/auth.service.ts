@@ -49,7 +49,7 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email } });
     // One address, one account, however it was first created.
     if (existing?.googleSub && !existing.passwordHash) throw new ConflictException({ message: "An account with this email already exists. Sign in with Google instead." });
-    if (existing?.passwordHash) throw new ConflictException({ message: "An account with this email already exists — log in instead" });
+    if (existing?.passwordHash) throw new ConflictException({ message: "An account with this email already exists - log in instead" });
     await this.emailCheck.assertReal(email);
     const passwordHash = await hashPassword(password);
     // Without an email service nobody could confirm, so nobody is asked to.

@@ -62,7 +62,7 @@ export function ExpensesHub() {
                 {t.budget > 0 && <Progress value={(spent / t.budget) * 100} className="mt-2 h-1.5" />}
               </div>
               <span className={cn("num text-right text-sm font-semibold", bal > 0.009 ? "text-[#1E7B58]" : bal < -0.009 ? "text-[#C2462F]" : "text-ink-muted")}>
-                {bal > 0.009 ? `+${money(bal, t.currency)}` : bal < -0.009 ? `−${money(-bal, t.currency)}` : "Settled"}
+                {bal > 0.009 ? `+${money(bal, t.currency)}` : bal < -0.009 ? `-${money(-bal, t.currency)}` : "Settled"}
               </span>
               <ArrowRight className="size-4 text-ink-muted" />
             </Link>

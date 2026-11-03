@@ -156,7 +156,7 @@ export default function OverviewTab({ trip, onManageMembers }: { trip: Trip; onM
         {(status === "completed" || status === "archived") && (
           <Link to={`${base}/replay`} className="group flex items-center gap-4 overflow-hidden rounded-2xl border border-coral/30 bg-coral-soft p-4 transition-colors hover:bg-[#ffe6dc]" data-testid="overview-replay-banner">
             <div className="flex -space-x-3">{trip.photos.slice(0, 3).map((p) => <img key={p.id} src={p.url} alt="" className="size-12 rounded-xl object-cover ring-2 ring-coral-soft" />)}</div>
-            <div className="flex-1"><p className="font-semibold">Relive it with Trip Replay</p><p className="text-sm text-ink-muted">Route, photos, spend and highlights — as a scrapbook.</p></div>
+            <div className="flex-1"><p className="font-semibold">Relive it with Trip Replay</p><p className="text-sm text-ink-muted">Route, photos, spend and highlights - as a scrapbook.</p></div>
             <ArrowRight className="size-5 text-coral transition-transform group-hover:translate-x-1" />
           </Link>
         )}
