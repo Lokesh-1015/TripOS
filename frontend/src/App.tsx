@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Contact, Privacy, Terms } from "@/pages/Legal";
 import People from "@/pages/People";
+import PublicTripPage from "@/pages/PublicTrip";
 import Profile from "@/pages/Profile";
 import AdminReports from "@/pages/AdminReports";
 import { Toaster } from "@/components/ui/sonner";
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/confirm-email" element={<ConfirmEmail />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/join/:code" element={<Join />} />
+        <Route path="/t/:id" element={<PublicTripPage standalone />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/contact" element={<Contact />} />
@@ -41,6 +43,7 @@ export default function App() {
           <Route path="trips/:id/replay" element={<TripReplay />} />
           <Route path="trips/:id/:tab?" element={<TripWorkspace />} />
           <Route path="explore" element={<Explore />} />
+          <Route path="explore/:id" element={<PublicTripPage />} />
           <Route path="expenses" element={<ExpensesHub />} />
           <Route path="tasks" element={<TasksHub />} />
           <Route path="memories" element={<MemoriesHub />} />

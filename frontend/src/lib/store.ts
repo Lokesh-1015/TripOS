@@ -126,6 +126,8 @@ async function waitForServer() {
   }
 }
 
+// Once dismissed, What's new stays dismissed: a refresh that began before the click can't bring it back.
+let seenThisSession: string | null = null;
 let stateRequest = 0;
 let stateLoading = false;
 
@@ -140,7 +142,7 @@ export async function loadState() {
     stateLoading = false;
     tripRequests.clear();
     wakeRetries = 0;
-    set({ ...server, loading: false, waking: false, offline: state.offline, offlineCopy: false, authed: true });
+    set({ ...server, ...(seenThisSession ? { seenReleaseNotes: seenThisSession } : {}), loading: false, waking: false, offline: state.offline, offlineCopy: false, authed: true });
     connectSocket();
   } catch (e) {
     if (request !== stateRequest) return;
@@ -433,6 +435,7 @@ export const actions = {
   },
   /** Quiet if it fails: the worst that happens is seeing the release notes once more. */
   markReleaseNotesSeen(id: string) {
+    seenThisSession = id;
     set({ ...state, seenReleaseNotes: id });
     void apiPatch("/me", { seenReleaseNotes: id }).then(supersedeStaleLoad, () => undefined);
   },

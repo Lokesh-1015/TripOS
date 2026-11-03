@@ -17,6 +17,8 @@ export interface TravellerCard {
   location: string;
   travelStyles: string[];
   sharedStyles: string[];
+  sharedInterests: string[];
+  sharedDestinations: string[];
   mutualFriends: number;
 }
 
@@ -56,6 +58,8 @@ export interface BlockedPerson {
 
 export interface ReportRow {
   id: string;
+  targetType: "profile" | "trip";
+  trip?: { id: string; name: string; isPublic: boolean };
   reason: string;
   details: string;
   status: "open" | "reviewed";
@@ -103,6 +107,7 @@ export function useSocialActions() {
     unblock: (userId: string) => refreshing(apiDelete(`/blocks/${userId}`)),
     report: (targetId: string, reason: string, details: string) => apiPost("/reports", { targetType: "profile", targetId, reason, details }),
     reviewReport: (id: string) => refreshing(apiPost(`/admin/reports/${id}/review`)),
+    unpublishTrip: (tripId: string) => refreshing(apiPost(`/admin/trips/${tripId}/unpublish`)),
     suspend: (userId: string) => refreshing(apiPost(`/admin/users/${userId}/suspend`)),
     unsuspend: (userId: string) => refreshing(apiPost(`/admin/users/${userId}/unsuspend`)),
   };

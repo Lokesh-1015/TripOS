@@ -13,6 +13,13 @@ export const RESERVED_USERNAMES = new Set(["admin", "administrator", "moderator"
 
 /** Two people have one row, however it started, so requests can't be duplicated in either direction. */
 export const pair = (a: string, b: string) => (a < b ? { userLowId: a, userHighId: b } : { userLowId: b, userHighId: a });
+const SUGGESTION_SCAN = 200;
+const SUGGESTIONS = 12;
+const placesOf = (u: Pick<User, "favouriteDestinations" | "placesVisited">) => [...u.favouriteDestinations, ...u.placesVisited];
+const sharedPlaces = (a: User, b: User) => {
+  const theirs = new Set(placesOf(b).map((p) => p.toLowerCase()));
+  return [...new Set(placesOf(a).filter((p) => theirs.has(p.toLowerCase())))];
+};
 const otherPerson = (f: Friendship, me: string) => (f.userLowId === me ? f.userHighId : f.userLowId);
 
 /** Someone who can be found: a real, confirmed person who has opened their profile. Invited placeholders never can. */
@@ -103,6 +110,8 @@ export class SocialService {
         location: full ? target.location : "",
         travelStyles: full ? target.travelStyles : [],
         sharedStyles: full ? target.travelStyles.filter((s) => viewer.travelStyles.includes(s)) : [],
+        sharedInterests: full ? target.interests.filter((s) => viewer.interests.includes(s)) : [],
+        sharedDestinations: full ? sharedPlaces(target, viewer) : [],
         mutualFriends: mutual,
       };
     });
@@ -123,6 +132,20 @@ export class SocialService {
     };
   }
 
+  /** Public profiles with something in common, closest first. Popularity plays no part. */
+  async suggestions(viewer: User) {
+    const [hidden, friends, requests] = await Promise.all([
+      this.blockedIds(viewer.id),
+      this.friendIds(viewer.id),
+      this.prisma.friendship.findMany({ where: { OR: [{ userLowId: viewer.id }, { userHighId: viewer.id }] }, select: { userLowId: true, userHighId: true } }),
+    ]);
+    const skip = [viewer.id, ...hidden, ...friends, ...requests.map((f) => otherPerson(f as Friendship, viewer.id))];
+    const candidates = await this.prisma.user.findMany({ where: { ...listed, profileVisibility: "public", id: { notIn: skip } }, orderBy: { createdAt: "desc" }, take: SUGGESTION_SCAN });
+    const cards = await this.cards(viewer, candidates);
+    const score = (c: (typeof cards)[number]) => c.sharedStyles.length * 2 + c.sharedInterests.length * 2 + c.sharedDestinations.length * 2 + c.mutualFriends;
+    return cards.filter((c) => score(c) > 0).sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name)).slice(0, SUGGESTIONS);
+  }
+
   /** Everyone who hasn't chosen one gets a username the first time they open their profile, and can change it. */
   async ensureUsername(user: User) {
     if (user.username) return user;
@@ -138,10 +161,10 @@ export class SocialService {
   }
 
   /** In-app only: a social app could use up the free daily email allowance by itself. */
-  async notify(userId: string, input: { kind: NotificationKind; title: string; body: string; link: string }) {
+  async notify(userId: string, input: { kind: NotificationKind; title: string; body: string; link: string }, tripId?: string) {
     const person = await this.prisma.user.findUnique({ where: { id: userId }, select: { notify: true } });
     if (!person || (person.notify as Record<string, boolean>).social === false) return;
-    await this.prisma.notification.create({ data: { userId, ...input } });
+    await this.prisma.notification.create({ data: { userId, tripId, ...input } });
     this.realtime.notificationsChanged([userId]);
   }
 

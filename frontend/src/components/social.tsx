@@ -33,6 +33,8 @@ export function FriendButton({ person }: { person: Pick<TravellerCard, "username
 export function TravellerRow({ person, actions }: { person: TravellerCard; actions?: React.ReactNode }) {
   const common = [
     person.sharedStyles.length ? `You both like ${person.sharedStyles.slice(0, 3).join(", ")}` : "",
+    person.sharedInterests.length ? `Also into ${person.sharedInterests.slice(0, 2).join(", ")}` : "",
+    person.sharedDestinations.length ? `Both love ${person.sharedDestinations.slice(0, 2).join(", ")}` : "",
     person.mutualFriends ? `${person.mutualFriends} mutual ${person.mutualFriends === 1 ? "friend" : "friends"}` : "",
     person.location,
   ].filter(Boolean);

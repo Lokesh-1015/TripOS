@@ -77,6 +77,12 @@ Email addresses are never in any of these responses. Nobody can be found until t
 
 Two people have one `friendships` row, ordered so it's the same row whoever asked, so duplicates can't exist. A declined request looks finished to the sender, who can't ask again for 30 days, and stays in the decliner's list in case they change their mind. Friend notifications are in-app only, to protect the daily email allowance.
 
+## Public trips and limits
+
+Trips are private unless the host chooses otherwise, and that includes every trip made before this existed and every copied trip. Public means findable. Nobody is added without the host or an admin accepting them, and the public response is a separate allowlist, so nothing else on a trip can reach it: no join link, members, addresses, notes, expenses, documents or chat. The plan shows day, title and type only, and only if the host chooses. Finished and archived trips, and trips whose host is suspended, deleted or blocked, don't appear.
+
+`maxParticipants` counts everyone who has joined, including the host. Invitations and requests don't hold a place. Every way of joining goes through `assertRoom` in `participants.ts`, which locks the trip's row so two people can't take the last place. A limit can't go below how many have joined, and never removes anyone.
+
 ## Deleting an account
 
 The `users` row stays as a nameless "Former member", because other people's expenses and chat refer to it. Name, email, photo, profile, username, sessions, notifications, friendships, blocks, shared locations and private documents go. Trips with nobody else on them are deleted, and owned trips pass to an admin, or else the longest-standing member.
@@ -198,7 +204,14 @@ GET    /friends                             DELETE /friends/:userId
 GET    /friends/requests                    POST /friends/requests { username }
 POST   /friends/requests/:id/accept | decline   DELETE /friends/requests/:id
 GET    /blocks                              POST /blocks { userId }   DELETE /blocks/:userId
-POST   /reports                             { targetType: "profile", targetId, reason, details }
+POST   /reports                             { targetType: "profile" | "trip", targetId, reason, details }
+GET    /public/trips                        Explore, with filters; needs an account
+GET    /public/trips/:id                    public, so a trip can be shared by link; only allowlisted fields
+POST   /public/trips/:id/join-request       { message }   DELETE to cancel
+GET    /trips/:id/join-requests             owner and admins
+POST   /trips/:id/join-requests/:rid/accept | reject   owner and admins
+GET    /people/suggested                    public profiles with something in common
+POST   /admin/trips/:id/unpublish           ADMIN_EMAILS only
 GET    /admin/reports                       ADMIN_EMAILS only, otherwise 404; also POST /admin/reports/:id/review
 POST   /admin/users/:id/suspend | unsuspend ADMIN_EMAILS only
 GET    /auth/config                         public; the Google client id, or null if it's not set up

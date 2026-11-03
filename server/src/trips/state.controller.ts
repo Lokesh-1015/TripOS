@@ -161,7 +161,7 @@ export class StateController {
   }
 
   private async tripsFor(userId: string) {
-    const rows = await this.prisma.trip.findMany({ where: { members: { some: { userId, status: "active" } } }, include: tripInclude, orderBy: { startDate: "asc" } });
+    const rows = await this.prisma.trip.findMany({ where: { members: { some: { userId, status: "active" } } }, include: tripInclude, orderBy: [{ startDate: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
     return rows.map((t) => toTrip(t, userId));
   }
 

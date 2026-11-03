@@ -212,6 +212,10 @@ export interface Trip {
   perPersonBudget: number;
   archived: boolean;
   visibility?: "private" | "public";
+  category?: string;
+  travelStyle?: string;
+  showBudget?: boolean;
+  showPlan?: boolean;
   /** The most people who can join, including the host. Null means no limit. */
   maxParticipants?: number | null;
   createdAt: string;
@@ -236,7 +240,7 @@ export interface Trip {
 export interface AppNotification {
   id: string;
   tripId?: string;
-  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full";
+  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected";
   title: string;
   body: string;
   at: string;

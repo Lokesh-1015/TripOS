@@ -177,11 +177,11 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
     await expect(page.locator('[data-testid^="hub-memories-trip-"]').first()).toContainText('Everything Trip Renamed');
   });
 
-  await test.step('explore: a saved destination follows the account', async () => {
+  await test.step('explore: opens, and offers hosting a trip', async () => {
     await page.goto('/app/explore');
-    await page.getByTestId('explore-save-kerala').click();
-    await page.reload();
-    await expect(page.getByTestId('explore-save-kerala')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('explore-host-button')).toBeVisible();
+    await page.getByTestId('explore-tab-travellers').click();
+    await expect(page.getByTestId('travellers-list').or(page.getByTestId('travellers-empty'))).toBeVisible();
   });
 
   await test.step('settings: profile, notifications and password persist', async () => {

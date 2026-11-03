@@ -1,3 +1,4 @@
+import JoinRequestsPanel from "./JoinRequestsPanel";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check, Lock, Plus, Trash2, Unlock, Users, Vote } from "lucide-react";
@@ -146,6 +147,7 @@ export default function OverviewTab({ trip, onManageMembers }: { trip: Trip; onM
   return (
     <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
       <div className="grid content-start gap-6">
+        {access.canAdmin && trip.visibility === "public" && <JoinRequestsPanel trip={trip} />}
         {trip.description && <p className="text-[15px] leading-relaxed text-ink-muted" data-testid="trip-description">{trip.description}</p>}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label="Trip length" value={`${tripDays(trip)} days`} hint={`${trip.activities.length} activities planned`} testId="overview-stat-length" />

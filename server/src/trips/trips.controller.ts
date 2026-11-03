@@ -13,6 +13,7 @@ import type { Prisma, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { MailService } from "../mail/mail.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { SocialService } from "../social/social.service.js";
 import { assertRoom, tellHostsIfFull } from "./participants.js";
 import { pollBody, pollData } from "./polls.controller.js";
 import { assertVerified } from "./state.controller.js";
@@ -23,6 +24,7 @@ import { TripWriter, updateVersioned } from "./trip-writer.service.js";
 const name = z.string().trim().min(3).max(120);
 const destination = z.string().trim().min(1).max(200);
 const maxParticipants = z.number().int().min(1).max(1000);
+const publicDetails = { category: z.string().trim().max(40), travelStyle: z.string().trim().max(40), showBudget: z.boolean(), showPlan: z.boolean() };
 
 const createBody = z
   .object({
@@ -38,6 +40,11 @@ const createBody = z
     budget: money.default(0),
     perPersonBudget: money.default(0),
     maxParticipants: maxParticipants.nullable().default(null),
+    visibility: z.enum(["private", "public"]).default("private"),
+    category: publicDetails.category.default(""),
+    travelStyle: publicDetails.travelStyle.default(""),
+    showBudget: publicDetails.showBudget.default(false),
+    showPlan: publicDetails.showPlan.default(false),
     // Email for new people; id for "quick add from past trips", whose emails may be hidden.
     members: z.array(z.object({ email: z.email().optional(), id: z.string().optional() })).max(50).default([]),
     polls: z.array(pollBody).max(5).default([]),
@@ -59,6 +66,11 @@ const patchBody = z.object({
   perPersonBudget: money.optional(),
   archived: z.boolean().optional(),
   maxParticipants: maxParticipants.nullable().optional(),
+  visibility: z.enum(["private", "public"]).optional(),
+  category: publicDetails.category.optional(),
+  travelStyle: publicDetails.travelStyle.optional(),
+  showBudget: publicDetails.showBudget.optional(),
+  showPlan: publicDetails.showPlan.optional(),
   highlights: z.array(shortText).max(10).optional(),
   version,
 });
@@ -91,12 +103,17 @@ export class TripsController {
     private readonly writer: TripWriter,
     private readonly realtime: RealtimeGateway,
     private readonly mail: MailService,
+    private readonly social: SocialService,
   ) {}
 
   @Post()
   async create(@CurrentUser() user: User, @Body() body: unknown) {
     const input = parse(createBody, body);
     if (input.members.length) assertVerified(user, "invite people");
+    if (input.visibility === "public") {
+      assertVerified(user, "host a public trip");
+      await this.social.ensureUsername(user);
+    }
     if (await this.prisma.trip.findUnique({ where: { id: input.id }, select: { id: true } })) {
       // A retried create must not fail, but must not reveal someone else's trip either.
       const mine = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: input.id, userId: user.id } } });
@@ -118,6 +135,11 @@ export class TripsController {
           budgetMinor: toMinor(input.budget),
           perPersonBudgetMinor: toMinor(input.perPersonBudget),
           maxParticipants: input.maxParticipants,
+          visibility: input.visibility,
+          category: input.category,
+          travelStyle: input.travelStyle,
+          showBudget: input.showBudget,
+          showPlan: input.showPlan,
           highlights: [],
           joinCode: randomBytes(18).toString("base64url"),
           createdById: user.id,
@@ -157,7 +179,11 @@ export class TripsController {
   async patch(@Param("tripId") tripId: string, @Actor() actor: TripActor, @CurrentUser() user: User, @Body() body: unknown) {
     enforce(canEditTrip(actor));
     const { version: expected, budget, perPersonBudget, startDate, endDate, ...rest } = parse(patchBody, body);
-    await this.writer.run(tripId, user.id, async ({ tx, log }) => {
+    if (rest.visibility === "public") {
+      assertVerified(user, "host a public trip");
+      await this.social.ensureUsername(user);
+    }
+    await this.writer.run(tripId, user.id, async ({ tx, log, notify, tripName }) => {
       const current = await tx.trip.findUniqueOrThrow({ where: { id: tripId } });
       const start = startDate ?? dateString(current.startDate);
       const end = endDate ?? dateString(current.endDate);
@@ -191,7 +217,10 @@ export class TripsController {
       );
       if (rest.archived !== undefined && rest.archived !== current.archived) await log(rest.archived ? "archived the trip" : "restored the trip", "trip");
       else if (rest.currency && rest.currency !== current.currency) await log(`switched currency to ${rest.currency}`, "trip");
-      else await log("updated trip details", "trip");
+      else if (rest.visibility && rest.visibility !== current.visibility) {
+        await log(rest.visibility === "public" ? "made the trip public" : "made the trip private", "trip");
+        await notify({ kind: "trip_visibility", title: rest.visibility === "public" ? `${tripName} is now public` : `${tripName} is now private`, body: rest.visibility === "public" ? "It can now be found in Explore. Your details stay private, and the host decides who joins." : "It no longer appears in Explore. Everyone on it stays.", link: `/app/trips/${tripId}` });
+      } else await log("updated trip details", "trip");
     });
     return this.load(tripId, user.id);
   }

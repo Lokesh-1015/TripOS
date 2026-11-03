@@ -10,7 +10,7 @@ import type { AppNotification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<AppNotification["kind"], typeof Bell> = {
-  invite: UserPlus, message: MessageCircle, task: CheckSquare, expense: Receipt, vote: Vote, itinerary: Map, document: FileText, friend_request: UserPlus, friend_accept: Users, trip_full: Users,
+  invite: UserPlus, message: MessageCircle, task: CheckSquare, expense: Receipt, vote: Vote, itinerary: Map, document: FileText, friend_request: UserPlus, friend_accept: Users, trip_full: Users, trip_visibility: Map, join_request: UserPlus, join_accepted: Users, join_rejected: X,
 };
 
 export function NotificationsBell({ dark = false }: { dark?: boolean }) {

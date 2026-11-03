@@ -25,7 +25,7 @@ const searchQuery = z.object({ q: z.string().trim().min(2).max(60) });
 const requestBody = z.object({ username: z.string().trim().min(1).max(30) });
 const userBody = z.object({ userId: z.string().min(1).max(64) });
 const reportBody = z.object({
-  targetType: z.literal("profile"),
+  targetType: z.enum(["profile", "trip"]),
   targetId: z.string().min(1).max(64),
   reason: z.enum(["spam", "harassment", "fake", "inappropriate", "other"]),
   details: z.string().trim().max(1000).default(""),
@@ -187,9 +187,11 @@ export class SocialController {
     const { userId } = parse(userBody, body);
     if (userId === user.id) throw new UnprocessableEntityException({ message: "That's you" });
     if (!(await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } }))) throw new NotFoundException({ message: "We couldn't find that traveller" });
+    const hostedBy = (hostId: string) => ({ trip: { members: { some: { userId: hostId, role: "owner" as const } } } });
     await this.prisma.$transaction([
       this.prisma.block.upsert({ where: { blockerId_blockedId: { blockerId: user.id, blockedId: userId } }, update: {}, create: { blockerId: user.id, blockedId: userId } }),
       this.prisma.friendship.deleteMany({ where: pair(user.id, userId) }),
+      this.prisma.joinRequest.updateMany({ where: { status: "pending", OR: [{ userId, ...hostedBy(user.id) }, { userId: user.id, ...hostedBy(userId) }] }, data: { status: "cancelled", respondedAt: new Date() } }),
     ]);
     await this.social.forgetRequestNotification(user.id, userId);
     await this.social.forgetRequestNotification(userId, user.id);
@@ -207,6 +209,14 @@ export class SocialController {
   @Post("reports")
   async report(@CurrentUser() user: User, @Body() body: unknown) {
     const input = parse(reportBody, body);
+    if (input.targetType === "trip") {
+      // Only something this person can actually see, so reporting can't confirm that a private trip exists.
+      const trip = await this.prisma.trip.findFirst({ where: { id: input.targetId, visibility: "public" }, select: { id: true, name: true } });
+      if (!trip) throw new NotFoundException({ message: "This trip isn't available" });
+      await this.prisma.report.create({ data: { reporterId: user.id, ...input } });
+      void this.mail.sendToOwner("A trip was reported on TripOS", [`The public trip "${trip.name}" was reported for: ${input.reason}.`, input.details || "No details were given.", "Open the reports page in TripOS to review it."]);
+      return { ok: true };
+    }
     const target = await this.prisma.user.findUnique({ where: { id: input.targetId }, select: { id: true, username: true, name: true } });
     if (!target || target.id === user.id) throw new NotFoundException({ message: "We couldn't find that traveller" });
     await this.prisma.report.create({ data: { reporterId: user.id, ...input } });
@@ -225,8 +235,12 @@ export class SocialController {
     const reports = await this.prisma.report.findMany({ orderBy: [{ status: "asc" }, { createdAt: "desc" }], take: 200 });
     const people = await this.prisma.user.findMany({ where: { id: { in: reports.flatMap((r) => [r.reporterId, r.targetId]) } }, select: { id: true, name: true, username: true, suspendedAt: true } });
     const byId = new Map(people.map((p) => [p.id, p]));
+    const trips = await this.prisma.trip.findMany({ where: { id: { in: reports.filter((r) => r.targetType === "trip").map((r) => r.targetId) } }, select: { id: true, name: true, visibility: true } });
+    const tripById = new Map(trips.map((t) => [t.id, t]));
     return reports.map((r) => ({
       id: r.id,
+      targetType: r.targetType,
+      trip: r.targetType === "trip" ? { id: r.targetId, name: tripById.get(r.targetId)?.name ?? "A deleted trip", isPublic: tripById.get(r.targetId)?.visibility === "public" } : undefined,
       reason: r.reason,
       details: r.details,
       status: r.status,
@@ -241,6 +255,16 @@ export class SocialController {
   async reviewed(@CurrentUser() user: User, @Param("id") id: string) {
     this.assertAdmin(user);
     await this.prisma.report.update({ where: { id }, data: { status: "reviewed" } });
+    return { ok: true };
+  }
+
+  /** Takes a trip out of Explore. It carries on as a private trip for the people on it. */
+  @HttpCode(200)
+  @Post("admin/trips/:id/unpublish")
+  async unpublish(@CurrentUser() user: User, @Param("id") id: string) {
+    this.assertAdmin(user);
+    await this.prisma.trip.update({ where: { id }, data: { visibility: "private" } });
+    this.realtime.tripChanged(id);
     return { ok: true };
   }
 

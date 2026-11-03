@@ -82,7 +82,9 @@ test('memories are organised by trip date, and shared with the group', async ({ 
     await owner.locator('[data-testid^="memory-photo-"]', { has: owner.locator('img[alt="Snow at last"]') }).click();
     await expect(owner.getByTestId('memory-activity')).toContainText('Solang Valley');
     await owner.getByTestId('memory-caption-input').fill('First snow');
+    const savedHighlight = owner.waitForResponse((r) => r.url().includes('/photos/') && r.request().method() === 'PUT' && (r.request().postData() ?? '').includes('"highlight":true'));
     await owner.getByTestId('memory-highlight-button').click();
+    await savedHighlight;
     await owner.keyboard.press('Escape');
     await expect(owner.getByTestId('memories-highlights')).toBeVisible();
     await owner.reload();

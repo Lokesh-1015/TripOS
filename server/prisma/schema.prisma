@@ -128,6 +128,17 @@ enum NotificationKind {
   friend_request
   friend_accept
   trip_full
+  trip_visibility
+  join_request
+  join_accepted
+  join_rejected
+}
+
+enum JoinRequestStatus {
+  pending
+  accepted
+  rejected
+  cancelled
 }
 
 enum TripVisibility {
@@ -241,6 +252,22 @@ model Block {
   @@map("blocks")
 }
 
+/// Asking to join a public trip. It's only a request: the host's approval is what adds someone.
+model JoinRequest {
+  id          String            @id @default(cuid())
+  tripId      String
+  trip        Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId      String
+  message     String            @default("")
+  status      JoinRequestStatus @default(pending)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(6)
+  respondedAt DateTime?         @db.Timestamptz(6)
+
+  @@unique([tripId, userId])
+  @@index([userId])
+  @@map("join_requests")
+}
+
 model Report {
   id         String       @id @default(cuid())
   reporterId String
@@ -311,6 +338,11 @@ model Trip {
   visibility           TripVisibility @default(private)
   /// The most people who can join, including the host. Null means no limit.
   maxParticipants      Int?
+  category             String   @default("")
+  travelStyle          String   @default("")
+  /// What a public trip chooses to show. Nothing else on a trip ever reaches its public page.
+  showBudget           Boolean  @default(false)
+  showPlan             Boolean  @default(false)
   highlights           String[]
   /// Stable secret behind the "anyone with the link" invite URL the UI always displays.
   joinCode             String   @unique
@@ -334,7 +366,9 @@ model Trip {
   events        TripEvent[]
   notifications Notification[]
   files         StoredFile[]
+  joinRequests  JoinRequest[]
 
+  @@index([visibility, archived, startDate])
   @@map("trips")
 }
 

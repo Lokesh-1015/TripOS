@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, Field } from "@/components/common";
 import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
+import { TripVisibilityFields, type VisibilityDraft } from "@/components/trip/TripVisibilityFields";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
 import { blankTrip, IMG, img } from "@/lib/seed";
@@ -26,6 +27,7 @@ interface Draft {
   startDate: string; endDate: string; flexibleDates: boolean;
   members: Member[]; budget: string; currency: string; perPerson: string;
   limited: boolean; maxParticipants: string;
+  sharing: VisibilityDraft;
 }
 
 export default function CreateTrip() {
@@ -46,6 +48,8 @@ export default function CreateTrip() {
     startDate: "", endDate: "", flexibleDates: false,
     members: [{ ...user, role: "owner" }], budget: "", currency: settings.currency, perPerson: "",
     limited: false, maxParticipants: "",
+    // Explore's Host a Trip starts here as public. Anywhere else, trips start private.
+    sharing: { visibility: qs.get("public") === "1" && emailVerified ? "public" : "private", category: "", travelStyle: "", showBudget: false, showPlan: true },
   });
   const [err, setErr] = useState<Record<string, string>>({});
   const [email, setEmail] = useState("");
@@ -103,6 +107,7 @@ export default function CreateTrip() {
       budget: +d.budget || 0,
       perPersonBudget: +d.perPerson || 0,
       maxParticipants: d.limited ? +d.maxParticipants : null,
+      ...d.sharing,
       members: d.members,
       polls: d.flexibleDates ? [{
         id: uid("poll"), question: "Which dates work best?", category: "dates", createdBy: user.id, createdAt: new Date().toISOString(), closed: false,
@@ -277,6 +282,7 @@ export default function CreateTrip() {
                     </div>
                   ))}
                 </dl>
+                <div className="mt-4"><TripVisibilityFields value={d.sharing} canPublish={emailVerified} onChange={(sharing) => set({ sharing })} /></div>
                 <div className="mt-4"><ParticipantLimitField enabled={d.limited} value={d.maxParticipants} minimum={1} error={err.maxParticipants} onChange={(next) => set({ limited: next.enabled, maxParticipants: next.value })} /></div>
               </div>
             )}

@@ -1,6 +1,6 @@
 // The "What's new" popup. Each person sees it once, remembered on their account. To announce a new
 // release, add it to the top of this list with a new id, and everyone sees that one once too.
-import { BellRing, CalendarDays, CalendarRange, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Radio, Route, ShieldCheck, TriangleAlert, Users, UserX, Wallet } from "lucide-react";
+import { BellRing, CalendarDays, CalendarRange, Compass, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Radio, Route, ShieldCheck, TriangleAlert, UserPlus, Users, UserX, Wallet } from "lucide-react";
 
 export interface ReleaseFeature {
   icon: typeof Mail;
@@ -16,6 +16,16 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    id: "2026-11-07",
+    features: [
+      { icon: Compass, title: "A brand new Explore", body: "Explore is now where you find real trips to join and people to travel with. Filter by destination, month, category, budget and more, or host a trip of your own." },
+      { icon: Globe, title: "Public trips", body: "Make a trip public and it can be found in Explore. It only shows what you choose, never your documents, chat or expenses, and every trip you already have stays private." },
+      { icon: UserPlus, title: "Ask to join", body: "Found a trip you'd love? Send the host a request. Nobody joins a public trip unless the host says yes." },
+    ],
+    improved: [],
+    fixed: [],
+  },
   {
     id: "2026-11-06",
     features: [

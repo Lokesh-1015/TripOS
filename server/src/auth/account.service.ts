@@ -40,7 +40,8 @@ export class AccountService {
               continue;
             }
             await tx.tripMember.update({ where: { tripId_userId: { tripId: membership.tripId, userId: next.userId } }, data: { role: "owner" } });
-            await tx.trip.update({ where: { id: membership.tripId }, data: { createdById: next.userId } });
+            // The new owner never chose to host this in public, so it goes private.
+            await tx.trip.update({ where: { id: membership.tripId }, data: { createdById: next.userId, visibility: "private" } });
           }
           await tx.tripMember.update({ where: { tripId_userId: { tripId: membership.tripId, userId: user.id } }, data: { status: "removed" } });
           await tx.tripEvent.create({ data: { tripId: membership.tripId, actorId: user.id, text: "left the trip", kind: "member" } });
@@ -51,6 +52,7 @@ export class AccountService {
         await tx.tripDocument.deleteMany({ where: { uploadedBy: user.id, visibility: "private" } });
         const avatar = fileIdOf(user.avatar);
         await tx.storedFile.deleteMany({ where: { id: { in: [...privateFiles.map((f) => f.id), ...(avatar ? [avatar] : [])] } } });
+        await tx.joinRequest.deleteMany({ where: { userId: user.id } });
         await tx.friendship.deleteMany({ where: { OR: [{ userLowId: user.id }, { userHighId: user.id }] } });
         await tx.block.deleteMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] } });
         await tx.liveLocation.deleteMany({ where: { userId: user.id } });

@@ -1,134 +1,172 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Bookmark, BookmarkCheck, Clock, Plus, Search } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { addMonths, format } from "date-fns";
+import { Link, useSearchParams } from "react-router-dom";
+import { CalendarDays, Compass, MapPin, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { EmptyState, PageHeader } from "@/components/common";
-import { IMG, img } from "@/lib/seed";
-import { actions, saved as confirmSaved, useApp } from "@/lib/store";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, EmptyState, Field, PageHeader } from "@/components/common";
+import { TravellerRow } from "@/components/social";
+import { fmtRange } from "@/lib/format";
+import { TRAVEL_STYLES, TRIP_CATEGORIES, usePublicTrips, useSuggestedTravellers, type PublicTrip, type TripFilters } from "@/lib/publicTrips";
+import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-interface Dest { id: string; name: string; region: string; image: string; tags: string[]; best: string; days: string; budget: string; blurb: string; itinerary: string[] }
+const ANY = "any";
+const MONTHS = Array.from({ length: 24 }, (_, i) => {
+  const month = addMonths(new Date(), i);
+  return [format(month, "yyyy-MM"), format(month, "MMMM yyyy")];
+});
+const DURATIONS: [string, string, string, string][] = [[ANY, "Any length", "", ""], ["short", "Up to 3 days", "", "3"], ["week", "4 to 7 days", "4", "7"], ["long", "More than a week", "8", ""]];
 
-const DESTS: Dest[] = [
-  { id: "ladakh", name: "Leh & Pangong", region: "Ladakh", image: IMG.pangong, tags: ["Mountains", "Road trips", "Adventure"], best: "Jun - Sep", days: "7-9 days", budget: "₹35-50k pp", blurb: "High passes, monasteries and the bluest lake you'll ever see.", itinerary: ["Acclimatise in Leh", "Khardung La & Nubra", "Hunder dunes", "Pangong Tso sunrise", "Back via Chang La"] },
-  { id: "kerala", name: "Alleppey Backwaters", region: "Kerala", image: IMG.kerala, tags: ["Wellness", "Beaches", "Food trails"], best: "Oct - Mar", days: "4-5 days", budget: "₹18-28k pp", blurb: "Houseboats, toddy shops and slow mornings on the water.", itinerary: ["Kochi heritage walk", "Houseboat overnight", "Kumarakom birding", "Varkala cliffs"] },
-  { id: "meghalaya", name: "Cherrapunji & Shillong", region: "Meghalaya", image: IMG.meghalaya, tags: ["Adventure", "Mountains"], best: "Oct - May", days: "5-6 days", budget: "₹22-30k pp", blurb: "Living root bridges, waterfalls and the cleanest village in Asia.", itinerary: ["Shillong cafés", "Double-decker root bridge", "Nohkalikai falls", "Mawlynnong & Dawki"] },
-  { id: "rishikesh", name: "Rishikesh", region: "Uttarakhand", image: IMG.rishikesh, tags: ["Adventure", "Wellness", "Backpacking"], best: "Sep - Apr", days: "3 days", budget: "₹8-14k pp", blurb: "Rafting by day, Ganga aarti by night. The perfect long weekend.", itinerary: ["Laxman Jhula & cafés", "16 km rafting", "Ganga aarti at Triveni Ghat"] },
-  { id: "jaipur", name: "Jaipur", region: "Rajasthan", image: IMG.hawaMahal, tags: ["Heritage", "Food trails"], best: "Oct - Mar", days: "3 days", budget: "₹12-20k pp", blurb: "Pink-city palaces, bazaars and dal baati done right.", itinerary: ["Amber Fort", "Hawa Mahal & City Palace", "Johari bazaar & Nahargarh sunset"] },
-  { id: "udaipur", name: "Udaipur", region: "Rajasthan", image: IMG.pichola, tags: ["Heritage", "Luxury"], best: "Sep - Mar", days: "3-4 days", budget: "₹15-30k pp", blurb: "Lakeside palaces and rooftop dinners - made for couples & families.", itinerary: ["City Palace", "Lake Pichola boat ride", "Sajjangarh sunset", "Old city food walk"] },
-  { id: "goa", name: "North Goa", region: "Goa", image: IMG.goaGroup, tags: ["Beaches", "Food trails"], best: "Nov - Feb", days: "3-4 days", budget: "₹15-25k pp", blurb: "Sunsets at Chapora, Fontainhas lanes, and shacks till late.", itinerary: ["Anjuna & Vagator", "Fontainhas walk", "Grande Island scuba", "Assagao dinners"] },
-  { id: "manali", name: "Manali & Solang", region: "Himachal Pradesh", image: IMG.solang, tags: ["Mountains", "Adventure", "Road trips"], best: "Dec - Jun", days: "5 days", budget: "₹15-22k pp", blurb: "Snow, paragliding and café-hopping in Old Manali.", itinerary: ["Old Manali cafés", "Solang paragliding", "Atal Tunnel & Sissu", "Rohtang Pass"] },
-];
-const CATS = ["All", "Mountains", "Beaches", "Heritage", "Adventure", "Food trails", "Wellness", "Road trips"];
-const COLLECTIONS = [
-  { title: "Long-weekend escapes", body: "3 days, under ₹15k", image: IMG.rishikesh, filter: "Backpacking" },
-  { title: "Monsoon magic", body: "Green, misty & dramatic", image: IMG.meghalaya2, filter: "Adventure" },
-  { title: "Royal Rajasthan", body: "Forts, palaces & deserts", image: IMG.camelTrail, filter: "Heritage" },
-];
+export function capacityLabel(t: Pick<PublicTrip, "full" | "participantCount" | "maxParticipants" | "placesLeft">) {
+  if (t.full) return "Trip Full";
+  if (t.maxParticipants == null) return `${t.participantCount} joined`;
+  return `${t.participantCount} of ${t.maxParticipants} joined · ${t.placesLeft} ${t.placesLeft === 1 ? "place" : "places"} left`;
+}
 
-export default function Explore() {
-  const navigate = useNavigate();
-  const [cat, setCat] = useState("All");
-  const [q, setQ] = useState("");
-  const saved = useApp((s) => s.saved);
-  const [open, setOpen] = useState<Dest>();
-  const toggleSave = (id: string) => {
-    const next = saved.includes(id) ? saved.filter((x) => x !== id) : [...saved, id];
-    actions.setSaved(next);
-    confirmSaved(saved.includes(id) ? "Removed from saved" : "Saved for later");
-  };
-  const list = DESTS.filter((d) => (cat === "All" || d.tags.includes(cat)) && (!q || `${d.name} ${d.region}`.toLowerCase().includes(q.toLowerCase())));
-  const [feature, ...rest] = list;
-
+function TripCard({ trip }: { trip: PublicTrip }) {
   return (
-    <div>
-      <PageHeader title="Explore" subtitle="Inspiration for your next group trip - curated, not sold. TripOS never books anything." />
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          {CATS.map((c) => <button key={c} onClick={() => setCat(c)} className={cn("shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", cat === c ? "border-forest bg-forest text-white" : "border-line bg-card text-ink-muted hover:text-ink")} data-testid={`explore-category-${c.toLowerCase().replace(/\s+/g, "-")}`}>{c}</button>)}
-        </div>
-        <label className="relative lg:ml-auto lg:w-72">
-          <span className="sr-only">Search destinations</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search destinations" className="h-10 rounded-xl pl-9" data-testid="explore-search-input" />
-        </label>
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-card transition-shadow hover:shadow-lg" data-testid={`public-trip-${trip.id}`}>
+      <div className="relative h-44 overflow-hidden">
+        <img src={trip.cover} alt="" loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        {trip.category && <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-medium text-forest">{trip.category}</span>}
+        {trip.full && <span className="absolute right-3 top-3 rounded-full bg-forest px-2.5 py-0.5 text-xs font-semibold text-white" data-testid={`public-trip-full-${trip.id}`}>Trip Full</span>}
       </div>
-
-      {list.length === 0 ? <EmptyState icon={Search} title="No destinations found" body="Try another search or category." /> : (
-        <>
-          {feature && (
-            <button onClick={() => setOpen(feature)} className="group relative mb-6 block w-full overflow-hidden rounded-3xl text-left" data-testid={`explore-featured-${feature.id}`}>
-              <img src={img(feature.image, 1800)} alt={feature.name} className="h-72 w-full object-cover transition-transform duration-700 group-hover:scale-[1.02] sm:h-96" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <div className="absolute bottom-0 p-6 text-white sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral">Featured · {feature.region}</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight">{feature.name}</h2>
-                <p className="mt-1 max-w-lg text-white/85">{feature.blurb}</p>
-              </div>
-            </button>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h3 className="text-lg font-semibold leading-snug"><Link to={`/app/explore/${trip.id}`} className="after:absolute after:inset-0" data-testid={`public-trip-link-${trip.id}`}>{trip.title}</Link></h3>
+        <p className="flex items-center gap-1.5 text-sm text-ink-muted"><MapPin className="size-4 shrink-0" /> <span className="truncate">{trip.destination}</span></p>
+        <p className="flex items-center gap-1.5 text-sm text-ink-muted"><CalendarDays className="size-4 shrink-0" /> {fmtRange(trip.startDate, trip.endDate)}{trip.flexibleDates ? " · flexible" : ""}</p>
+        {trip.description && <p className="line-clamp-2 text-sm">{trip.description}</p>}
+        <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-sm">
+          {trip.host.username ? (
+            <Link to={`/app/u/${trip.host.username}`} className="relative z-10 flex min-w-0 items-center gap-2 hover:underline" data-testid={`public-trip-host-${trip.id}`}><Avatar person={trip.host} size={26} ring={false} /> <span className="truncate">{trip.host.name}</span></Link>
+          ) : (
+            <span className="flex min-w-0 items-center gap-2"><Avatar person={trip.host} size={26} ring={false} /> <span className="truncate">{trip.host.name}</span></span>
           )}
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {rest.map((d) => (
-              <article key={d.id} className="group overflow-hidden rounded-2xl border border-line bg-card transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-12px_rgba(23,76,60,.25)]" data-testid={`explore-card-${d.id}`}>
-                <div className="relative aspect-[16/10] overflow-hidden">
-                  <button onClick={() => setOpen(d)} className="size-full" aria-label={`View ${d.name}`}><img src={img(d.image, 900)} alt={d.name} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" loading="lazy" /></button>
-                  <button onClick={() => toggleSave(d.id)} className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-white/95 text-forest shadow-sm transition-transform active:scale-90" aria-label={saved.includes(d.id) ? "Unsave" : "Save"} aria-pressed={saved.includes(d.id)} data-testid={`explore-save-${d.id}`}>
-                    {saved.includes(d.id) ? <BookmarkCheck className="size-4 fill-forest/15" /> : <Bookmark className="size-4" />}
-                  </button>
-                </div>
-                <div className="p-4">
-                  <p className="text-xs text-ink-muted">{d.region}</p>
-                  <h3 className="font-semibold">{d.name}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-ink-muted">{d.blurb}</p>
-                  <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
-                    <span className="rounded-full bg-sage px-2 py-0.5 font-medium text-forest">{d.best}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-ink-muted">{d.days}</span>
-                    <span className="num rounded-full bg-muted px-2 py-0.5 text-ink-muted">{d.budget}</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-
-      <section className="mt-12">
-        <h2 className="mb-4 text-lg font-semibold">Inspiration collections</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {COLLECTIONS.map((c) => (
-            <button key={c.title} onClick={() => { setCat(c.filter === "Backpacking" ? "All" : c.filter); setQ(c.filter === "Backpacking" ? "Rishikesh" : ""); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="group relative h-44 overflow-hidden rounded-2xl text-left" data-testid={`explore-collection-${c.filter.toLowerCase()}`}>
-              <img src={img(c.image, 800)} alt="" className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-              <div className="absolute bottom-4 left-4 text-white"><p className="font-semibold">{c.title}</p><p className="text-sm text-white/80">{c.body}</p></div>
-            </button>
-          ))}
+          <span className={cn("flex shrink-0 items-center gap-1 text-xs", trip.full ? "font-semibold text-forest" : "text-ink-muted")} data-testid={`public-trip-capacity-${trip.id}`}><Users className="size-3.5" /> {capacityLabel(trip)}</span>
         </div>
+      </div>
+    </article>
+  );
+}
+
+function DiscoverTrips() {
+  const currency = useApp((s) => s.settings.currency);
+  const [f, setF] = useState<TripFilters>({});
+  const [typed, setTyped] = useState("");
+  const [more, setMore] = useState(false);
+  const [duration, setDuration] = useState(ANY);
+  const set = (patch: TripFilters) => setF((x) => ({ ...x, ...patch }));
+  useEffect(() => {
+    const timer = setTimeout(() => set({ destination: typed.trim() }), 300);
+    return () => clearTimeout(timer);
+  }, [typed]);
+  const { data, isPending, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = usePublicTrips({ ...f, currency: f.budgetMax ? currency : undefined });
+  const trips = data?.pages.flatMap((p) => p.trips) ?? [];
+  const filtering = Object.values(f).some(Boolean);
+  const pick = (value: string | null, label: string) => <SelectValue>{() => (value === ANY || !value ? `Any ${label}` : value)}</SelectValue>;
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-3 rounded-2xl border border-line bg-card p-4" data-testid="explore-filters">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+            <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Where do you want to go?" className="h-10 rounded-xl pl-9" aria-label="Destination" data-testid="explore-destination" />
+          </div>
+          <Select value={f.month || ANY} onValueChange={(v) => set({ month: v === ANY ? "" : (v as string) })}>
+            <SelectTrigger className="h-10 w-full rounded-xl" aria-label="Travel month" data-testid="explore-month"><SelectValue>{(v) => (v === ANY ? "Any month" : MONTHS.find(([k]) => k === v)?.[1])}</SelectValue></SelectTrigger>
+            <SelectContent><SelectItem value={ANY}>Any month</SelectItem>{MONTHS.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={f.category || ANY} onValueChange={(v) => set({ category: v === ANY ? "" : (v as string) })}>
+            <SelectTrigger className="h-10 w-full rounded-xl" aria-label="Trip category" data-testid="explore-category">{pick(f.category ?? null, "category")}</SelectTrigger>
+            <SelectContent><SelectItem value={ANY}>Any category</SelectItem>{TRIP_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={f.style || ANY} onValueChange={(v) => set({ style: v === ANY ? "" : (v as string) })}>
+            <SelectTrigger className="h-10 w-full rounded-xl" aria-label="Travel style" data-testid="explore-style">{pick(f.style ?? null, "style")}</SelectTrigger>
+            <SelectContent><SelectItem value={ANY}>Any style</SelectItem>{TRAVEL_STYLES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm"><Switch checked={f.available === "true"} onCheckedChange={(on) => set({ available: on ? "true" : "" })} data-testid="explore-available" /> Only trips with places left</label>
+          <Button variant="ghost" size="sm" aria-expanded={more} onClick={() => setMore(!more)} data-testid="explore-more-filters"><SlidersHorizontal className="size-4" /> More filters</Button>
+        </div>
+        {more && (
+          <div className="grid gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Leaving from" htmlFor="ex-from"><Input id="ex-from" type="date" value={f.from ?? ""} onChange={(e) => set({ from: e.target.value })} className="rounded-xl" data-testid="explore-from" /></Field>
+            <Field label="Back by" htmlFor="ex-to"><Input id="ex-to" type="date" value={f.to ?? ""} onChange={(e) => set({ to: e.target.value })} className="rounded-xl" data-testid="explore-to" /></Field>
+            <Field label="Length">
+              <Select value={duration} onValueChange={(v) => { const d = DURATIONS.find(([k]) => k === v) ?? DURATIONS[0]; setDuration(d[0]); set({ minDays: d[2], maxDays: d[3] }); }}>
+                <SelectTrigger className="w-full rounded-xl" data-testid="explore-duration"><SelectValue>{(v) => DURATIONS.find(([k]) => k === v)?.[1]}</SelectValue></SelectTrigger>
+                <SelectContent>{DURATIONS.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+            <Field label={`Budget per person, up to (${currency})`} htmlFor="ex-budget"><Input id="ex-budget" inputMode="numeric" value={f.budgetMax ?? ""} onChange={(e) => set({ budgetMax: e.target.value.replace(/\D/g, "") })} className="rounded-xl" data-testid="explore-budget" /></Field>
+            <Field label="People already going, at most" htmlFor="ex-people"><Input id="ex-people" inputMode="numeric" value={f.maxPeople ?? ""} onChange={(e) => set({ maxPeople: e.target.value.replace(/\D/g, "") })} className="rounded-xl" data-testid="explore-people" /></Field>
+          </div>
+        )}
       </section>
 
-      <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(undefined)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto p-0 sm:max-w-lg" data-testid="explore-destination-dialog">
-          {open && (
-            <>
-              <img src={img(open.image, 1000)} alt={open.name} className="h-52 w-full rounded-t-xl object-cover" />
-              <div className="grid gap-4 px-5 pb-5">
-                <DialogHeader><DialogTitle className="text-xl">{open.name}</DialogTitle><DialogDescription>{open.region} · best {open.best} · {open.budget}</DialogDescription></DialogHeader>
-                <p className="text-sm">{open.blurb}</p>
-                <div>
-                  <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><Clock className="size-4 text-sage-ink" /> Sample itinerary · {open.days}</p>
-                  <ol className="grid gap-2">{open.itinerary.map((s, i) => <li key={s} className="flex gap-3 text-sm"><span className="num grid size-6 shrink-0 place-items-center rounded-full bg-sage text-xs font-semibold text-forest">{i + 1}</span>{s}</li>)}</ol>
-                </div>
-                <DialogFooter className="-mx-5 -mb-5">
-                  <Button variant="outline" onClick={() => toggleSave(open.id)} data-testid="explore-dialog-save">{saved.includes(open.id) ? "Saved" : "Save for later"}</Button>
-                  <Button onClick={() => navigate(`/app/trips/new?dest=${encodeURIComponent(`${open.name}, ${open.region}`)}&name=${encodeURIComponent(`${open.name} trip`)}`)} data-testid="explore-plan-trip-button"><Plus className="size-4" /> Plan a trip here</Button>
-                </DialogFooter>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {isPending ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="explore-loading">{[0, 1, 2].map((i) => <div key={i} className="h-80 animate-pulse rounded-2xl border border-line bg-card" />)}</div>
+      ) : isError ? (
+        <EmptyState icon={Compass} title="Trips couldn't be loaded" body="Please check your connection and try again." testId="explore-error" />
+      ) : trips.length === 0 ? (
+        <EmptyState
+          icon={Compass}
+          title={filtering ? "No trips match that" : "No public trips yet"}
+          body={filtering ? "Try removing a filter or two." : "Be the first. Host a trip and invite other travellers to join you."}
+          action={!filtering && <Link to="/app/trips/new?public=1" className={buttonVariants()} data-testid="explore-empty-host">Host a Trip</Link>}
+          testId="explore-empty"
+        />
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="explore-trips">{trips.map((t) => <TripCard key={t.id} trip={t} />)}</div>
+          {hasNextPage && <Button variant="outline" className="justify-self-center rounded-xl" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()} data-testid="explore-load-more">{isFetchingNextPage ? "Loading…" : "Show more trips"}</Button>}
+        </>
+      )}
     </div>
   );
 }
+
+function Travellers() {
+  const { data, isPending, isError } = useSuggestedTravellers();
+  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isError) return <EmptyState icon={Users} title="Travellers couldn't be loaded" body="Please check your connection and try again." testId="travellers-error" />;
+  return (
+    <div className="grid gap-4">
+      <p className="text-sm text-ink-muted">People with public profiles who share your travel styles, interests or destinations, or who know your friends. Add yours to your <Link to="/app/people" className="font-medium text-forest underline">profile</Link> to find better matches.</p>
+      {data.length ? (
+        <section className="divide-y rounded-2xl border border-line bg-card" data-testid="travellers-list">{data.map((p) => <TravellerRow key={p.id} person={p} />)}</section>
+      ) : (
+        <EmptyState icon={Users} title="No suggestions yet" body="As more travellers make their profiles public, the ones you have things in common with will appear here." action={<Link to="/app/people" className={buttonVariants({ variant: "outline" })}>Search for someone</Link>} testId="travellers-empty" />
+      )}
+    </div>
+  );
+}
+
+/** Where journeys and travel companions are found. Trips come first, as hosting and joining them is the point. */
+export default function Explore() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") ?? "trips";
+  return (
+    <div>
+      <PageHeader
+        title="Explore"
+        subtitle="Find a trip to join, or host one and find people to travel with."
+        actions={<Link to="/app/trips/new?public=1" className={cn(buttonVariants(), "h-10 rounded-xl")} data-testid="explore-host-button"><Plus className="size-4" /> Host a Trip</Link>}
+      />
+      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v as string })}>
+        <TabsList className="mb-5">
+          <TabsTrigger value="trips" data-testid="explore-tab-trips">Discover Trips</TabsTrigger>
+          <TabsTrigger value="travellers" data-testid="explore-tab-travellers">Travellers</TabsTrigger>
+        </TabsList>
+        <TabsContent value="trips"><DiscoverTrips /></TabsContent>
+        <TabsContent value="travellers"><Travellers /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+

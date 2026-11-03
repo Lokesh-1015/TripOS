@@ -195,7 +195,7 @@ export default function Dashboard() {
                 [CheckCircle2, "Add task", next ? `/app/trips/${next.id}/tasks?new=1` : "/app/trips"],
               ]),
               ...(nextRole === "viewer" || nextRole === "member" ? [] : [[UserPlus, "Invite friends", next ? `/app/trips/${next.id}?invite=1` : "/app/trips"]]),
-              [Compass, "Find a destination", "/app/explore"],
+              [Compass, "Find a trip to join", "/app/explore"],
             ].map(([Icon, label, to]) => {
               const I = Icon as typeof Wallet;
               return (

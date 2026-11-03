@@ -25,7 +25,7 @@ test('an existing user sees it once, and not again on another device', async ({ 
   await test.step('it opens by itself and covers new features, improvements and fixes', async () => {
     await expect(dialog).toContainText('What\'s new in TripOS');
     // It opens at the top, so nobody misses the new features.
-    await expect(page.getByTestId('whats-new-features').getByText('Real emails')).toBeInViewport();
+    await expect(page.getByTestId('whats-new-features').locator('p').first()).toBeInViewport();
     await expect(page.getByTestId('whats-new-close')).toBeInViewport();
     expect(await page.getByTestId('whats-new-body').evaluate((el) => el.scrollTop)).toBe(0);
     for (const feature of ['Real emails', 'Reminders', 'Real maps', 'Live location', 'Install it', 'Automatic exchange rates', 'Totals across currencies', 'Start a trip from another', 'Trip Replay follows your days', 'Clash warnings', 'Older chat messages', 'weekly digest']) {

@@ -15,6 +15,7 @@ import { useTripAccess } from "@/lib/access";
 import { actions, inviteLink, saved, useApp, useTrip } from "@/lib/store";
 import { CURRENCIES, daysUntil, fmtRange, hasAmounts, isTripFull, joinedCount, tripStatus, uid } from "@/lib/format";
 import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
+import { TripVisibilityFields, type VisibilityDraft } from "@/components/trip/TripVisibilityFields";
 import type { Member, Role, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import OverviewTab from "@/components/trip/OverviewTab";
@@ -156,13 +157,18 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
   const [err, setErr] = useState<Record<string, string>>({});
   const joined = joinedCount(trip);
   const [limit, setLimit] = useState({ enabled: trip.maxParticipants != null, value: trip.maxParticipants == null ? "" : String(trip.maxParticipants) });
+  const emailVerified = useApp((s) => s.emailVerified);
+  const sharingOf = (t: Trip): VisibilityDraft => ({ visibility: t.visibility ?? "private", category: t.category ?? "", travelStyle: t.travelStyle ?? "", showBudget: !!t.showBudget, showPlan: !!t.showPlan });
+  const [sharing, setSharing] = useState<VisibilityDraft>(() => sharingOf(trip));
+  const [confirming, setConfirming] = useState(false);
   useEffect(() => {
+    if (open) setSharing(sharingOf(trip));
     if (open) setLimit({ enabled: trip.maxParticipants != null, value: trip.maxParticipants == null ? "" : String(trip.maxParticipants) });
     if (open) setF({ name: trip.name, destination: trip.destination, description: trip.description, startDate: trip.startDate, endDate: trip.endDate, budget: String(trip.budget || ""), currency: trip.currency });
     // Only when it opens: a live update arriving while someone types must not wipe what they've typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  const save = () => {
+  const save = (confirmed = false) => {
     const e: Record<string, string> = {};
     if (f.name.trim().length < 3) e.name = "Name must be at least 3 characters";
     if (!f.destination.trim()) e.destination = "Destination is required";
@@ -175,7 +181,10 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
     if (limitProblem) e.maxParticipants = limitProblem;
     setErr(e);
     if (Object.keys(e).length) return;
-    actions.patchTrip(trip.id, { ...f, name: f.name.trim(), budget: +f.budget || 0, maxParticipants: limit.enabled ? +limit.value : null }, "updated trip details");
+    // Changing who can find a trip is explained first, so nothing is exposed by accident.
+    if (sharing.visibility !== (trip.visibility ?? "private") && !confirmed) return setConfirming(true);
+    setConfirming(false);
+    actions.patchTrip(trip.id, { ...f, name: f.name.trim(), budget: +f.budget || 0, maxParticipants: limit.enabled ? +limit.value : null, ...sharing }, sharing.visibility !== (trip.visibility ?? "private") ? (sharing.visibility === "public" ? "made the trip public" : "made the trip private") : "updated trip details");
     saved("Trip details saved");
     onOpenChange(false);
   };
@@ -200,11 +209,22 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
             </Field>
           </div>
           <Field label="Description" htmlFor="et-d"><Textarea id="et-d" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} data-testid="edit-trip-description-input" /></Field>
+          <TripVisibilityFields value={sharing} canPublish={emailVerified} onChange={(next) => { setSharing(next); setConfirming(false); }} />
           <ParticipantLimitField enabled={limit.enabled} value={limit.value} minimum={joined} error={err.maxParticipants} onChange={setLimit} />
         </div>
+        {confirming && (
+          <div className="grid gap-3 rounded-xl border border-coral bg-coral-soft p-4 text-sm text-[#8A3B22]" role="alertdialog" aria-label="Change who can find this trip?" data-testid="visibility-confirm">
+            <p className="font-semibold">{sharing.visibility === "public" ? "Make this trip public?" : "Make this trip private?"}</p>
+            <p>{sharing.visibility === "public" ? "It will appear in Explore, showing only its name, destination, dates, description and what you've chosen above. People can ask to join, and nobody joins without your approval. Anyone you accept can see everything shared on the trip." : "This removes it from public discovery, and from any links to its public page. Waiting requests stay unanswered."} Existing participants stay unless you remove them.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirming(false)} data-testid="visibility-confirm-no">Not now</Button>
+              <Button onClick={() => save(true)} data-testid="visibility-confirm-yes">{sharing.visibility === "public" ? "Make public" : "Make private"}</Button>
+            </div>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="edit-trip-cancel-button">Cancel</Button>
-          <Button onClick={save} data-testid="edit-trip-save-button">Save changes</Button>
+          <Button onClick={() => save()} data-testid="edit-trip-save-button">Save changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -252,6 +272,7 @@ export default function TripWorkspace() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={status} className="bg-white/95" />
+              {trip.visibility === "public" && <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white" data-testid="trip-header-public">Public</span>}
               {trip.maxParticipants != null && <span className={cn("num rounded-full px-2.5 py-0.5 text-xs font-semibold", isTripFull(trip) ? "bg-white text-forest" : "bg-white/20 text-white")} data-testid="trip-header-capacity">{isTripFull(trip) ? "Trip Full" : `${joinedCount(trip)} of ${trip.maxParticipants} joined`}</span>}
               {status === "upcoming" && <span className="num rounded-full bg-coral px-2.5 py-0.5 text-xs font-semibold" data-testid="trip-header-countdown">{until} day{until === 1 ? "" : "s"} to go</span>}
             </div>
