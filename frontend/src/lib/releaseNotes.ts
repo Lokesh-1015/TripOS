@@ -1,6 +1,6 @@
 // The "What's new" popup. Each person sees it once, remembered on their account. To announce a new
 // release, add it to the top of this list with a new id, and everyone sees that one once too.
-import { BellRing, CalendarRange, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Radio, Route, TriangleAlert, Wallet } from "lucide-react";
+import { BellRing, CalendarDays, CalendarRange, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Radio, Route, ShieldCheck, TriangleAlert, UserX, Wallet } from "lucide-react";
 
 export interface ReleaseFeature {
   icon: typeof Mail;
@@ -16,6 +16,17 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    id: "2026-11-04",
+    features: [
+      { icon: CalendarDays, title: "Memories by date", body: "Every day of a trip now has its own place in Memories. Pick a date, add several photos with captions, and say which activity or place they're from. Everyone on the trip can add to the same day." },
+      { icon: Navigation, title: "Places you can open", body: "Share a place in chat, saved or searched for, and anyone can tap Open in Google Maps to go straight to it. It stays in the chat even if the place is later removed from the map." },
+      { icon: ShieldCheck, title: "Your photos are safer", body: "We now remove hidden details like GPS position from photos, including ones you've already added, and shrink them so they upload faster." },
+      { icon: UserX, title: "Delete your account", body: "You can now delete your account in Settings, under Account. We also added a privacy policy, terms and a contact form." },
+    ],
+    improved: [],
+    fixed: [],
+  },
   {
     id: "2026-11-03",
     features: [

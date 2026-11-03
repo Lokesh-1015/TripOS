@@ -126,7 +126,7 @@ test('it can be read and scrolled on a phone', async ({ browser }) => {
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   expect(await page.getByTestId('whats-new-body').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  await expect(page.getByText('Real emails')).toBeInViewport();
+  await expect(page.getByTestId('whats-new-body').locator('p').first()).toBeInViewport();
   await expect(page.getByTestId('whats-new-close')).toBeInViewport();
   await page.getByTestId('whats-new-fixed').scrollIntoViewIfNeeded();
   await expect(page.getByTestId('whats-new-fixed')).toBeInViewport();

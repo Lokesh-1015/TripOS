@@ -590,6 +590,11 @@ model Message {
   kind     MessageKind @default(text)
   pollId   String?
   placeId  String?
+  /// A copy of the shared place, so the message still makes sense if the place is later deleted.
+  placeName    String?
+  placeAddress String?
+  placeLat     Float?
+  placeLng     Float?
   imageUrl String?
   fileName String?
   fileUrl  String?
@@ -609,6 +614,10 @@ model Photo {
   day      Int       @default(0)
   album    String    @default("Uploads")
   kind     PhotoKind @default(photo)
+  /// Optional links to where and what this was. They're ignored if the place or activity is later removed.
+  placeId    String?
+  activityId String?
+  highlight  Boolean  @default(false)
   at       DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([tripId, day])

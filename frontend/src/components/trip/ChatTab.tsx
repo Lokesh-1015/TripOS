@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { FileText, ImagePlus, MapPin, Paperclip, Pin, PinOff, Send, Vote } from "lucide-react";
+import { FileText, ImagePlus, MapPin, Navigation, Paperclip, Pin, PinOff, Search, Send, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import { apiErrorMessage, apiGet, uploadFile } from "@/lib/api";
 import { useTripAccess } from "@/lib/access";
 import { actions, saved, useApp } from "@/lib/store";
 import { uid } from "@/lib/format";
+import { googleMapsUrl } from "@/lib/maps";
+import { searchPlaces, type PlaceResult } from "@/lib/placeSearch";
 import type { Message, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NewPollDialog, PollCard } from "./OverviewTab";
@@ -18,12 +20,40 @@ import { PLACE_META } from "./placeMeta";
 // How many recent messages come with the trip itself. The server has the same number.
 const LOADED_WITH_TRIP = 300;
 
+function LocationCard({ id, place, color }: { id: string; place: NonNullable<Message["place"]>; color?: string }) {
+  return (
+    <div className="w-64 overflow-hidden rounded-2xl border border-line bg-card" data-testid={`chat-location-${id}`}>
+      <div className="map-grid relative h-20"><span className="absolute left-1/2 top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white text-white shadow" style={{ background: color ?? "#0F4335" }}><MapPin className="size-4" /></span></div>
+      <div className="grid gap-2 p-3">
+        <div><p className="text-sm font-semibold">{place.name}</p>{place.address && <p className="text-xs text-ink-muted">{place.address}</p>}</div>
+        <a href={googleMapsUrl(place)} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-xs font-medium text-white hover:bg-forest/90" data-testid={`chat-location-open-${id}`}><Navigation className="size-3.5" /> Open in Google Maps</a>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatTab({ trip }: { trip: Trip }) {
   const { me, canContribute } = useTripAccess(trip);
   const canShareLocation = useApp((s) => s.settings.privacy.shareLocation);
   const [text, setText] = useState("");
   const [poll, setPoll] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [results, setResults] = useState<PlaceResult[]>();
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string>();
+  const findPlaces = async () => {
+    setSearching(true);
+    setSearchError(undefined);
+    try {
+      setResults(await searchPlaces(placeQuery.trim()));
+    } catch {
+      setResults(undefined);
+      setSearchError("Place search isn't available right now");
+    } finally {
+      setSearching(false);
+    }
+  };
   const endRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -105,11 +135,8 @@ export default function ChatTab({ trip }: { trip: Trip }) {
                     {!mine && !(grouped && !showDay) && <span className="px-1 text-[11px] font-semibold text-ink-muted">{author?.name ?? "Former member"}</span>}
                     {m.kind === "poll" && p ? (
                       <div className="w-[min(420px,72vw)]"><PollCard trip={trip} poll={p} compact /></div>
-                    ) : m.kind === "location" && place ? (
-                      <div className="w-60 overflow-hidden rounded-2xl border border-line bg-card" data-testid={`chat-location-${m.id}`}>
-                        <div className="map-grid relative h-24"><span className="absolute left-1/2 top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white text-white shadow" style={{ background: PLACE_META[place.type].color }}><MapPin className="size-4" /></span></div>
-                        <div className="p-3"><p className="text-sm font-semibold">{place.name}</p><p className="text-xs text-ink-muted">{place.address}</p></div>
-                      </div>
+                    ) : m.kind === "location" && (m.place ?? place) ? (
+                      <LocationCard id={m.id} place={(m.place ?? place) as NonNullable<Message["place"]>} color={place ? PLACE_META[place.type].color : undefined} />
                     ) : m.kind === "image" && m.imageUrl ? (
                       <img src={m.imageUrl} alt="Shared" className="max-h-64 rounded-2xl object-cover" />
                     ) : m.kind === "file" ? (
@@ -139,7 +166,18 @@ export default function ChatTab({ trip }: { trip: Trip }) {
           {canShareLocation && <Popover open={locOpen} onOpenChange={setLocOpen}>
             <PopoverTrigger className="grid size-9 place-items-center rounded-lg text-ink transition-colors hover:bg-muted" aria-label="Share location" data-testid="chat-location-button"><MapPin className="size-4" /></PopoverTrigger>
             <PopoverContent align="start" side="top" className="w-64 p-1">
-              <p className="px-2 py-1.5 text-xs font-medium text-ink-muted">Share a saved place</p>
+              <form className="flex gap-1 p-1" onSubmit={(e) => { e.preventDefault(); void findPlaces(); }}>
+                <Input value={placeQuery} onChange={(e) => setPlaceQuery(e.target.value)} placeholder="Search for a place" className="h-8" aria-label="Search for a place" data-testid="chat-location-search" />
+                <Button type="submit" size="icon-sm" variant="outline" disabled={searching || placeQuery.trim().length < 2} aria-label="Search" data-testid="chat-location-search-button"><Search className="size-3.5" /></Button>
+              </form>
+              {searchError && <p className="px-2 py-1.5 text-xs text-destructive" role="alert">{searchError}</p>}
+              {results?.length === 0 && <p className="px-2 py-1.5 text-xs text-ink-muted" data-testid="chat-location-no-results">No places found</p>}
+              {results?.map((r) => (
+                <button key={`${r.lat},${r.lng}`} className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted" onClick={() => { post({ kind: "location", text: "", place: r }); setResults(undefined); setPlaceQuery(""); setLocOpen(false); }} data-testid="chat-location-result">
+                  <MapPin className="mt-0.5 size-3.5 shrink-0 text-forest" /> <span className="min-w-0"><span className="block truncate">{r.name}</span><span className="block truncate text-xs text-ink-muted">{r.address}</span></span>
+                </button>
+              ))}
+              <p className="px-2 py-1.5 text-xs font-medium text-ink-muted">Saved places</p>
               {trip.places.length === 0 && <p className="px-2 py-3 text-sm text-ink-muted">No saved places yet - add some on the Map tab.</p>}
               {trip.places.map((p) => (
                 <button key={p.id} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted" onClick={() => { post({ kind: "location", text: "", placeId: p.id }); setLocOpen(false); }} data-testid={`chat-share-place-${p.id}`}>

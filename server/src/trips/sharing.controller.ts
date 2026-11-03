@@ -34,6 +34,8 @@ const messageBody = z.object({
   text: z.string().max(5000).default(""),
   pollId: z.string().optional(),
   placeId: z.string().optional(),
+  /** A place found by searching, shared without saving it to the trip's map. */
+  place: z.object({ name: shortText.min(1), address: shortText.default(""), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
   imageUrl: fileRef.optional(),
   fileName: z.string().max(255).optional(),
   fileUrl: fileRef.optional(),
@@ -46,6 +48,9 @@ const photoBody = z.object({
   day: z.number().int().min(0).max(366),
   album: z.string().trim().min(1).max(80),
   kind: z.enum(["photo", "video"]),
+  placeId: z.string().max(64).nullish(),
+  activityId: z.string().max(64).nullish(),
+  highlight: z.boolean().optional(),
 });
 
 /** A file can only be attached to the trip it was uploaded to, by someone on that trip. */
@@ -53,6 +58,13 @@ export async function assertFile(tx: Prisma.TransactionClient, tripId: string, u
   if (!url) return;
   const file = await tx.storedFile.findUnique({ where: { id: fileIdOf(url) } });
   if (!file || file.tripId !== tripId || file.uploadedBy !== userId) throw new UnprocessableEntityException({ message: "That file couldn't be found. Please upload it again." });
+}
+
+/** A photo can only point at a place or activity on its own trip. */
+async function assertPhotoLinks(tx: Prisma.TransactionClient, tripId: string, links: { placeId?: string | null; activityId?: string | null }) {
+  const notFound = () => new UnprocessableEntityException({ message: "That place or activity isn't on this trip" });
+  if (links.placeId && !(await tx.place.findFirst({ where: { id: links.placeId, tripId }, select: { id: true } }))) throw notFound();
+  if (links.activityId && !(await tx.activity.findFirst({ where: { id: links.activityId, tripId }, select: { id: true } }))) throw notFound();
 }
 
 @UseGuards(TripAccessGuard)
@@ -132,7 +144,9 @@ export class SharingController {
       }
       await assertFile(tx, tripId, input.imageUrl, user.id);
       await assertFile(tx, tripId, input.fileUrl, user.id);
-      await tx.message.create({ data: { id, tripId, authorId: user.id, kind: input.kind, text: input.text, pollId: input.pollId, placeId: input.placeId, imageUrl: input.imageUrl, fileName: input.fileName, fileUrl: input.fileUrl, pinned: input.pinned ?? false } });
+      const saved = input.kind === "location" && input.placeId ? await tx.place.findFirst({ where: { id: input.placeId, tripId } }) : null;
+      const shared = saved ? { name: saved.name, address: saved.address, lat: saved.lat ?? undefined, lng: saved.lng ?? undefined } : input.kind === "location" ? input.place : undefined;
+      await tx.message.create({ data: { id, tripId, authorId: user.id, kind: input.kind, text: input.text, pollId: input.pollId, placeId: input.placeId, placeName: shared?.name, placeAddress: shared?.address, placeLat: shared?.lat, placeLng: shared?.lng, imageUrl: input.imageUrl, fileName: input.fileName, fileUrl: input.fileUrl, pinned: input.pinned ?? false } });
       // One unread chat notification per trip, not one per message.
       await notify({ kind: "message", title: `New messages in ${tripName}`, body: `${user.name.split(" ")[0]}: ${input.text || "shared an attachment"}`.slice(0, 200), link: `/app/trips/${tripId}/chat`, collapseUnread: true });
     });
@@ -147,10 +161,18 @@ export class SharingController {
     const existing = await this.prisma.photo.findUnique({ where: { id } });
     if (existing) {
       if (existing.tripId !== tripId) throw new ConflictException({ message: "Please try again" });
+      // A repeat of the upload from someone else changes nothing. Editing is for the author and admins.
+      if (canManageOwnContent(actor, existing.authorId, "photo").allowed) {
+        await this.writer.run(tripId, user.id, async ({ tx }) => {
+          await assertPhotoLinks(tx, tripId, input);
+          await tx.photo.update({ where: { id }, data: { caption: input.caption, placeId: input.placeId, activityId: input.activityId, highlight: input.highlight } });
+        });
+      }
       return { ok: true };
     }
     await this.writer.run(tripId, user.id, async ({ tx, log }) => {
       await assertFile(tx, tripId, input.url, user.id);
+      await assertPhotoLinks(tx, tripId, input);
       await tx.photo.create({ data: { ...input, id, tripId, authorId: user.id } });
       await log("added a photo to Memories", "memory");
     });

@@ -14,6 +14,7 @@ import { uid } from "@/lib/format";
 import type { Place, PlaceType, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import LiveLocationPanel, { isStale, seenLabel } from "./LiveLocationPanel";
+import { googleMapsUrl } from "@/lib/maps";
 import { PLACE_META } from "./placeMeta";
 import type { LivePin } from "./TripMap";
 
@@ -151,7 +152,7 @@ export default function MapTab({ trip }: { trip: Trip }) {
             <p className="text-sm text-ink-muted">{sel.address}</p>
             {sel.note && <p className="mt-2 text-sm">{sel.note}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
-              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sel.lat != null && sel.lng != null ? `${sel.lat},${sel.lng}` : `${sel.name} ${sel.address}`)}`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-forest px-3 text-xs font-medium text-white" data-testid="map-open-directions">
+              <a href={googleMapsUrl(sel)} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-forest px-3 text-xs font-medium text-white" data-testid="map-open-directions">
                 <Navigation className="size-3.5" /> Open in Maps
               </a>
               {canContribute && sel.lat == null && <Button size="sm" variant="outline" className="h-8 rounded-lg" onClick={() => { setRelocating(sel); setAdding(false); }} data-testid="map-set-location"><MapPin className="size-3.5" /> Set location</Button>}

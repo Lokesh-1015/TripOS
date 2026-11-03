@@ -169,6 +169,8 @@ export interface Message {
   kind: "text" | "poll" | "location" | "image" | "file";
   pollId?: string;
   placeId?: string;
+  /** What was shared, kept with the message. Older messages only have placeId. */
+  place?: { name: string; address: string; lat?: number; lng?: number };
   imageUrl?: string;
   fileName?: string;
   fileUrl?: string;
@@ -183,6 +185,9 @@ export interface Photo {
   day: number;
   album: string;
   kind: "photo" | "video";
+  placeId?: string | null;
+  activityId?: string | null;
+  highlight?: boolean;
 }
 
 export interface TripEvent {
