@@ -32,6 +32,10 @@ export const ago = (iso: string) => formatDistanceToNowStrict(parseISO(iso), { a
 export const tripDays = (t: Trip) => differenceInCalendarDays(parseISO(t.endDate), parseISO(t.startDate)) + 1;
 export const daysUntil = (iso: string) => differenceInCalendarDays(parseISO(iso), new Date());
 
+/** Who has actually joined. Invitations don't hold a place. */
+export const joinedCount = (trip: Pick<Trip, "members">) => trip.members.filter((m) => (m.status ?? "active") === "active").length;
+export const isTripFull = (trip: Pick<Trip, "members" | "maxParticipants">) => trip.maxParticipants != null && joinedCount(trip) >= trip.maxParticipants;
+
 export function tripStatus(t: Trip): TripStatus {
   if (t.archived) return "archived";
   const today = todayISO();

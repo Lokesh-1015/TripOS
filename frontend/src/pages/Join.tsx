@@ -20,6 +20,7 @@ interface InvitePreview {
   startDate: string;
   endDate: string;
   archived: boolean;
+  maxParticipants: number | null;
   members: { id: string; name: string; avatar: string }[];
 }
 
@@ -54,6 +55,7 @@ export default function Join() {
     if (!loading && !authed) rememberNext(`/join/${code}`);
   }, [loading, authed, code]);
 
+  const full = !!snap && snap.maxParticipants != null && snap.members.length >= snap.maxParticipants;
   if (authed && snap && trips.some((t) => t.id === snap.id)) return <Navigate to={`/app/trips/${snap.id}`} replace />;
 
   return (
@@ -84,7 +86,9 @@ export default function Join() {
               <p className="flex items-center gap-2"><MapPin className="size-4 text-sage-ink" /> {snap.destination}</p>
               <p className="flex items-center gap-2"><CalendarDays className="size-4 text-sage-ink" /> {fmtRange(snap.startDate, snap.endDate)}</p>
               <div className="flex items-center gap-2"><Users className="size-4 text-sage-ink" /> {snap.members.length} {snap.members.length === 1 ? "member" : "members"} <AvatarStack people={snap.members} size={24} /></div>
-              {authed ? (
+              {full ? (
+                <p className="mt-2 rounded-xl bg-coral-soft px-3 py-3 text-sm font-medium text-[#8A3B22]" data-testid="join-trip-full">Trip Full. All {snap.maxParticipants} places have gone, so you can't join right now. The organiser can make room.</p>
+              ) : authed ? (
                 <Button className="mt-2 h-11 rounded-xl" disabled={join.isPending} onClick={() => join.mutate()} data-testid="join-trip-button">
                   Join as {user.name}
                 </Button>

@@ -13,6 +13,7 @@ import type { Prisma, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { MailService } from "../mail/mail.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { assertRoom, tellHostsIfFull } from "./participants.js";
 import { pollBody, pollData } from "./polls.controller.js";
 import { assertVerified } from "./state.controller.js";
 import { dateString } from "../common/validation.js";
@@ -21,6 +22,7 @@ import { TripWriter, updateVersioned } from "./trip-writer.service.js";
 
 const name = z.string().trim().min(3).max(120);
 const destination = z.string().trim().min(1).max(200);
+const maxParticipants = z.number().int().min(1).max(1000);
 
 const createBody = z
   .object({
@@ -35,6 +37,7 @@ const createBody = z
     currency: z.string().length(3).default("INR"),
     budget: money.default(0),
     perPersonBudget: money.default(0),
+    maxParticipants: maxParticipants.nullable().default(null),
     // Email for new people; id for "quick add from past trips", whose emails may be hidden.
     members: z.array(z.object({ email: z.email().optional(), id: z.string().optional() })).max(50).default([]),
     polls: z.array(pollBody).max(5).default([]),
@@ -55,6 +58,7 @@ const patchBody = z.object({
   budget: money.optional(),
   perPersonBudget: money.optional(),
   archived: z.boolean().optional(),
+  maxParticipants: maxParticipants.nullable().optional(),
   highlights: z.array(shortText).max(10).optional(),
   version,
 });
@@ -113,6 +117,7 @@ export class TripsController {
           currency: input.currency,
           budgetMinor: toMinor(input.budget),
           perPersonBudgetMinor: toMinor(input.perPersonBudget),
+          maxParticipants: input.maxParticipants,
           highlights: [],
           joinCode: randomBytes(18).toString("base64url"),
           createdById: user.id,
@@ -157,6 +162,12 @@ export class TripsController {
       const start = startDate ?? dateString(current.startDate);
       const end = endDate ?? dateString(current.endDate);
       if (end < start) throw new ConflictException({ message: "End date must be on or after the start date" });
+      if (rest.maxParticipants != null) {
+        // Holds the trip, so nobody can join between counting and saving. A limit never removes anyone.
+        await assertRoom(tx, tripId, user.id);
+        const joined = await tx.tripMember.count({ where: { tripId, status: "active" } });
+        if (rest.maxParticipants < joined) throw new ConflictException({ code: "LIMIT_TOO_LOW", message: `${joined} people have already joined, so the limit can't be lower than that.` });
+      }
       const days = dayCount(start, end);
       // Activities are stored by day number, so a shorter trip would strand them where no one can reach them.
       const stranded = await tx.activity.count({ where: { tripId, day: { gte: days } } });
@@ -271,6 +282,7 @@ export class TripsController {
     assertVerified(user, "invite people");
     const { email } = parse(inviteBody, body);
     const invitee = await this.writer.run(tripId, user.id, async ({ tx, log, tripName }) => {
+      await assertRoom(tx, tripId);
       const invitee = await findOrCreateUser(tx, email);
       const existing = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: invitee.id } } });
       if (existing && existing.status !== "removed") throw new ConflictException({ message: "This person is already on the trip" });
@@ -358,6 +370,7 @@ export class InvitesController {
       startDate: dateString(trip.startDate),
       endDate: dateString(trip.endDate),
       archived: trip.archived,
+      maxParticipants: trip.maxParticipants,
       members: trip.members.map((m) => ({ id: m.user.id, name: m.user.name, avatar: m.user.avatar })),
     };
   }
@@ -370,7 +383,9 @@ export class InvitesController {
     const existing = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: trip.id, userId: user.id } } });
     if (existing?.status === "removed") throw new ForbiddenException({ message: "You were removed from this trip. Ask an admin to invite you again." });
     if (existing?.status !== "active") {
-      await this.writer.run(trip.id, user.id, async ({ tx, log }) => {
+      await this.writer.run(trip.id, user.id, async (ctx) => {
+        const { tx, log } = ctx;
+        await assertRoom(tx, trip.id, user.id);
         await tx.tripMember.upsert({
           where: { tripId_userId: { tripId: trip.id, userId: user.id } },
           update: { status: "active" },
@@ -378,6 +393,7 @@ export class InvitesController {
         });
         await tx.notification.deleteMany({ where: { tripId: trip.id, userId: user.id, kind: "invite" } });
         await log("joined via invite link", "member");
+        await tellHostsIfFull(ctx, trip.id);
       });
       this.realtime.membershipChanged(user.id, trip.id, true);
     }

@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarStack, ConfirmDialog, Field, StatusBadge, Tip } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
 import { actions, inviteLink, saved, useApp, useTrip } from "@/lib/store";
-import { CURRENCIES, daysUntil, fmtRange, hasAmounts, tripStatus, uid } from "@/lib/format";
+import { CURRENCIES, daysUntil, fmtRange, hasAmounts, isTripFull, joinedCount, tripStatus, uid } from "@/lib/format";
+import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
 import type { Member, Role, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import OverviewTab from "@/components/trip/OverviewTab";
@@ -40,8 +41,10 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string>();
   const [removing, setRemoving] = useState<Member>();
+  const full = isTripFull(trip);
   const link = inviteLink(trip);
   const invite = () => {
+    if (full) return setErr("This trip is full. Raise the limit to invite more people.");
     const v = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return setErr("Enter a valid email address");
     if (trip.members.some((m) => m.email === v)) return setErr("This person is already on the trip");
@@ -60,6 +63,7 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
             <DialogDescription>{access.canAdmin ? "Invite people, change roles or remove members." : "Everyone on this trip."}</DialogDescription>
           </DialogHeader>
           {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can still share the link below." : "Email invites aren't available yet. Share the link below instead."}</p>}
+          {full && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-full-note">This trip is full, so nobody new can join, even with the link. {access.canAdmin ? "Raise the limit in Edit trip to make room." : ""}</p>}
           {access.canAdmin && emailVerified && <Field label="Invite by email" htmlFor="inv-email" error={err}>
             <div className="flex gap-2">
               <Input id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invite()} placeholder="friend@email.com" className="h-10 rounded-xl" data-testid="members-invite-email-input" />
@@ -150,7 +154,10 @@ function CopyTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
 function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [f, setF] = useState({ name: trip.name, destination: trip.destination, description: trip.description, startDate: trip.startDate, endDate: trip.endDate, budget: String(trip.budget || ""), currency: trip.currency });
   const [err, setErr] = useState<Record<string, string>>({});
+  const joined = joinedCount(trip);
+  const [limit, setLimit] = useState({ enabled: trip.maxParticipants != null, value: trip.maxParticipants == null ? "" : String(trip.maxParticipants) });
   useEffect(() => {
+    if (open) setLimit({ enabled: trip.maxParticipants != null, value: trip.maxParticipants == null ? "" : String(trip.maxParticipants) });
     if (open) setF({ name: trip.name, destination: trip.destination, description: trip.description, startDate: trip.startDate, endDate: trip.endDate, budget: String(trip.budget || ""), currency: trip.currency });
     // Only when it opens: a live update arriving while someone types must not wipe what they've typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,15 +171,17 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
       const left = trip.activities.filter((a) => a.day >= differenceInCalendarDays(parseISO(f.endDate), parseISO(f.startDate)) + 1).length;
       if (left) e.endDate = `${left} planned ${left === 1 ? "activity is" : "activities are"} after these dates. Move or delete ${left === 1 ? "it" : "them"} first.`;
     }
+    const limitProblem = participantLimitError(limit.enabled, limit.value, joined);
+    if (limitProblem) e.maxParticipants = limitProblem;
     setErr(e);
     if (Object.keys(e).length) return;
-    actions.patchTrip(trip.id, { ...f, name: f.name.trim(), budget: +f.budget || 0 }, "updated trip details");
+    actions.patchTrip(trip.id, { ...f, name: f.name.trim(), budget: +f.budget || 0, maxParticipants: limit.enabled ? +limit.value : null }, "updated trip details");
     saved("Trip details saved");
     onOpenChange(false);
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" data-testid="edit-trip-dialog">
+      <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-lg" data-testid="edit-trip-dialog">
         <DialogHeader><DialogTitle>Edit trip</DialogTitle></DialogHeader>
         <div className="grid gap-4">
           <Field label="Trip name" htmlFor="et-name" error={err.name}><Input id="et-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="edit-trip-name-input" /></Field>
@@ -191,6 +200,7 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
             </Field>
           </div>
           <Field label="Description" htmlFor="et-d"><Textarea id="et-d" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} data-testid="edit-trip-description-input" /></Field>
+          <ParticipantLimitField enabled={limit.enabled} value={limit.value} minimum={joined} error={err.maxParticipants} onChange={setLimit} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="edit-trip-cancel-button">Cancel</Button>
@@ -242,6 +252,7 @@ export default function TripWorkspace() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={status} className="bg-white/95" />
+              {trip.maxParticipants != null && <span className={cn("num rounded-full px-2.5 py-0.5 text-xs font-semibold", isTripFull(trip) ? "bg-white text-forest" : "bg-white/20 text-white")} data-testid="trip-header-capacity">{isTripFull(trip) ? "Trip Full" : `${joinedCount(trip)} of ${trip.maxParticipants} joined`}</span>}
               {status === "upcoming" && <span className="num rounded-full bg-coral px-2.5 py-0.5 text-xs font-semibold" data-testid="trip-header-countdown">{until} day{until === 1 ? "" : "s"} to go</span>}
             </div>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-[32px]" data-testid="trip-header-name">{trip.name}</h1>

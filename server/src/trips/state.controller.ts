@@ -8,6 +8,7 @@ import { imageRef, parse } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { assertRoom, tellHostsIfFull } from "./participants.js";
 import { tripInclude, toPerson, toTrip } from "./trip.serializer.js";
 import { TripWriter } from "./trip-writer.service.js";
 
@@ -145,11 +146,15 @@ export class StateController {
     const n = await this.prisma.notification.findFirst({ where: { id, userId: user.id, kind: "invite" } });
     if (!n?.tripId) throw new NotFoundException({ message: "This invitation is no longer available" });
     const tripId = n.tripId;
-    await this.writer.run(tripId, user.id, async ({ tx, log }) => {
+    await this.writer.run(tripId, user.id, async (ctx) => {
+      const { tx, log } = ctx;
+      // A full trip leaves the invitation where it is, so it still works if a place opens up.
+      await assertRoom(tx, tripId, user.id);
       const { count } = await tx.tripMember.updateMany({ where: { tripId, userId: user.id, status: "invited" }, data: { status: "active" } });
       if (!count) throw new NotFoundException({ message: "This invitation is no longer available" });
       await tx.notification.delete({ where: { id } });
       await log("joined the trip", "member");
+      await tellHostsIfFull(ctx, tripId);
     });
     this.realtime.membershipChanged(user.id, tripId, true);
     return this.tripFor(tripId, user.id);

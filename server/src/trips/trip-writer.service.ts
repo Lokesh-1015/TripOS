@@ -12,6 +12,7 @@ const PREF_KEY: Record<NotificationKind, string> = {
   vote: "votes",
   itinerary: "itinerary",
   document: "documents",
+  trip_full: "invites",
   friend_request: "social",
   friend_accept: "social",
 };

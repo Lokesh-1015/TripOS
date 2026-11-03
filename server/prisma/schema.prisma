@@ -127,6 +127,12 @@ enum NotificationKind {
   document
   friend_request
   friend_accept
+  trip_full
+}
+
+enum TripVisibility {
+  private
+  public
 }
 
 enum ProfileVisibility {
@@ -301,6 +307,10 @@ model Trip {
   budgetMinor          Int      @default(0)
   perPersonBudgetMinor Int      @default(0)
   archived             Boolean  @default(false)
+  /// Only "public" trips can appear in Explore. Existing and copied trips stay private.
+  visibility           TripVisibility @default(private)
+  /// The most people who can join, including the host. Null means no limit.
+  maxParticipants      Int?
   highlights           String[]
   /// Stable secret behind the "anyone with the link" invite URL the UI always displays.
   joinCode             String   @unique

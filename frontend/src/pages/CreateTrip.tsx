@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, Field } from "@/components/common";
+import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
 import { blankTrip, IMG, img } from "@/lib/seed";
@@ -24,6 +25,7 @@ interface Draft {
   name: string; destination: string; description: string; cover: string;
   startDate: string; endDate: string; flexibleDates: boolean;
   members: Member[]; budget: string; currency: string; perPerson: string;
+  limited: boolean; maxParticipants: string;
 }
 
 export default function CreateTrip() {
@@ -43,6 +45,7 @@ export default function CreateTrip() {
     name: qs.get("name") ?? "", destination: qs.get("dest") ?? "", description: "", cover: "",
     startDate: "", endDate: "", flexibleDates: false,
     members: [{ ...user, role: "owner" }], budget: "", currency: settings.currency, perPerson: "",
+    limited: false, maxParticipants: "",
   });
   const [err, setErr] = useState<Record<string, string>>({});
   const [email, setEmail] = useState("");
@@ -61,6 +64,10 @@ export default function CreateTrip() {
       if (d.startDate && d.endDate && d.endDate < d.startDate) e.endDate = "End date must be on or after the start date";
     }
     if (s === 3 && d.budget && (isNaN(+d.budget) || +d.budget < 0)) e.budget = "Enter a valid amount";
+    if (s === 4) {
+      const limit = participantLimitError(d.limited, d.maxParticipants, 1);
+      if (limit) e.maxParticipants = limit;
+    }
     setErr(e);
     return Object.keys(e).length === 0;
   };
@@ -80,6 +87,7 @@ export default function CreateTrip() {
   };
 
   const create = () => {
+    if (!validate(4)) return;
     const id = tripId;
     const trip: Trip = {
       ...blankTrip(),
@@ -94,6 +102,7 @@ export default function CreateTrip() {
       currency: d.currency,
       budget: +d.budget || 0,
       perPersonBudget: +d.perPerson || 0,
+      maxParticipants: d.limited ? +d.maxParticipants : null,
       members: d.members,
       polls: d.flexibleDates ? [{
         id: uid("poll"), question: "Which dates work best?", category: "dates", createdBy: user.id, createdAt: new Date().toISOString(), closed: false,
@@ -268,6 +277,7 @@ export default function CreateTrip() {
                     </div>
                   ))}
                 </dl>
+                <div className="mt-4"><ParticipantLimitField enabled={d.limited} value={d.maxParticipants} minimum={1} error={err.maxParticipants} onChange={(next) => set({ limited: next.enabled, maxParticipants: next.value })} /></div>
               </div>
             )}
           </motion.div>

@@ -63,6 +63,8 @@ export function toTrip(t: TripRow, viewerId: string) {
     budget: fromMinor(t.budgetMinor),
     perPersonBudget: fromMinor(t.perPersonBudgetMinor),
     archived: t.archived,
+    visibility: t.visibility,
+    maxParticipants: t.maxParticipants,
     createdAt: t.createdAt.toISOString(),
     version: t.version,
     // Only people who can invite get the link.

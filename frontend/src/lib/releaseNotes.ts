@@ -17,6 +17,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-06",
+    features: [
+      { icon: Users, title: "Participant limits", body: "Hosts can now set a maximum number of people for a trip, including themselves. Once it's reached, the trip shows as full, and nobody new can join, even with the invite link. You can raise the limit at any time." },
+    ],
+    improved: [],
+    fixed: [],
+  },
+  {
     id: "2026-11-05",
     features: [
       { icon: Users, title: "Meet other travellers", body: "You now have a traveller profile. Search for people, send friend requests and see what you have in common. Your profile starts private, so only you decide who sees more than your name and photo." },
