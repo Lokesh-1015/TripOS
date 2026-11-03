@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, Field, PageHeader } from "@/components/common";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
@@ -42,6 +43,46 @@ function InstallCard() {
         : app.canPrompt ? <Button className="w-fit" onClick={() => void app.install()} data-testid="settings-install-button">Install app</Button>
         : <p className="text-sm text-ink-muted" data-testid="settings-install-hint">{app.ios ? "In Safari, tap Share, then Add to Home Screen." : "Open your browser's menu and choose Install or Add to Home Screen."}</p>}
     </section>
+  );
+}
+
+function DeleteAccount() {
+  const { hasPassword, user } = useApp((s) => s);
+  const [open, setOpen] = useState(false);
+  const [proof, setProof] = useState("");
+  const [err, setErr] = useState<string>();
+  const [deleting, setDeleting] = useState(false);
+  const confirm = async () => {
+    setDeleting(true);
+    setErr(undefined);
+    try {
+      await actions.deleteAccount(hasPassword ? { password: proof } : { email: proof });
+    } catch (error) {
+      setErr(apiErrorMessage(error));
+      setDeleting(false);
+    }
+  };
+  return (
+    <div className="grid gap-2 border-t pt-4" data-testid="settings-delete-account">
+      <h3 className="font-semibold">Delete account</h3>
+      <p className="text-sm text-ink-muted">This removes your name, email, photo and private documents, and can't be undone. Trips you share keep what you added, shown as "Former member".</p>
+      <Button variant="outline" className="justify-self-start rounded-xl text-destructive" onClick={() => { setProof(""); setErr(undefined); setOpen(true); }} data-testid="settings-delete-account-button">Delete my account</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent data-testid="delete-account-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete your account?</DialogTitle>
+            <DialogDescription>If you own a trip with other members, it passes to one of them. Trips with only you on them are deleted. Check you've settled up first, as you won't be able to see your balances afterwards.</DialogDescription>
+          </DialogHeader>
+          <Field label={hasPassword ? "Your password" : `Type ${user.email} to confirm`} htmlFor="delete-proof" error={err}>
+            <Input id="delete-proof" type={hasPassword ? "password" : "email"} value={proof} onChange={(e) => setProof(e.target.value)} data-testid="delete-account-proof" />
+          </Field>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Keep my account</Button>
+            <Button variant="destructive" disabled={!proof || deleting} onClick={() => void confirm()} data-testid="delete-account-confirm">{deleting ? "Deleting…" : "Delete forever"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -119,7 +160,7 @@ export default function Settings() {
                   <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
-                    void uploadFile(f, { visibility: "public" }).then(({ url }) => setP((x) => ({ ...x, avatar: url })), (err) => toast.error(apiErrorMessage(err)));
+                    void uploadFile(f, { visibility: "public", photo: true }).then(({ url }) => setP((x) => ({ ...x, avatar: url })), (err) => toast.error(apiErrorMessage(err)));
                   }} />
                 </label>
                 <p className="mt-1 text-xs text-ink-muted">JPG or PNG</p>
@@ -188,6 +229,7 @@ export default function Settings() {
         <TabsContent value="account">
           <section className="grid gap-4 rounded-2xl border border-line bg-card p-5 sm:p-7">
             {hasPassword ? <PasswordForm /> : <div className="grid gap-1" data-testid="settings-password-google-note"><h3 className="font-semibold">Password</h3><p className="text-sm text-ink-muted">You sign in with Google, so there's no password to change. To add one, use <Link to="/forgot-password" className="font-medium text-forest underline">Forgot password</Link>.</p></div>}
+            <DeleteAccount />
           </section>
         </TabsContent>
       </Tabs>

@@ -96,6 +96,7 @@ export function Login() {
         {err.form && <p className="text-sm font-medium text-destructive" role="alert" data-testid="login-error">{err.form}</p>}
         <Button type="submit" className="h-11 rounded-xl" disabled={loading} data-testid="login-submit-button">{loading ? "Signing in…" : "Log in"}</Button>
       </form>
+      <p className="mt-4 text-center text-xs text-ink-muted">New accounts confirm they're 18 or over and accept our <Link to="/terms" className="underline hover:text-ink">Terms</Link> and <Link to="/privacy" className="underline hover:text-ink">Privacy policy</Link>.</p>
       <p className="mt-6 text-center text-sm text-ink-muted">
         New to TripOS? <Link to="/signup" className="font-medium text-forest hover:underline" data-testid="login-signup-link">Create an account</Link>
       </p>
@@ -145,6 +146,7 @@ export function Signup() {
         <Field label="Password" htmlFor="su-pw" error={err.pw} hint="At least 8 characters">
           <Input id="su-pw" type="password" value={f.pw} onChange={(e) => setF({ ...f, pw: e.target.value })} className="h-11 rounded-xl" data-testid="signup-password-input" />
         </Field>
+        <p className="text-xs text-ink-muted" data-testid="signup-terms-note">By creating an account, you confirm you're 18 or over and accept our <Link to="/terms" className="underline hover:text-ink">Terms</Link> and <Link to="/privacy" className="underline hover:text-ink">Privacy policy</Link>.</p>
         <Button type="submit" className="h-11 rounded-xl" disabled={saving} data-testid="signup-submit-button">{saving ? "Creating…" : "Create account"}</Button>
       </form>
       <p className="mt-6 text-center text-sm text-ink-muted">

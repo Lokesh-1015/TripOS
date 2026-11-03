@@ -1,3 +1,4 @@
+import { shrinkPhoto } from "./images";
 // Typed fetch layer over the FastAPI backend. Base is the relative "/api" prefix so the
 // same code works in dev (Vite proxies /api → :8001) and behind a single origin in prod.
 const BASE = "/api";
@@ -62,11 +63,12 @@ export interface UploadedFile {
 }
 
 /** Uploads a file; the returned URL is what screens store and display. Public is for avatars and covers. */
-export async function uploadFile(file: File, options: { visibility: "public" | "shared" | "private"; tripId?: string }): Promise<UploadedFile> {
+/** `photo` makes a smaller copy first. Leave it off for documents, where every detail may matter. */
+export async function uploadFile(file: File, options: { visibility: "public" | "shared" | "private"; tripId?: string; photo?: boolean }): Promise<UploadedFile> {
   const form = new FormData();
   form.append("visibility", options.visibility);
   if (options.tripId) form.append("tripId", options.tripId);
-  form.append("file", file);
+  form.append("file", options.photo ? await shrinkPhoto(file) : file);
   const res = await fetch(`${BASE}/files`, { method: "POST", body: form });
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
   return (await res.json()) as UploadedFile;

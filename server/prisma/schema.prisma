@@ -145,6 +145,10 @@ model User {
   mustConfirmEmail  Boolean  @default(false)
   /// Set by clicking an emailed link or resetting a password: both prove the person owns this address.
   emailVerifiedAt   DateTime? @db.Timestamptz(6)
+  /// When this person confirmed they're 18 or over and accepted the terms. Older accounts are asked once.
+  termsAcceptedAt   DateTime? @db.Timestamptz(6)
+  /// Set when an account is deleted. The nameless row stays, as other people's expenses and chat refer to it.
+  deletedAt         DateTime? @db.Timestamptz(6)
   onboarded         Boolean  @default(false)
   bio               String   @default("")
   currency          String   @default("INR")
@@ -428,6 +432,10 @@ model StoredFile {
   fileName   String
   mimeType   String
   sizeBytes  Int
+  /// Where the contents are in object storage. Null means they're still in the database, as a FileBlob.
+  storageKey String?
+  /// Hidden details such as GPS have been removed. Only applies to images we can rewrite.
+  metadataClean Boolean  @default(false)
   /// Avatars and trip covers appear on the public join page.
   isPublic   Boolean    @default(false)
   visibility Visibility @default(shared)
@@ -441,6 +449,14 @@ model StoredFile {
 
 /// The bytes, apart from `files` so normal queries never load them. They're in Postgres because the
 /// host's disk is wiped on restart; moving to object storage (R2) only changes FilesController.
+/// Filled by a database trigger when a file row goes, including through a deleted trip, so its contents are removed too.
+model StorageTrash {
+  key String   @id
+  at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("storage_trash")
+}
+
 model FileBlob {
   fileId String     @id
   file   StoredFile @relation(fields: [fileId], references: [id], onDelete: Cascade)

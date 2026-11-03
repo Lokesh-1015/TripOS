@@ -57,8 +57,8 @@ export class AuthService {
     // A placeholder from an email invite is claimed here, keeping the trips it was invited to. That proves
     // nothing about who owns the address, so its invites stay hidden until the emailed link is clicked.
     const user = existing
-      ? await this.prisma.user.update({ where: { id: existing.id }, data: { name, passwordHash, mustConfirmEmail } })
-      : await this.prisma.user.create({ data: { email, name, passwordHash, mustConfirmEmail, travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY } });
+      ? await this.prisma.user.update({ where: { id: existing.id }, data: { name, passwordHash, mustConfirmEmail, termsAcceptedAt: new Date() } })
+      : await this.prisma.user.create({ data: { email, name, passwordHash, mustConfirmEmail, termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY } });
     await this.sendVerification(user);
     return { user, token: await this.createSession(user.id) };
   }
@@ -98,7 +98,7 @@ export class AuthService {
     if (existing?.googleSub) throw new ConflictException({ message: "This email is already linked to a different Google account." });
     if (!existing) {
       const user = await this.prisma.user.create({
-        data: { email, name: identity.name || nameFrom(email), avatar: identity.picture, googleSub: identity.sub, emailVerifiedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
+        data: { email, name: identity.name || nameFrom(email), avatar: identity.picture, googleSub: identity.sub, emailVerifiedAt: new Date(), termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
       });
       return { user, token: await this.createSession(user.id) };
     }

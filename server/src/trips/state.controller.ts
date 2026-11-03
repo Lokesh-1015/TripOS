@@ -1,7 +1,9 @@
-import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, Put } from "@nestjs/common";
+import { Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, Put, Res } from "@nestjs/common";
+import type { Response } from "express";
 import { z } from "zod";
+import { AccountService } from "../auth/account.service.js";
 import { AuthService, normalizeEmail } from "../auth/auth.service.js";
-import { AllowUnconfirmed, CurrentUser } from "../auth/session.guard.js";
+import { AllowUnconfirmed, CurrentUser, SESSION_COOKIE } from "../auth/session.guard.js";
 import { imageRef, parse } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -23,6 +25,7 @@ const profileBody = z.object({
 });
 const savedBody = z.object({ saved: z.array(z.string().max(40)).max(200) });
 const readBody = z.object({ id: z.string().optional() });
+const deleteAccountBody = z.object({ password: z.string().max(200).optional(), email: z.string().max(320).optional() });
 
 const toSettings = (u: User) => ({ currency: u.currency, bio: u.bio, travelStyles: u.travelStyles, notify: u.notify, privacy: u.privacy });
 
@@ -50,13 +53,14 @@ export class StateController {
     private readonly writer: TripWriter,
     private readonly realtime: RealtimeGateway,
     private readonly auth: AuthService,
+    private readonly account: AccountService,
   ) {}
 
   @AllowUnconfirmed()
   @Get("state")
   async state(@CurrentUser() user: User) {
     const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user)]);
-    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, mustConfirmEmail: user.mustConfirmEmail && !user.emailVerifiedAt, hasPassword: !!user.passwordHash, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
+    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, mustConfirmEmail: user.mustConfirmEmail && !user.emailVerifiedAt, hasPassword: !!user.passwordHash, termsAccepted: !!user.termsAcceptedAt, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
   }
 
   @Get("notifications")
@@ -85,6 +89,24 @@ export class StateController {
       shares.forEach((s) => this.realtime.locationsChanged(s.tripId));
     }
     return { user: toPerson(updated), settings: toSettings(updated), onboarded: updated.onboarded, emailVerified: !!updated.emailVerifiedAt };
+  }
+
+  /** Older accounts confirm once that they're 18 or over and accept the terms. */
+  @AllowUnconfirmed()
+  @HttpCode(200)
+  @Post("me/accept-terms")
+  async acceptTerms(@CurrentUser() user: User) {
+    await this.prisma.user.update({ where: { id: user.id }, data: { termsAcceptedAt: user.termsAcceptedAt ?? new Date() } });
+    return { ok: true };
+  }
+
+  @AllowUnconfirmed()
+  @HttpCode(200)
+  @Post("me/delete")
+  async deleteAccount(@CurrentUser() user: User, @Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+    await this.account.deleteAccount(user, parse(deleteAccountBody, body ?? {}));
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    return { ok: true };
   }
 
   @Put("me/saved")

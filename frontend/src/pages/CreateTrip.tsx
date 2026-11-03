@@ -163,7 +163,7 @@ export default function CreateTrip() {
                     <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (!f) return;
-                      void uploadFile(f, { visibility: "public" }).then(({ url }) => set({ cover: url }), (err) => toast.error(apiErrorMessage(err)));
+                      void uploadFile(f, { visibility: "public", photo: true }).then(({ url }) => set({ cover: url }), (err) => toast.error(apiErrorMessage(err)));
                     }} />
                   </label>
                 </Field>

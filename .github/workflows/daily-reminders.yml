@@ -22,3 +22,7 @@ jobs:
           curl --fail --silent --show-error --retry 3 --retry-delay 30 --max-time 180 \
             -X POST -H "x-jobs-secret: $JOBS_SECRET" -H "Content-Type: application/json" -d '{}' \
             https://tripos-api-z0ux.onrender.com/api/jobs/daily
+          # Finishes deletes, and cleans and moves older files. The server also does this while it's awake.
+          curl --fail --silent --show-error --retry 3 --retry-delay 30 --max-time 180 \
+            -X POST -H "x-jobs-secret: $JOBS_SECRET" \
+            https://tripos-api-z0ux.onrender.com/api/jobs/storage

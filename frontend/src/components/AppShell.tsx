@@ -11,6 +11,7 @@ import WhatsNewDialog from "@/components/WhatsNewDialog";
 import { actions, useApp } from "@/lib/store";
 import { Avatar, Logo } from "@/components/common";
 import { NotificationsBell } from "@/components/Notifications";
+import TermsDialog from "@/components/TermsDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -263,9 +264,10 @@ export default function AppShell() {
               <li><b>Everything stays in sync.</b> Changes your crew makes appear on your screen as they happen.</li>
             </ul>
             <button type="button" className={cn(buttonVariants({ variant: "outline" }), "mt-2")} onClick={() => { setHelp(false); setWhatsNew(true); }} data-testid="help-whats-new-button">See what's new</button>
-            <a href="mailto:support@tripos.app" className={buttonVariants({ variant: "outline" })} data-testid="help-contact-link">Email support@tripos.app</a>
+            <Link to="/contact" className={buttonVariants({ variant: "outline" })} onClick={() => setHelp(false)} data-testid="help-contact-link">Contact us</Link>
           </DialogContent>
         </Dialog>
+        <TermsDialog />
         <WhatsNewDialog reopened={whatsNew} onClose={() => setWhatsNew(false)} />
       </div>
     </TooltipProvider>

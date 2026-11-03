@@ -232,7 +232,7 @@ export default function Landing() {
           {[
             ["Product", [["Features", "#features"], ["How it works", "#how"], ["Trip Replay", "#replay"]]],
             ["Get started", [["Sign up", "/signup"], ["Log in", "/login"], ["Forgot password", "/forgot-password"]]],
-            ["Company", [["Contact", "mailto:hello@tripos.app"], ["Support", "mailto:support@tripos.app"]]],
+            ["Company", [["Contact", "/contact"], ["Privacy", "/privacy"], ["Terms", "/terms"]]],
           ].map(([h, links]) => (
             <div key={h as string}>
               <p className="text-sm font-semibold">{h as string}</p>

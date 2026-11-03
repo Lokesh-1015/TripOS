@@ -259,6 +259,8 @@ export interface AppState {
   mustConfirmEmail: boolean;
   /** False for someone who only signs in with Google. */
   hasPassword: boolean;
+  /** False for an account from before the terms existed, until they accept. */
+  termsAccepted?: boolean;
   /** The server hasn't answered yet, and is probably waking up. */
   waking?: boolean;
   /** False until the server has an email provider: nothing can be sent, so screens say so. */

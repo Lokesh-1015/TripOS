@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Contact, Privacy, Terms } from "@/pages/Legal";
 import { Toaster } from "@/components/ui/sonner";
 import Landing from "@/pages/Landing";
 import { ConfirmEmail, ForgotPassword, Login, Onboarding, ResetPassword, Signup, VerifyEmail } from "@/pages/Auth";
@@ -27,6 +28,9 @@ export default function App() {
         <Route path="/confirm-email" element={<ConfirmEmail />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/join/:code" element={<Join />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Dashboard />} />
           <Route path="trips" element={<Trips />} />

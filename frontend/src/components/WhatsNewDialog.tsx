@@ -7,7 +7,9 @@ import { actions, useApp } from "@/lib/store";
 /** Opens by itself until someone has seen the latest release. Help & support can open it again. */
 export default function WhatsNewDialog({ reopened, onClose }: { reopened: boolean; onClose: () => void }) {
   const seen = useApp((s) => s.seenReleaseNotes);
-  const unseen = seen !== LATEST_RELEASE.id;
+  // One popup at a time: the terms come first.
+  const termsPending = useApp((s) => s.termsAccepted === false);
+  const unseen = seen !== LATEST_RELEASE.id && !termsPending;
   const close = () => {
     if (unseen) actions.markReleaseNotesSeen(LATEST_RELEASE.id);
     onClose();

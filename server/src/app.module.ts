@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { AccountService } from "./auth/account.service.js";
 import { AuthController } from "./auth/auth.controller.js";
 import { AuthService } from "./auth/auth.service.js";
 import { EmailCheckService } from "./auth/email-check.service.js";
@@ -9,6 +10,7 @@ import { GoogleAuthService } from "./auth/google-auth.service.js";
 import { SessionGuard } from "./auth/session.guard.js";
 import { TripAccessGuard } from "./authz/trip-access.guard.js";
 import { PrismaExceptionFilter } from "./common/prisma-exception.filter.js";
+import { FileStorage } from "./files/file-storage.service.js";
 import { FilesController } from "./files/files.controller.js";
 import { HealthController } from "./health/health.controller.js";
 import { JobsController } from "./jobs/jobs.controller.js";
@@ -18,6 +20,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
 import { RatesController } from "./rates/rates.controller.js";
 import { RatesService } from "./rates/rates.service.js";
 import { RealtimeGateway } from "./realtime/realtime.gateway.js";
+import { ContactController } from "./support/contact.controller.js";
 import { ExpensesController } from "./trips/expenses.controller.js";
 import { ItineraryController } from "./trips/itinerary.controller.js";
 import { LiveLocationController } from "./trips/live-location.controller.js";
@@ -49,7 +52,8 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     RatesController,
     LiveLocationController,
     JobsController,
+    ContactController,
   ],
-  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AuthService, EmailCheckService, GoogleAuthService, MailService, RatesService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
+  providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AccountService, AuthService, EmailCheckService, FileStorage, GoogleAuthService, MailService, RatesService, RemindersService, TripAccessGuard, RealtimeGateway, TripWriter],
 })
 export class AppModule {}

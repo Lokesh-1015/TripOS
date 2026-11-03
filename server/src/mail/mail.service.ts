@@ -89,6 +89,7 @@ export class MailService {
   private readonly deliver: ((message: Message) => Promise<unknown>) | null;
   private readonly from: string;
   private readonly appUrl: string;
+  private readonly owner: string;
   private readonly optionalAllowance: number;
   private sentOn = "";
   private sentToday = 0;
@@ -107,6 +108,7 @@ export class MailService {
     }
     this.from = config.get<string>("MAIL_FROM", "TripOS <hello@tripos.local>");
     this.appUrl = config.get<string>("APP_URL", "http://localhost:3000");
+    this.owner = config.get<string>("OWNER_EMAIL") ?? /<([^>]+)>/.exec(this.from)?.[1] ?? this.from;
     this.optionalAllowance = Number(config.get<string>("MAIL_OPTIONAL_ALLOWANCE")) || DEFAULT_OPTIONAL_ALLOWANCE;
   }
 
@@ -144,6 +146,11 @@ export class MailService {
   }
 
   /** Reminders, digests and update emails. Returns whether it was sent, so the caller can try again another day. */
+  /** For whoever runs TripOS: contact form messages and reports. Their address never appears on the site. */
+  sendToOwner(subject: string, paragraphs: string[]) {
+    return this.send({ to: this.owner, subject, paragraphs, action: { label: "Open TripOS", url: this.appUrl } });
+  }
+
   async sendSummary(to: string, subject: string, paragraphs: string[], action: { label: string; path: string }) {
     if (this.countToday() >= this.optionalAllowance) {
       this.logger.warn("Today's allowance for optional emails is used up");

@@ -152,7 +152,7 @@ export default function ChatTab({ trip }: { trip: Trip }) {
           <Button type="submit" size="icon" className="size-10 rounded-xl" disabled={!text.trim()} aria-label="Send message" data-testid="chat-send-button"><Send className="size-4" /></Button>
           <input ref={imgRef} type="file" accept="image/*" className="sr-only" onChange={(e) => {
             const f = e.target.files?.[0]; e.target.value = "";
-            if (f) void uploadFile(f, { tripId: trip.id, visibility: "shared" }).then(({ url }) => post({ kind: "image", text: "", imageUrl: url }), (err) => toast.error(apiErrorMessage(err)));
+            if (f) void uploadFile(f, { tripId: trip.id, visibility: "shared", photo: true }).then(({ url }) => post({ kind: "image", text: "", imageUrl: url }), (err) => toast.error(apiErrorMessage(err)));
           }} />
           <input ref={fileRef} type="file" className="sr-only" onChange={(e) => {
             const f = e.target.files?.[0]; e.target.value = "";

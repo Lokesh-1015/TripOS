@@ -33,7 +33,7 @@ export default function MemoriesTab({ trip }: { trip: Trip }) {
     const day = today < trip.startDate ? 0 : Math.min(tripDays(trip) - 1, Math.max(0, Math.round((parseISO(today).getTime() - parseISO(trip.startDate).getTime()) / 86400000)));
     const targetAlbum = album === "All" ? "Uploads" : album;
     void Promise.allSettled(Array.from(files).slice(0, 10).map(async (f) => {
-      const { url } = await uploadFile(f, { tripId: trip.id, visibility: "shared" });
+      const { url } = await uploadFile(f, { tripId: trip.id, visibility: "shared", photo: f.type.startsWith("image/") });
       actions.upsert(trip.id, "photos", { id: uid("ph"), url, caption: f.name.replace(/\.[^.]+$/, ""), authorId: me, day, album: targetAlbum, kind: f.type.startsWith("video") ? "video" : "photo" }, { text: "added a photo to Memories", kind: "memory" });
     })).then((results) => {
       const added = results.filter((r) => r.status === "fulfilled").length;

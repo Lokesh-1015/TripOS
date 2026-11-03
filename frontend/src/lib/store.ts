@@ -389,6 +389,18 @@ export const actions = {
     });
     void loadState();
   },
+  async acceptTerms() {
+    set({ ...state, termsAccepted: true });
+    await apiPost("/me/accept-terms");
+  },
+  /** Proves it's really them with a password, or by typing their email if they only use Google. */
+  async deleteAccount(proof: { password?: string; email?: string }) {
+    await apiPost("/me/delete", proof);
+    disconnectSocket();
+    clearTimeout(offlineCopyTimer);
+    await clearOfflineCopy();
+    return endSession("/");
+  },
   async signOut() {
     disconnectSocket();
     clearTimeout(offlineCopyTimer);
