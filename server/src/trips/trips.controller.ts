@@ -46,7 +46,7 @@ const createBody = z
     travelStyle: publicDetails.travelStyle.default(""),
     showBudget: publicDetails.showBudget.default(false),
     showPlan: publicDetails.showPlan.default(false),
-    // Email for new people; id for "quick add from past trips", whose emails may be hidden.
+    // Email for new people; id for someone picked from search, friends or past trips, whose emails stay hidden.
     members: z.array(z.object({ email: z.email().optional(), id: z.string().optional() })).max(50).default([]),
     polls: z.array(pollBody).max(5).default([]),
   })
@@ -76,7 +76,10 @@ const patchBody = z.object({
   version,
 });
 
-const inviteBody = z.object({ email: z.email() });
+// An email address for someone new, or the id of a traveller picked from search, friends or past trips.
+const inviteBody = z
+  .object({ email: z.email().optional(), userId: z.string().min(1).max(64).optional() })
+  .refine((b) => !!b.email !== !!b.userId, { message: "Choose someone to invite" });
 const roleBody = z.object({ role: z.enum(["admin", "member", "viewer"]) });
 
 const nameFromEmail = (email: string) =>
@@ -86,6 +89,27 @@ const nameFromEmail = (email: string) =>
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
 const dayCount = (start: string, end: string) => Math.round((asDate(end).getTime() - asDate(start).getTime()) / 86_400_000) + 1;
+
+/**
+ * Someone picked by id can be invited when they're findable (a confirmed, set-up account) or have travelled
+ * with the inviter. Blocked people, either way, and deleted or suspended accounts can't be.
+ */
+async function invitableUser(tx: Prisma.TransactionClient, inviterId: string, targetId: string) {
+  if (targetId === inviterId) return null;
+  const blocked = await tx.block.count({ where: { OR: [{ blockerId: inviterId, blockedId: targetId }, { blockerId: targetId, blockedId: inviterId }] } });
+  if (blocked) return null;
+  return tx.user.findFirst({
+    where: {
+      id: targetId,
+      deletedAt: null,
+      suspendedAt: null,
+      OR: [
+        { onboarded: true, emailVerifiedAt: { not: null } },
+        { memberships: { some: { status: "active", trip: { members: { some: { userId: inviterId, status: "active" } } } } } },
+      ],
+    },
+  });
+}
 
 /** An invitee may not have an account yet: the placeholder row is claimed when they sign up. */
 async function findOrCreateUser(tx: Prisma.TransactionClient, rawEmail: string) {
@@ -150,8 +174,7 @@ export class TripsController {
       });
       const people: { id: string; email: string; passwordHash: string | null }[] = [];
       for (const m of input.members) {
-        // Quick add only reaches people the caller has actually travelled with.
-        const known = m.id ? await tx.user.findFirst({ where: { id: m.id, memberships: { some: { status: "active", trip: { members: { some: { userId: user.id, status: "active" } } } } } } }) : null;
+        const known = m.id ? await invitableUser(tx, user.id, m.id) : null;
         const invitee = known ?? (m.email ? await findOrCreateUser(tx, m.email) : null);
         if (!invitee || invitee.id === user.id || people.some((p) => p.id === invitee.id)) continue;
         await tx.tripMember.create({ data: { tripId: input.id, userId: invitee.id, role: "member", status: "invited" } });
@@ -310,10 +333,11 @@ export class TripsController {
   async invite(@Param("tripId") tripId: string, @Actor() actor: TripActor, @CurrentUser() user: User, @Body() body: unknown) {
     enforce(canInviteMembers(actor));
     assertVerified(user, "invite people");
-    const { email } = parse(inviteBody, body);
+    const { email, userId } = parse(inviteBody, body);
     const invitee = await this.writer.run(tripId, user.id, async ({ tx, log, tripName }) => {
       await assertRoom(tx, tripId);
-      const invitee = await findOrCreateUser(tx, email);
+      const invitee = userId ? await invitableUser(tx, user.id, userId) : await findOrCreateUser(tx, email as string);
+      if (!invitee) throw new NotFoundException({ message: "We couldn't find that traveller" });
       const existing = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: invitee.id } } });
       if (existing && existing.status !== "removed") throw new ConflictException({ message: "This person is already on the trip" });
       await tx.tripMember.upsert({

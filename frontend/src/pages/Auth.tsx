@@ -90,7 +90,7 @@ export function Login() {
           <Input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 rounded-xl" aria-invalid={!!err.email} data-testid="login-email-input" />
         </Field>
         <Field label="Password" htmlFor="login-password" error={err.pw}>
-          <Input id="login-password" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" aria-invalid={!!err.pw} data-testid="login-password-input" />
+          <Input id="login-password" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} className="h-11 rounded-xl" aria-invalid={!!err.pw} data-testid="login-password-input" />
         </Field>
         <div className="-mt-1 text-right">
           <Link to="/forgot-password" className="text-sm font-medium text-forest hover:underline" data-testid="login-forgot-link">Forgot password?</Link>

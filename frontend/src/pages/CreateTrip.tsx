@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, Field } from "@/components/common";
 import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
+import { InvitePeople } from "@/components/trip/InvitePeople";
 import { TripVisibilityFields, type VisibilityDraft } from "@/components/trip/TripVisibilityFields";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
@@ -25,7 +26,7 @@ const COVERS = [IMG.manali, IMG.goa, IMG.udaipur, IMG.pangong, IMG.kerala, IMG.m
 interface Draft {
   name: string; destination: string; description: string; cover: string;
   startDate: string; endDate: string; flexibleDates: boolean;
-  members: Member[]; budget: string; currency: string; perPerson: string;
+  members: Member[]; budget: string; currency: string;
   limited: boolean; maxParticipants: string;
   sharing: VisibilityDraft;
 }
@@ -38,15 +39,12 @@ export default function CreateTrip() {
   const navigate = useNavigate();
   const [qs] = useSearchParams();
   const [tripId] = useState(() => uid("trip"));
-  // Quick add offers people you've actually travelled with.
-  const pastCrew = useApp((s) => s.trips.flatMap((t) => t.members));
-  const people = Array.from(new Map(pastCrew.filter((p) => p.id !== user.id).map((p) => [p.id, p])).values());
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [d, setD] = useState<Draft>({
     name: qs.get("name") ?? "", destination: qs.get("dest") ?? "", description: "", cover: "",
     startDate: "", endDate: "", flexibleDates: false,
-    members: [{ ...user, role: "owner" }], budget: "", currency: settings.currency, perPerson: "",
+    members: [{ ...user, role: "owner" }], budget: "", currency: settings.currency,
     limited: false, maxParticipants: "",
     // Explore's Host a Trip starts here as public. Anywhere else, trips start private.
     sharing: { visibility: qs.get("public") === "1" && emailVerified ? "public" : "private", category: "", travelStyle: "", showBudget: false, showPlan: true },
@@ -105,7 +103,7 @@ export default function CreateTrip() {
       flexibleDates: d.flexibleDates,
       currency: d.currency,
       budget: +d.budget || 0,
-      perPersonBudget: +d.perPerson || 0,
+      perPersonBudget: 0,
       maxParticipants: d.limited ? +d.maxParticipants : null,
       ...d.sharing,
       members: d.members,
@@ -190,7 +188,7 @@ export default function CreateTrip() {
               <div className="grid gap-5" data-testid="create-trip-dates">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Start date" htmlFor="ct-start" error={err.startDate}>
-                    <Input id="ct-start" type="date" min={todayISO()} value={d.startDate} onChange={(e) => set({ startDate: e.target.value })} className="h-11 rounded-xl" data-testid="create-trip-start-date-input" />
+                    <Input id="ct-start" type="date" min={todayISO()} value={d.startDate} onChange={(e) => { const startDate = e.target.value; set({ startDate, ...(d.endDate && startDate && d.endDate < startDate ? { endDate: "" } : {}) }); }} className="h-11 rounded-xl" data-testid="create-trip-start-date-input" />
                   </Field>
                   <Field label="End date" htmlFor="ct-end" error={err.endDate}>
                     <Input id="ct-end" type="date" min={d.startDate || todayISO()} value={d.endDate} onChange={(e) => set({ endDate: e.target.value })} className="h-11 rounded-xl" data-testid="create-trip-end-date-input" />
@@ -208,30 +206,20 @@ export default function CreateTrip() {
             {step === 2 && (
               <div className="grid gap-5" data-testid="create-trip-members">
                 {!emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="create-trip-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can skip this for now and share the trip's link once it's created." : "Email invites aren't available yet. Share the trip's link once it's created."}</p>}
-                {emailVerified && <Field label="Invite by email" htmlFor="ct-email" error={err.email}>
+                {emailVerified && <Field label="Invite travellers">
+                  <InvitePeople label="Add" added={new Set(d.members.map((m) => m.id))} onPick={(p) => set({ members: [...d.members, { id: p.id, name: p.name, avatar: p.avatar, email: "", username: p.username, role: "member" }] })} />
+                </Field>}
+                {emailVerified && <Field label="Or invite someone new by email" htmlFor="ct-email" error={err.email}>
                   <div className="flex gap-2">
                     <Input id="ct-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail())} placeholder="friend@email.com" className="h-11 rounded-xl" data-testid="create-trip-invite-email-input" />
                     <Button onClick={addEmail} className="h-11 rounded-xl" data-testid="create-trip-invite-add-button">Add</Button>
                   </div>
                 </Field>}
-                {emailVerified && people.length > 0 && <div>
-                  <p className="mb-2 text-[13px] font-medium">Quick add from past trips</p>
-                  <div className="flex flex-wrap gap-2">
-                    {people.map((p) => {
-                      const on = d.members.some((m) => m.id === p.id);
-                      return (
-                        <button key={p.id} onClick={() => set({ members: on ? d.members.filter((m) => m.id !== p.id) : [...d.members, { ...p, role: "member" }] })} className={cn("flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors", on ? "border-forest bg-sage text-forest" : "border-line hover:border-forest/40")} aria-pressed={on} data-testid={`create-trip-quick-add-${p.id}`}>
-                          <Avatar person={p} size={24} ring={false} /> {p.name.split(" ")[0]} {on && <Check className="size-3.5" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>}
                 <div className="rounded-xl border border-line">
                   {d.members.map((m) => (
                     <div key={m.id} className="flex items-center gap-3 border-b px-4 py-3 last:border-0">
                       <Avatar person={m} size={32} ring={false} />
-                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === user.id && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.email}</p></div>
+                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === user.id && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.email || (m.username ? `@${m.username}` : "")}</p></div>
                       <span className="text-xs capitalize text-ink-muted">{m.role}</span>
                       {m.id !== user.id && <button onClick={() => set({ members: d.members.filter((x) => x.id !== m.id) })} className="rounded-md p-1 text-ink-muted hover:bg-muted" aria-label={`Remove ${m.name}`} data-testid={`create-trip-remove-member-${m.id}`}><X className="size-4" /></button>}
                     </div>
@@ -247,7 +235,7 @@ export default function CreateTrip() {
               <div className="grid gap-5" data-testid="create-trip-budget">
                 <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
                   <Field label="Estimated total budget" htmlFor="ct-budget" error={err.budget} hint="Optional - helps track spending against plan">
-                    <Input id="ct-budget" inputMode="numeric" value={d.budget} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ""); set({ budget: v, perPerson: v ? String(Math.round(+v / d.members.length)) : "" }); }} placeholder="50000" className="num h-11 rounded-xl" data-testid="create-trip-budget-input" />
+                    <Input id="ct-budget" inputMode="numeric" value={d.budget} onChange={(e) => set({ budget: e.target.value.replace(/[^\d.]/g, "") })} placeholder="50000" className="num h-11 rounded-xl" data-testid="create-trip-budget-input" />
                   </Field>
                   <Field label="Currency">
                     <Select value={d.currency} onValueChange={(v) => set({ currency: v })}>
@@ -256,9 +244,6 @@ export default function CreateTrip() {
                     </Select>
                   </Field>
                 </div>
-                <Field label="Per-person budget (optional)" htmlFor="ct-pp" hint={`Auto-calculated for ${d.members.length} member(s); edit if needed`}>
-                  <Input id="ct-pp" inputMode="numeric" value={d.perPerson} onChange={(e) => set({ perPerson: e.target.value.replace(/[^\d.]/g, "") })} className="num h-11 rounded-xl" data-testid="create-trip-per-person-input" />
-                </Field>
               </div>
             )}
             {step === 4 && (
@@ -273,7 +258,7 @@ export default function CreateTrip() {
                     ["Basics", d.description || "No description", 0],
                     ["Dates", `${fmtRange(d.startDate, d.endDate)}${d.flexibleDates ? " · flexible" : ""}`, 1],
                     ["Members", d.members.map((m) => m.name.split(" ")[0]).join(", "), 2],
-                    ["Budget", d.budget ? `${money(+d.budget, d.currency)}${d.perPerson ? ` · ${money(+d.perPerson, d.currency)} per person` : ""}` : "Not set", 3],
+                    ["Budget", d.budget ? money(+d.budget, d.currency) : "Not set", 3],
                   ].map(([l, v, s]) => (
                     <div key={l as string} className="flex items-start gap-4 px-4 py-3">
                       <dt className="w-20 shrink-0 text-xs font-medium uppercase tracking-wider text-ink-muted">{l as string}</dt>

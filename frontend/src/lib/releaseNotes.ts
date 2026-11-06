@@ -17,6 +17,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-10",
+    features: [
+      { icon: UserPlus, title: "Invite travellers by name", body: "Search for people by name or username, or pick from your friends and people from your past trips. Email still works for someone new." },
+    ],
+    improved: ["Trips have one budget, the total. The per-person budget is gone.", "Once you choose a start date, earlier end dates can't be picked."],
+    fixed: [],
+  },
+  {
     id: "2026-11-09",
     features: [
       { icon: UserX, title: "Leave a trip", body: "Leave a trip from its menu. Members ask an admin first. An admin can hand the trip over to someone else as they go. Whatever you added stays with the group." },

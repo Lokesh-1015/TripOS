@@ -69,7 +69,7 @@ function toPublicTrip(t: PublicRow) {
     maxParticipants: t.maxParticipants,
     placesLeft: t.maxParticipants == null ? null : Math.max(0, t.maxParticipants - joined),
     full: t.maxParticipants != null && joined >= t.maxParticipants,
-    budgetPerPerson: t.showBudget && t.perPersonBudgetMinor > 0 ? fromMinor(t.perPersonBudgetMinor) : null,
+    budget: t.showBudget && t.budgetMinor > 0 ? fromMinor(t.budgetMinor) : null,
     currency: t.showBudget ? t.currency : null,
     plan: t.showPlan ? t.activities.map((a) => ({ day: a.day, title: a.title, type: a.type })) : [],
     hostUserId: owner?.userId,
@@ -108,7 +108,7 @@ export class PublicTripsController {
     if (q.to) where.endDate = { gte: today(), lte: asDate(q.to) };
     if (q.category) where.category = q.category;
     if (q.style) where.travelStyle = q.style;
-    if (q.budgetMax) Object.assign(where, { showBudget: true, perPersonBudgetMinor: { gt: 0, lte: toMinor(q.budgetMax) }, ...(q.currency ? { currency: q.currency } : {}) });
+    if (q.budgetMax) Object.assign(where, { showBudget: true, budgetMinor: { gt: 0, lte: toMinor(q.budgetMax) }, ...(q.currency ? { currency: q.currency } : {}) });
 
     const blocked = await this.social.blockedIds(user.id);
     const rows = await this.prisma.trip.findMany({ where, include: publicInclude, orderBy: [{ startDate: "asc" }, { id: "asc" }], take: SCAN });

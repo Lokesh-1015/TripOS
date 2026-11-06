@@ -12,6 +12,8 @@ export interface Person {
 
 export interface Member extends Person {
   role: Role;
+  /** Known when they were picked from search or friends; the trip's own member list doesn't carry it. */
+  username?: string;
   status?: "invited" | "active";
 }
 
