@@ -235,7 +235,7 @@ export default function Settings() {
             </Field>
             <div className="flex justify-end gap-2 border-t pt-4">
               <Button variant="outline" disabled={!dirty} onClick={() => { setP({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles }); setUsername(me?.username ?? ""); }} data-testid="settings-profile-discard">Discard</Button>
-              <Button disabled={!dirty || saving} onClick={() => void saveProfile()} data-testid="settings-profile-save">{saving ? "Saving…" : "Save changes"}</Button>
+              <Button disabled={!dirty || saving} onClick={() => void saveProfile()} data-testid="settings-profile-save">{saving ? "Savingâ€¦" : "Save changes"}</Button>
             </div>
           </section>
         </TabsContent>

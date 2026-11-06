@@ -51,7 +51,7 @@ export function UsernameField({ id, value, current, nextChangeAt, setup = false,
     <Field label="Username" htmlFor={id} hint={hint}>
       <div className="relative">
         <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-muted">@</span>
-        <Input id={id} value={value} maxLength={31} disabled={locked || !current} placeholder={current ? undefined : "Loading…"} autoComplete="off" autoCapitalize="none" spellCheck={false} className={`pl-7 ${inputClassName}`} onChange={(e) => onChange(e.target.value.replace(/^@/, ""))} data-testid={testId} />
+        <Input id={id} value={value} maxLength={31} disabled={locked || !current} placeholder={current ? undefined : "Loadingâ€¦"} autoComplete="off" autoCapitalize="none" spellCheck={false} className={`pl-7 ${inputClassName}`} onChange={(e) => onChange(e.target.value.replace(/^@/, ""))} data-testid={testId} />
       </div>
     </Field>
   );
