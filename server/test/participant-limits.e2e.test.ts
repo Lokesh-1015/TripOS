@@ -173,6 +173,22 @@ describe("participant limits", () => {
     expect(await kinds()).toContain("trip_full");
   });
 
+  it("tells the host when someone joins, grouped while it's unread, but never tells the person joining", async () => {
+    const owner = await Client.person("owner");
+    const { joinCode } = await newTrip(owner, null);
+    const joinedNotes = async (c: Client) => (await c.req("GET", "/notifications")).body.filter((n: { kind: string }) => n.kind === "member_joined");
+    const first = await Client.person("first");
+    await join(first, joinCode);
+    expect(await joinedNotes(owner)).toHaveLength(1);
+    expect((await joinedNotes(owner))[0].title).toContain("first Tester joined");
+    await join(await Client.person("second"), joinCode);
+    expect(await joinedNotes(owner)).toHaveLength(1);
+    expect(await joinedNotes(first)).toHaveLength(0);
+    await owner.req("POST", "/notifications/read", {});
+    await join(await Client.person("third"), joinCode);
+    expect(await joinedNotes(owner)).toHaveLength(2);
+  });
+
   it("shows capacity on the invite page, to anyone with the link", async () => {
     const owner = await Client.person("owner");
     const { joinCode } = await newTrip(owner, 2);

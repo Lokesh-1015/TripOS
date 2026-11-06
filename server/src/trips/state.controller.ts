@@ -8,7 +8,7 @@ import { imageRef, parse } from "../common/validation.js";
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
-import { assertRoom, tellHostsIfFull } from "./participants.js";
+import { assertRoom, tellHostsIfFull, tellHostsSomeoneJoined } from "./participants.js";
 import { tripInclude, toPerson, toTrip } from "./trip.serializer.js";
 import { TripWriter } from "./trip-writer.service.js";
 
@@ -154,6 +154,7 @@ export class StateController {
       if (!count) throw new NotFoundException({ message: "This invitation is no longer available" });
       await tx.notification.delete({ where: { id } });
       await log("joined the trip", "member");
+      await tellHostsSomeoneJoined(ctx, tripId, user.name);
       await tellHostsIfFull(ctx, tripId);
     });
     this.realtime.membershipChanged(user.id, tripId, true);

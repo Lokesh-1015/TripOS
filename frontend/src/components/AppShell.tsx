@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
+import { PageLoading } from "@/components/PageLoading";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import {
@@ -224,7 +225,7 @@ export default function AppShell() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <Outlet />
+              <Suspense fallback={<PageLoading />}><Outlet /></Suspense>
             </motion.div>
           </main>
         </div>

@@ -1,28 +1,41 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { Contact, Privacy, Terms } from "@/pages/Legal";
-import People from "@/pages/People";
-import Feed, { PostPage } from "@/pages/Feed";
-import PublicTripPage from "@/pages/PublicTrip";
-import Profile from "@/pages/Profile";
-import AdminReports from "@/pages/AdminReports";
 import { Toaster } from "@/components/ui/sonner";
 import Landing from "@/pages/Landing";
 import { ConfirmEmail, ForgotPassword, Login, Onboarding, ResetPassword, Signup, VerifyEmail } from "@/pages/Auth";
 import AppShell from "@/components/AppShell";
-import Dashboard from "@/pages/Dashboard";
-import Trips from "@/pages/Trips";
-import CreateTrip from "@/pages/CreateTrip";
-import TripWorkspace from "@/pages/TripWorkspace";
-import TripReplay from "@/pages/TripReplay";
-import Explore from "@/pages/Explore";
-import Settings from "@/pages/Settings";
-import Join from "@/pages/Join";
-import { DocumentsHub, ExpensesHub, MemoriesHub, TasksHub } from "@/pages/Hubs";
+import { PageLoading } from "@/components/PageLoading";
+
+// The landing and sign-in pages load straight away. Everything else loads when it's first opened, so the
+// first visit downloads far less. Installed copies still have every page offline, as they're all cached.
+const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, name: K) => lazy(() => load().then((m) => ({ default: m[name] })));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Trips = lazy(() => import("@/pages/Trips"));
+const CreateTrip = lazy(() => import("@/pages/CreateTrip"));
+const TripWorkspace = lazy(() => import("@/pages/TripWorkspace"));
+const TripReplay = lazy(() => import("@/pages/TripReplay"));
+const Explore = lazy(() => import("@/pages/Explore"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const Join = lazy(() => import("@/pages/Join"));
+const People = lazy(() => import("@/pages/People"));
+const Feed = lazy(() => import("@/pages/Feed"));
+const PostPage = named(() => import("@/pages/Feed"), "PostPage");
+const PublicTripPage = lazy(() => import("@/pages/PublicTrip"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const AdminReports = lazy(() => import("@/pages/AdminReports"));
+const Privacy = named(() => import("@/pages/Legal"), "Privacy");
+const Terms = named(() => import("@/pages/Legal"), "Terms");
+const Contact = named(() => import("@/pages/Legal"), "Contact");
+const ExpensesHub = named(() => import("@/pages/Hubs"), "ExpensesHub");
+const TasksHub = named(() => import("@/pages/Hubs"), "TasksHub");
+const MemoriesHub = named(() => import("@/pages/Hubs"), "MemoriesHub");
+const DocumentsHub = named(() => import("@/pages/Hubs"), "DocumentsHub");
 
 // One <Route> per page in src/pages; BrowserRouter already wraps this in main.tsx.
 export default function App() {
   return (
     <>
+      <Suspense fallback={<PageLoading fullScreen />}>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -58,6 +71,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       <Toaster richColors position="bottom-right" mobileOffset={{ bottom: 88 }} />
     </>
   );

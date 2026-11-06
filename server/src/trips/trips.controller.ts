@@ -14,7 +14,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { MailService } from "../mail/mail.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import { SocialService } from "../social/social.service.js";
-import { assertRoom, tellHostsIfFull } from "./participants.js";
+import { assertRoom, tellHostsIfFull, tellHostsSomeoneJoined } from "./participants.js";
 import { pollBody, pollData } from "./polls.controller.js";
 import { assertVerified } from "./state.controller.js";
 import { dateString } from "../common/validation.js";
@@ -422,6 +422,7 @@ export class InvitesController {
         });
         await tx.notification.deleteMany({ where: { tripId: trip.id, userId: user.id, kind: "invite" } });
         await log("joined via invite link", "member");
+        await tellHostsSomeoneJoined(ctx, trip.id, user.name);
         await tellHostsIfFull(ctx, trip.id);
       });
       this.realtime.membershipChanged(user.id, trip.id, true);

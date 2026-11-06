@@ -199,7 +199,10 @@ test('a post shared into a trip chat only opens for people who could see it', as
   await author.page.goto(`/app/posts/${postId}`);
   await author.page.locator('[data-testid^="post-menu-"]').click();
   await author.page.locator('[data-testid^="post-share-"]').click();
+  // Sharing saves in the background, so this waits for it to reach the server.
+  const sent = author.page.waitForResponse((r) => r.url().includes(`/trips/${id}/messages/`) && r.request().method() === 'PUT' && r.ok());
   await author.page.getByTestId(`share-post-trip-${id}`).click();
+  await sent;
 
   await tripmate.page.goto(`/app/trips/${id}/chat`);
   await expect(tripmate.page.locator('[data-testid^="chat-post-unavailable-"]')).toHaveText("This post isn't available to you");

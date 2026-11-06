@@ -21,6 +21,12 @@ export async function assertRoom(tx: Prisma.TransactionClient, tripId: string, j
   if (joined >= trip.maxParticipants) throw new ConflictException({ code: "TRIP_FULL", message: FULL_MESSAGE });
 }
 
+/** Tells the host and admins someone has joined, grouped so a busy link doesn't flood them. */
+export async function tellHostsSomeoneJoined(ctx: Pick<WriteContext, "tx" | "notify" | "tripName">, tripId: string, name: string) {
+  const hosts = await ctx.tx.tripMember.findMany({ where: { tripId, status: "active", role: { in: ["owner", "admin"] } }, select: { userId: true } });
+  await ctx.notify({ kind: "member_joined", title: `${name} joined ${ctx.tripName}`, body: "Say hello in the trip chat", link: `/app/trips/${tripId}`, to: hosts.map((h) => h.userId), collapseUnread: true });
+}
+
 /** Tells the host and admins, once, when the last place has gone. */
 export async function tellHostsIfFull(ctx: Pick<WriteContext, "tx" | "notify" | "tripName">, tripId: string) {
   const trip = await ctx.tx.trip.findUniqueOrThrow({ where: { id: tripId }, select: { maxParticipants: true } });

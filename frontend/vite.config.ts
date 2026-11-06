@@ -129,6 +129,8 @@ export default defineConfig(async () => {
     server: {
       host: true,
       port: 3000,
+      // Pages load on demand, so the dev server would otherwise compile each one the first time it's opened.
+      warmup: { clientFiles: ["./src/pages/*.tsx", "./src/components/AppShell.tsx"] },
       allowedHosts: true,
       // Preview probe + /edit-file are cross-origin from the Emergent tab; Vite defaults to localhost-only CORS.
       cors: true,

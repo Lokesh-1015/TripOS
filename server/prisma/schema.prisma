@@ -135,6 +135,7 @@ enum NotificationKind {
   join_rejected
   post_like
   post_comment
+  member_joined
 }
 
 enum PostVisibility {

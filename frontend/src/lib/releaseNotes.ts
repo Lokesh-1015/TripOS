@@ -20,9 +20,10 @@ export const RELEASES: Release[] = [
     id: "2026-11-08",
     features: [
       { icon: Newspaper, title: "Travel posts", body: "Share photos from your travels with a caption and destination, and choose who sees each one: everyone, your friends, or only you. Like and comment on posts in the new Feed." },
+      { icon: UserPlus, title: "Know when people join", body: "Hosts now get a notification when someone joins their trip, by invitation or link." },
       { icon: Share2, title: "Share a memory as a post", body: "Open one of your photos in a trip's Memories and choose Share as post. Your post gets its own copy, so the trip's memories stay exactly as they were." },
     ],
-    improved: [],
+    improved: ["TripOS opens faster: each page now loads when you first visit it, rather than all at once."],
     fixed: [],
   },
   {

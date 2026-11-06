@@ -242,7 +242,7 @@ export interface Trip {
 export interface AppNotification {
   id: string;
   tripId?: string;
-  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected" | "post_like" | "post_comment";
+  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected" | "post_like" | "post_comment" | "member_joined";
   title: string;
   body: string;
   at: string;
