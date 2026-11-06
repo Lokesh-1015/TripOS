@@ -9,11 +9,12 @@ import { PostsService } from "../posts/posts.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import { assertVerified } from "../trips/state.controller.js";
-import { listed, pair, RESERVED_USERNAMES, SocialService, USERNAME } from "./social.service.js";
+import { listed, pair, SocialService } from "./social.service.js";
+import { nextUsernameChange, normalizeUsername, USERNAME, USERNAME_COOLDOWN_DAYS, USERNAME_RULES, usernameProblem } from "./usernames.js";
 
 const tagList = z.array(z.string().trim().min(1).max(60)).max(30);
 const profileBody = z.object({
-  username: z.string().trim().toLowerCase().regex(USERNAME, "Use 3 to 30 lowercase letters, numbers or underscores").optional(),
+  username: z.string().transform(normalizeUsername).pipe(z.string().regex(USERNAME, USERNAME_RULES)).optional(),
   location: z.string().trim().max(100).optional(),
   coverPhoto: imageRef.optional(),
   interests: tagList.optional(),
@@ -23,7 +24,7 @@ const profileBody = z.object({
   friendRequestsFrom: z.enum(["everyone", "nobody"]).optional(),
 });
 const searchQuery = z.object({ q: z.string().trim().min(2).max(60) });
-const requestBody = z.object({ username: z.string().trim().min(1).max(30) });
+const requestBody = z.object({ username: z.string().trim().min(1).max(60) });
 const userBody = z.object({ userId: z.string().min(1).max(64) });
 const reportBody = z.object({
   targetType: z.enum(["profile", "trip", "post"]),
@@ -50,6 +51,8 @@ export class SocialController {
       friendRequestsFrom: me.friendRequestsFrom,
       emailVerified: !!me.emailVerifiedAt,
       isAdmin: this.social.isAdmin(me),
+      usernameChangedAt: me.usernameChangedAt?.toISOString() ?? null,
+      nextUsernameChangeAt: nextUsernameChange(me.usernameChangedAt)?.toISOString() ?? null,
     };
   }
 
@@ -62,10 +65,23 @@ export class SocialController {
   async updateProfile(@CurrentUser() user: User, @Body() body: unknown) {
     const patch = parse(profileBody, body);
     if (patch.username && patch.username !== user.username) {
-      if (RESERVED_USERNAMES.has(patch.username)) throw new ConflictException({ message: "That username isn't available" });
-      if (await this.prisma.user.findUnique({ where: { username: patch.username }, select: { id: true } })) throw new ConflictException({ message: "That username isn't available" });
-    }
+      const next = nextUsernameChange(user.usernameChangedAt);
+      if (next) throw new ConflictException({ code: "USERNAME_COOLDOWN", nextChangeAt: next.toISOString(), message: `You can change your username once every ${USERNAME_COOLDOWN_DAYS} days. You can next change it on ${next.toDateString().slice(4)}.` });
+      const problem = await usernameProblem(this.prisma, patch.username, user.id);
+      if (problem) throw new ConflictException({ message: problem });
+    } else delete patch.username;
     return this.own(await this.prisma.user.update({ where: { id: user.id }, data: patch }));
+  }
+
+  /** Whether a username is free, for checking as someone types. */
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 120 } })
+  @Get("usernames/check")
+  async checkUsername(@CurrentUser() user: User, @Query() query: unknown) {
+    const username = normalizeUsername(parse(z.object({ username: z.string().max(60) }), query).username);
+    if (username === user.username) return { username, available: true, mine: true, reason: null };
+    const reason = await usernameProblem(this.prisma, username, user.id);
+    return { username, available: !reason, mine: false, reason };
   }
 
   @Get("profiles/:username")
@@ -78,7 +94,8 @@ export class SocialController {
   @Throttle({ default: { ttl: 60_000, limit: 60 } })
   @Get("people/search")
   async search(@CurrentUser() user: User, @Query() query: unknown) {
-    const { q } = parse(searchQuery, query);
+    const { q: raw } = parse(searchQuery, query);
+    const q = raw.replace(/^@/, "");
     const hidden = [...(await this.social.blockedIds(user.id)), user.id];
     const where: Prisma.UserWhereInput = {
       ...listed,
@@ -229,7 +246,7 @@ export class SocialController {
     const target = await this.prisma.user.findUnique({ where: { id: input.targetId }, select: { id: true, username: true, name: true } });
     if (!target || target.id === user.id) throw new NotFoundException({ message: "We couldn't find that traveller" });
     await this.prisma.report.create({ data: { reporterId: user.id, ...input } });
-    void this.mail.sendToOwner("A traveller was reported on TripOS", [`${target.name} (@${target.username ?? "no username"}) was reported for: ${input.reason}.`, input.details || "No details were given.", "Open the reports page in TripOS to review it."]);
+    void this.mail.sendToOwner("A traveller was reported on TripOS", [`${target.name} (@${target.username}) was reported for: ${input.reason}.`, input.details || "No details were given.", "Open the reports page in TripOS to review it."]);
     return { ok: true };
   }
 

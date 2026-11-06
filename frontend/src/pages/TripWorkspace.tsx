@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Archive, ArchiveRestore, CalendarDays, ChevronLeft, Copy, CopyPlus, MapPin, MoreHorizontal, Pencil, Play, Share2, Trash2, UserPlus, Users } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarDays, ChevronLeft, Copy, CopyPlus, LogOut, MapPin, MoreHorizontal, Pencil, Play, Share2, Trash2, UserPlus, Users } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
@@ -16,6 +16,7 @@ import { actions, inviteLink, saved, useApp, useTrip } from "@/lib/store";
 import { CURRENCIES, daysUntil, fmtRange, hasAmounts, isTripFull, joinedCount, tripStatus, uid } from "@/lib/format";
 import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
 import { TripVisibilityFields, type VisibilityDraft } from "@/components/trip/TripVisibilityFields";
+import { LeaveRequestActions, LeaveTripDialog } from "@/components/trip/LeaveTrip";
 import type { Member, Role, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import OverviewTab from "@/components/trip/OverviewTab";
@@ -80,7 +81,7 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
             {trip.members.map((m) => (
               <div key={m.id} className="flex items-center gap-3 border-b px-3 py-2.5 last:border-0" data-testid={`member-row-${m.id}`}>
                 <Avatar person={m} size={34} ring={false} />
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === me && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.status === "invited" ? `Invited${m.email ? ` · ${m.email}` : ""}` : m.email}</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === me && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.status === "invited" ? `Invited${m.email ? ` · ${m.email}` : ""}` : m.email}</p>{access.canAdmin && <LeaveRequestActions trip={trip} member={m} />}</div>
                 <Select value={m.role} onValueChange={(v) => { actions.upsert(trip.id, "members", { ...m, role: v as Role }); saved(`${m.name.split(" ")[0]} is now ${v}`); }} disabled={!access.canManageMember(m)}>
                   <SelectTrigger size="sm" className="w-28 rounded-lg capitalize" data-testid={`member-role-select-${m.id}`}><SelectValue>{(v) => <span className="capitalize">{v as string}</span>}</SelectValue></SelectTrigger>
                   <SelectContent>{access.grantableRoles.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent>
@@ -239,6 +240,7 @@ export default function TripWorkspace() {
   const [members, setMembers] = useState(params.get("invite") === "1");
   const [edit, setEdit] = useState(false);
   const [del, setDel] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [copying, setCopying] = useState(false);
   const access = useTripAccess(trip ?? { members: [] });
 
@@ -288,7 +290,7 @@ export default function TripWorkspace() {
             {access.canAdmin && <Tip label="Edit trip"><Button size="icon" onClick={() => setEdit(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Edit trip" data-testid="trip-edit-button"><Pencil className="size-4" /></Button></Tip>}
             <Tip label="Use as a template"><Button size="icon" onClick={() => setCopying(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Use as a template" data-testid="trip-copy-button"><CopyPlus className="size-4" /></Button></Tip>
             {access.canAdmin && <Tip label="Share"><Button size="icon" onClick={share} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Share trip" data-testid="trip-share-button"><Share2 className="size-4" /></Button></Tip>}
-            {(access.canAdmin || status === "completed" || status === "archived") && <DropdownMenu>
+            <DropdownMenu>
               <DropdownMenuTrigger className="grid size-9 place-items-center rounded-xl bg-white/15 backdrop-blur transition-colors hover:bg-white/25" aria-label="More actions" data-testid="trip-more-menu-button"><MoreHorizontal className="size-4" /></DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 {(status === "completed" || status === "archived") && <DropdownMenuItem onClick={() => navigate(`/app/trips/${trip.id}/replay`)} data-testid="trip-menu-replay"><Play /> Trip Replay</DropdownMenuItem>}
@@ -298,10 +300,11 @@ export default function TripWorkspace() {
                 >
                   {trip.archived ? <><ArchiveRestore /> Restore trip</> : <><Archive /> Archive trip</>}
                 </DropdownMenuItem>}
+                <DropdownMenuItem onClick={() => setLeaving(true)} data-testid="trip-menu-leave"><LogOut /> {trip.leaveRequests?.some((r) => r.userId === access.me) ? "Leave request sent" : "Leave trip"}</DropdownMenuItem>
                 {access.isOwner && <DropdownMenuSeparator />}
                 {access.isOwner && <DropdownMenuItem variant="destructive" onClick={() => setDel(true)} data-testid="trip-menu-delete"><Trash2 /> Delete trip</DropdownMenuItem>}
               </DropdownMenuContent>
-            </DropdownMenu>}
+            </DropdownMenu>
           </div>
         </div>
       </section>
@@ -344,6 +347,7 @@ export default function TripWorkspace() {
 
       <MembersDialog trip={trip} open={members} onOpenChange={setMembers} />
       <EditTripDialog trip={trip} open={edit} onOpenChange={setEdit} />
+      {leaving && <LeaveTripDialog trip={trip} open onClose={() => setLeaving(false)} onDeleteTrip={() => setDel(true)} />}
       <CopyTripDialog trip={trip} open={copying} onOpenChange={setCopying} />
       <ConfirmDialog
         open={del}

@@ -73,7 +73,9 @@ Profile, post, trip and document visibility are separate. Making a profile publi
 | Friend | Everything on the profile |
 | Blocked, either way | "Not found", the same as someone who doesn't exist |
 
-Email addresses are never in any of these responses. Nobody can be found until they've confirmed their email, finished onboarding and opened their profile, which is what gives them a username, so invited placeholders and existing accounts stay out of search until then.
+Email addresses are never in any of these responses. Nobody can be found until they've confirmed their email and finished onboarding, so invited placeholders stay out of search.
+
+Every account gets a unique username at signup, which it can change once every 30 days. Usernames are stored lowercase, which makes them case-insensitive, and use letters, numbers, underscores and periods (3 to 30, no period at the start or end, none doubled). The database enforces all of it: a unique index, a CHECK constraint, and the `users_username_cooldown` trigger, which refuses a second change within 30 days and records `usernameChangedAt`. Everything else refers to people by id, so a new username breaks nothing. A deleted account's username becomes `former.<id>`, which frees the old one.
 
 Two people have one `friendships` row, ordered so it's the same row whoever asked, so duplicates can't exist. A declined request looks finished to the sender, who can't ask again for 30 days, and stays in the decliner's list in case they change their mind. Friend notifications are in-app only, to protect the daily email allowance.
 
@@ -88,6 +90,10 @@ Trips are private unless the host chooses otherwise, and that includes every tri
 Posts belong to a profile, separate from trip memories. Each has its own audience: public, friends or only me, decided by `PostsService.visibleWhere`, which every read of a post, its photos, comments and likes uses. Blocked people, and suspended or deleted authors, are left out. Post photos are uploaded with visibility "post": only the uploader can open one until it's posted, then the post's audience decides. A linked trip is named only for people who can already see that trip. Sharing a post into a trip chat doesn't widen its audience: each reader still has to be allowed.
 
 Sharing a memory as a post copies the photo into a new file owned by the post, so deleting either one leaves the other, and the trip's permissions don't change. Only the person who added a photo can share it.
+
+## Leaving a trip
+
+A member, editor or viewer asks to leave, and an owner or admin approves or rejects it. An admin leaves straight away when another admin remains. The only admin chooses someone on the trip to take over, who gets their role, owner included, in the same transaction as the departure, with the trip row locked so two admins can't both leave it adminless. Someone alone on a trip can't leave it; they can delete it, or invite someone and hand it over. Leaving keeps the member row as `removed` with `leftAt`, so expenses, messages, memories and other contributions stay, and access ends at once. Their shared location and pending invite notifications go. Admins are told about requests and departures, and the person who asked is told the answer.
 
 ## Deleting an account
 
@@ -147,7 +153,8 @@ Every balance is in the trip's currency.
 | `users` | `Person`, `Settings` | A null `passwordHash` is a placeholder from an email invite, claimed at signup. |
 | `sessions`, `password_reset_tokens`, `email_verification_tokens` | | Hashed tokens only. |
 | `trips` | `Trip` | `joinCode` backs the invite link. Upcoming, ongoing and completed are derived from dates in the UI. |
-| `trip_members` | `Member` | `status` is `invited`, `active` or `removed`. Removed rows stay so balances survive. |
+| `trip_members` | `Member` | `status` is `invited`, `active` or `removed`. Removed rows stay so balances survive. `leftAt` marks someone who left, who can rejoin by link, unlike someone removed. |
+| `trip_leave_requests` | | A member's request to leave, `pending` until an admin approves or rejects it, or they cancel. |
 | `activities`, `activity_comments`, `activity_attachments` | `Activity`, `Comment`, `Attachment` | `position` holds the order within a day. |
 | `expenses`, `expense_shares`, `settlements` | `Expense`, `ExpenseShare`, `Settlement` | Amounts are in the trip's currency. An expense paid in another currency also keeps what was paid and the rate. |
 | `ledger_entries` | | Append-only audit of every balance change; edits write reversals. |
@@ -161,12 +168,13 @@ Every balance is in the trip's currency.
 All sit under `/api`. Every route needs a session unless marked public.
 
 ```
-GET    /health                                  public
 POST   /auth/signup | login | logout | forgot-password | reset-password | verify-email   public
 POST   /auth/change-password
 POST   /auth/resend-verification
 
 GET    /state                                   the UI's AppState
+GET    /health                                  public; also checks the database
+GET    /health/live                             public; the process only, for the uptime monitor
 PATCH  /me                                      profile and settings
 PUT    /me/saved                                saved Explore destinations
 GET    /notifications
@@ -203,7 +211,8 @@ POST   /jobs/storage                        the x-jobs-secret header; finishes d
 POST   /contact                             public, 5 per 10 minutes; emails whoever runs TripOS
 POST   /me/accept-terms                     an older account confirming it's 18+ and accepts the terms
 POST   /me/delete                           { password } or, with no password, { email }
-GET    /me/profile   PATCH /me/profile      your own traveller profile; opening it gives you a username
+GET    /me/profile   PATCH /me/profile      your own traveller profile, with when your username can next change
+GET    /usernames/check?username=           { username, available, mine, reason }
 GET    /profiles/:username                  respects who's looking; blocked and unconfirmed people are "not found"
 GET    /people/search?q=                    by name or username, never by email
 GET    /friends                             DELETE /friends/:userId
@@ -216,6 +225,10 @@ GET    /public/trips/:id                    public, so a trip can be shared by l
 POST   /public/trips/:id/join-request       { message }   DELETE to cancel
 GET    /trips/:id/join-requests             owner and admins
 POST   /trips/:id/join-requests/:rid/accept | reject   owner and admins
+GET    /trips/:id/leave                     how this person can leave: request, direct, choose_successor or only_person
+POST   /trips/:id/leave                     { successorId? } members ask; admins leave, handing over first if they're the only one
+DELETE /trips/:id/leave                     cancel a pending request
+POST   /trips/:id/leave-requests/:rid/approve | reject   owner and admins
 GET    /people/suggested                    public profiles with something in common
 POST   /admin/trips/:id/unpublish           ADMIN_EMAILS only
 GET    /feed?before=&beforeId=              your posts, friends' posts and public posts, newest first

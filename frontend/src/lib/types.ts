@@ -218,6 +218,8 @@ export interface Trip {
   travelStyle?: string;
   showBudget?: boolean;
   showPlan?: boolean;
+  /** Requests to leave that are waiting. Admins see everyone's, others only their own. */
+  leaveRequests?: { id: string; userId: string; at: string }[];
   /** The most people who can join, including the host. Null means no limit. */
   maxParticipants?: number | null;
   createdAt: string;
@@ -242,7 +244,7 @@ export interface Trip {
 export interface AppNotification {
   id: string;
   tripId?: string;
-  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected" | "post_like" | "post_comment" | "member_joined";
+  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected" | "post_like" | "post_comment" | "member_joined" | "leave_request" | "leave_approved" | "leave_rejected" | "member_left";
   title: string;
   body: string;
   at: string;

@@ -147,12 +147,12 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: strin
   );
 }
 
-export function Field({ label, htmlFor, error, hint, children }: { label: string; htmlFor?: string; error?: string; hint?: string; children: ReactNode }) {
+export function Field({ label, htmlFor, error, hint, children }: { label: string; htmlFor?: string; error?: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={htmlFor} className="text-[13px] font-medium">{label}</Label>
       {children}
-      {error ? <p className="text-xs font-medium text-destructive" role="alert">{error}</p> : hint ? <p className="text-xs text-ink-muted">{hint}</p> : null}
+      {error ? <p className="text-xs font-medium text-destructive" role="alert">{error}</p> : hint ? <div className="text-xs text-ink-muted">{hint}</div> : null}
     </div>
   );
 }

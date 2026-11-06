@@ -24,6 +24,7 @@ import { SocialController } from "./social/social.controller.js";
 import { SocialService } from "./social/social.service.js";
 import { ContactController } from "./support/contact.controller.js";
 import { PostsController } from "./posts/posts.controller.js";
+import { LeaveController } from "./trips/leave.controller.js";
 import { PostsService } from "./posts/posts.service.js";
 import { ExpensesController } from "./trips/expenses.controller.js";
 import { PublicTripsController } from "./trips/public-trips.controller.js";
@@ -61,6 +62,7 @@ import { InvitesController, TripsController } from "./trips/trips.controller.js"
     SocialController,
     PublicTripsController,
     PostsController,
+    LeaveController,
   ],
   providers: [{ provide: APP_GUARD, useClass: SessionGuard }, { provide: APP_FILTER, useClass: PrismaExceptionFilter }, AccountService, AuthService, EmailCheckService, FileStorage, GoogleAuthService, MailService, PostsService, RatesService, RemindersService, SocialService, TripAccessGuard, RealtimeGateway, TripWriter],
 })

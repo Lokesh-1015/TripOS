@@ -146,7 +146,12 @@ test('people only see the actions their role allows, and the server still refuse
   await expect(member.page.getByTestId('overview-new-poll-button')).toBeVisible();
   await expect(member.page.getByTestId('trip-edit-button')).toHaveCount(0);
   await expect(member.page.getByTestId('trip-share-button')).toHaveCount(0);
-  await expect(member.page.getByTestId('trip-more-menu-button')).toHaveCount(0);
+  // Everyone can leave, so the menu is there, but with nothing only admins can do.
+  await member.page.getByTestId('trip-more-menu-button').click();
+  await expect(member.page.getByTestId('trip-menu-leave')).toBeVisible();
+  await expect(member.page.getByTestId('trip-menu-delete')).toHaveCount(0);
+  await expect(member.page.getByTestId('trip-menu-archive')).toHaveCount(0);
+  await member.page.keyboard.press('Escape');
   await member.page.getByTestId('trip-invite-button').click();
   await expect(member.page.getByTestId('members-invite-email-input')).toHaveCount(0);
   await expect(member.page.locator('[data-testid^="member-remove-"]')).toHaveCount(0);

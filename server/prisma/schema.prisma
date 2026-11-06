@@ -136,6 +136,17 @@ enum NotificationKind {
   post_like
   post_comment
   member_joined
+  leave_request
+  leave_approved
+  leave_rejected
+  member_left
+}
+
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
 }
 
 enum PostVisibility {
@@ -206,8 +217,10 @@ model User {
   notify            Json
   privacy           Json
   savedDestinations String[]
-  /// Chosen by the person, or given when they first open their profile. Null means they can't be found by anyone.
-  username              String?  @unique
+  /// Unique and lowercase, so case doesn't matter. Every account gets one at signup and can change it every 30 days.
+  username              String   @unique
+  /// When the username last changed. A database trigger sets it and enforces the 30 days.
+  usernameChangedAt     DateTime? @db.Timestamptz(6)
   coverPhoto            String   @default("")
   location              String   @default("")
   profileVisibility     ProfileVisibility @default(private)
@@ -338,6 +351,21 @@ model PostComment {
   @@map("post_comments")
 }
 
+/// A member or viewer asking an admin to let them leave. Admins leave directly, or hand over first.
+model TripLeaveRequest {
+  id           String             @id @default(cuid())
+  tripId       String
+  trip         Trip               @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId       String
+  status       LeaveRequestStatus @default(pending)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(6)
+  respondedAt  DateTime?          @db.Timestamptz(6)
+  respondedById String?
+
+  @@index([tripId, status])
+  @@map("trip_leave_requests")
+}
+
 model Report {
   id         String       @id @default(cuid())
   reporterId String
@@ -437,6 +465,7 @@ model Trip {
   notifications Notification[]
   files         StoredFile[]
   joinRequests  JoinRequest[]
+  leaveRequests TripLeaveRequest[]
   posts         Post[]
 
   @@index([visibility, archived, startDate])
@@ -452,6 +481,8 @@ model TripMember {
   role     Role         @default(member)
   status   MemberStatus @default(active)
   joinedAt DateTime     @default(now()) @db.Timestamptz(6)
+  /// Set when someone left by choice, rather than being removed. They can come back by link or invitation.
+  leftAt   DateTime?    @db.Timestamptz(6)
 
   @@id([tripId, userId])
   @@index([userId, status])

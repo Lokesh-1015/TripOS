@@ -4,12 +4,12 @@ import { ConfigService } from "@nestjs/config";
 import type { Friendship, NotificationKind, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { normalizeUsername, suggestUsername } from "./usernames.js";
 
 export type Relationship = "self" | "none" | "request_sent" | "request_received" | "friends";
 
 const RESEND_AFTER_DECLINE_MS = 30 * 24 * 60 * 60 * 1000;
-export const USERNAME = /^[a-z0-9_]{3,30}$/;
-export const RESERVED_USERNAMES = new Set(["admin", "administrator", "moderator", "support", "help", "tripos", "official", "me", "settings", "system", "null", "undefined"]);
+export { RESERVED_USERNAMES, USERNAME } from "./usernames.js";
 
 /** Two people have one row, however it started, so requests can't be duplicated in either direction. */
 export const pair = (a: string, b: string) => (a < b ? { userLowId: a, userHighId: b } : { userLowId: b, userHighId: a });
@@ -23,8 +23,8 @@ const sharedPlaces = (a: User, b: User) => {
 const otherPerson = (f: Friendship, me: string) => (f.userLowId === me ? f.userHighId : f.userLowId);
 
 /** Someone who can be found: a real, confirmed person who has opened their profile. Invited placeholders never can. */
-export const listed = { onboarded: true, emailVerifiedAt: { not: null }, deletedAt: null, suspendedAt: null, username: { not: null } } as const;
-const isListed = (u: User) => u.onboarded && !!u.emailVerifiedAt && !u.deletedAt && !u.suspendedAt && !!u.username;
+export const listed = { onboarded: true, emailVerifiedAt: { not: null }, deletedAt: null, suspendedAt: null } as const;
+const isListed = (u: User) => u.onboarded && !!u.emailVerifiedAt && !u.deletedAt && !u.suspendedAt;
 
 /**
  * Who can see and do what between two travellers. Every profile, search and friend response goes through
@@ -59,7 +59,7 @@ export class SocialService {
 
   /** Blocked, missing, suspended or unconfirmed people all look exactly the same: not found. */
   async findVisible(viewer: User, username: string) {
-    const target = await this.prisma.user.findUnique({ where: { username: username.toLowerCase() } });
+    const target = await this.prisma.user.findUnique({ where: { username: normalizeUsername(username) } });
     if (target?.id === viewer.id) return target;
     if (!target || !isListed(target) || (await this.isBlockedEitherWay(viewer.id, target.id))) throw new NotFoundException({ message: "We couldn't find that traveller" });
     return target;
@@ -146,18 +146,10 @@ export class SocialService {
     return cards.filter((c) => score(c) > 0).sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name)).slice(0, SUGGESTIONS);
   }
 
-  /** Everyone who hasn't chosen one gets a username the first time they open their profile, and can change it. */
+  /** Every account has a username from signup. This only covers a row that somehow has none. */
   async ensureUsername(user: User) {
     if (user.username) return user;
-    const base = user.name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20);
-    const stem = base.length >= 3 ? base : "traveller";
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const username = `${stem}${randomInt(1000, 10000)}`;
-      if (!(await this.prisma.user.findUnique({ where: { username }, select: { id: true } }))) {
-        return this.prisma.user.update({ where: { id: user.id }, data: { username } });
-      }
-    }
-    throw new ConflictException({ message: "Please try again" });
+    return this.prisma.user.update({ where: { id: user.id }, data: { username: await suggestUsername(this.prisma, user.name) } });
   }
 
   /** In-app only: a social app could use up the free daily email allowance by itself. */

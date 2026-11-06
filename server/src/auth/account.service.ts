@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, UnprocessableEntityException } from 
 import type { User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { formerUsername } from "../social/usernames.js";
 import { verifyPassword } from "./password.js";
 
 const ROLE_ORDER = { owner: 0, admin: 1, member: 2, viewer: 3 } as const;
@@ -53,6 +54,7 @@ export class AccountService {
         const avatar = fileIdOf(user.avatar);
         await tx.storedFile.deleteMany({ where: { id: { in: [...privateFiles.map((f) => f.id), ...(avatar ? [avatar] : [])] } } });
         await tx.joinRequest.deleteMany({ where: { userId: user.id } });
+        await tx.tripLeaveRequest.updateMany({ where: { userId: user.id, status: "pending" }, data: { status: "cancelled", respondedAt: new Date() } });
         // Posts are theirs alone, so they go, with their photos, likes and comments.
         const posts = await tx.post.findMany({ where: { authorId: user.id }, select: { id: true } });
         await tx.storedFile.deleteMany({ where: { postId: { in: posts.map((p) => p.id) } } });
@@ -80,7 +82,8 @@ export class AccountService {
             mustConfirmEmail: false,
             travelStyles: [],
             savedDestinations: [],
-            username: null,
+            // Frees their username for someone else. The database allows this one change whatever the 30 days.
+            username: formerUsername(user.id),
             coverPhoto: "",
             location: "",
             interests: [],

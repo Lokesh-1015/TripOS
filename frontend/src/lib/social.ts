@@ -1,4 +1,5 @@
 // Traveller profiles and friends. Loaded separately from the app's main state, so trips stay as fast as they were.
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiDelete, apiGet, apiPatch, apiPost } from "./api";
 
@@ -35,6 +36,26 @@ export interface OwnProfile extends TravellerProfile {
   friendRequestsFrom: "everyone" | "nobody";
   emailVerified: boolean;
   isAdmin: boolean;
+  usernameChangedAt: string | null;
+  /** Null when it can change now. */
+  nextUsernameChangeAt: string | null;
+}
+
+export interface UsernameCheck {
+  username: string;
+  available: boolean;
+  mine: boolean;
+  reason: string | null;
+}
+
+/** Whether a username is free, checked a moment after someone stops typing. */
+export function useUsernameCheck(typed: string, enabled: boolean) {
+  const [value, setValue] = useState(typed);
+  useEffect(() => {
+    const timer = setTimeout(() => setValue(typed.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [typed]);
+  return useQuery({ queryKey: [KEY, "username", value.toLowerCase()], queryFn: () => apiGet<UsernameCheck>(`/usernames/check?username=${encodeURIComponent(value)}`), enabled: enabled && value.length > 0 });
 }
 
 export interface FriendRequest {

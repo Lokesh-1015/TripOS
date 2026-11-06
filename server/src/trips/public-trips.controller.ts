@@ -143,12 +143,13 @@ export class PublicTripsController {
   private async viewerState(tripId: string, viewer: User | undefined) {
     if (!viewer) return { state: "signed_out" as const };
     const [member, request] = await Promise.all([
-      this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: viewer.id } }, select: { status: true, role: true } }),
+      this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: viewer.id } }, select: { status: true, role: true, leftAt: true } }),
       this.prisma.joinRequest.findUnique({ where: { tripId_userId: { tripId, userId: viewer.id } } }),
     ]);
     if (member?.status === "active") return { state: member.role === "owner" || member.role === "admin" ? ("host" as const) : ("member" as const) };
     if (member?.status === "invited") return { state: "invited" as const };
-    if (member?.status === "removed") return { state: "removed" as const };
+    // Leaving by choice doesn't stop someone asking to come back. Being removed does.
+    if (member?.status === "removed" && !member.leftAt) return { state: "removed" as const };
     if (request?.status === "pending") return { state: "pending" as const };
     if (request?.status === "rejected") return { state: "rejected" as const };
     return { state: "none" as const };

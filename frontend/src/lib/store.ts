@@ -381,6 +381,7 @@ export const actions = {
   },
   resendVerification: () => apiPost("/auth/resend-verification"),
   reload: () => loadState(),
+  refreshTrip: (tripId: string) => refreshTrip(tripId),
   async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[] }) {
     // Someone joining now has nothing to catch up on, so they start with the latest release marked as seen.
     await apiPatch("/me", { ...patch, onboarded: true, seenReleaseNotes: LATEST_RELEASE.id });

@@ -14,6 +14,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { MailService } from "../mail/mail.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import { SocialService } from "../social/social.service.js";
+import { suggestUsername } from "../social/usernames.js";
 import { assertRoom, tellHostsIfFull, tellHostsSomeoneJoined } from "./participants.js";
 import { pollBody, pollData } from "./polls.controller.js";
 import { assertVerified } from "./state.controller.js";
@@ -92,7 +93,7 @@ async function findOrCreateUser(tx: Prisma.TransactionClient, rawEmail: string) 
   return tx.user.upsert({
     where: { email },
     update: {},
-    create: { email, name: nameFromEmail(email), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
+    create: { email, name: nameFromEmail(email), username: await suggestUsername(tx, nameFromEmail(email)), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
   });
 }
 
@@ -317,7 +318,7 @@ export class TripsController {
       if (existing && existing.status !== "removed") throw new ConflictException({ message: "This person is already on the trip" });
       await tx.tripMember.upsert({
         where: { tripId_userId: { tripId, userId: invitee.id } },
-        update: { status: "invited", role: "member" },
+        update: { status: "invited", role: "member", leftAt: null },
         create: { tripId, userId: invitee.id, role: "member", status: "invited" },
       });
       await tx.notification.create({ data: inviteNotification(invitee.id, tripId, user.name, tripName) });
@@ -350,7 +351,8 @@ export class TripsController {
     enforce(canRemoveMember(actor, target));
     await this.writer.run(tripId, user.id, async ({ tx, log }) => {
       // The row stays: their expenses and messages must survive, or the group's balances break.
-      await tx.tripMember.update({ where: { tripId_userId: { tripId, userId } }, data: { status: "removed" } });
+      await tx.tripMember.update({ where: { tripId_userId: { tripId, userId } }, data: { status: "removed", leftAt: null } });
+      await tx.tripLeaveRequest.updateMany({ where: { tripId, userId, status: "pending" }, data: { status: "cancelled", respondedAt: new Date() } });
       await tx.notification.deleteMany({ where: { tripId, userId, kind: "invite" } });
       const removed = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
       await log(`removed ${removed.name}`, "member");
@@ -410,14 +412,15 @@ export class InvitesController {
     const trip = await this.prisma.trip.findUnique({ where: { joinCode: code }, select: { id: true } });
     if (!trip) throw new NotFoundException({ message: "This invite link isn't available" });
     const existing = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: trip.id, userId: user.id } } });
-    if (existing?.status === "removed") throw new ForbiddenException({ message: "You were removed from this trip. Ask an admin to invite you again." });
+    // Someone who left by choice can come back. Someone an admin removed needs to be invited again.
+    if (existing?.status === "removed" && !existing.leftAt) throw new ForbiddenException({ message: "You were removed from this trip. Ask an admin to invite you again." });
     if (existing?.status !== "active") {
       await this.writer.run(trip.id, user.id, async (ctx) => {
         const { tx, log } = ctx;
         await assertRoom(tx, trip.id, user.id);
         await tx.tripMember.upsert({
           where: { tripId_userId: { tripId: trip.id, userId: user.id } },
-          update: { status: "active" },
+          update: { status: "active", role: "member", leftAt: null },
           create: { tripId: trip.id, userId: user.id, role: "member", status: "active" },
         });
         await tx.notification.deleteMany({ where: { tripId: trip.id, userId: user.id, kind: "invite" } });

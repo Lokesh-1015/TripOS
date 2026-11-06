@@ -1,3 +1,4 @@
+import { suggestUsername } from "../social/usernames.js";
 import { ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { User } from "../generated/prisma/client.js";
@@ -58,7 +59,7 @@ export class AuthService {
     // nothing about who owns the address, so its invites stay hidden until the emailed link is clicked.
     const user = existing
       ? await this.prisma.user.update({ where: { id: existing.id }, data: { name, passwordHash, mustConfirmEmail, termsAcceptedAt: new Date() } })
-      : await this.prisma.user.create({ data: { email, name, passwordHash, mustConfirmEmail, termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY } });
+      : await this.prisma.user.create({ data: { email, name, username: await suggestUsername(this.prisma, name), passwordHash, mustConfirmEmail, termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY } });
     await this.sendVerification(user);
     return { user, token: await this.createSession(user.id) };
   }
@@ -102,7 +103,7 @@ export class AuthService {
     if (existing) this.assertNotSuspended(existing);
     if (!existing) {
       const user = await this.prisma.user.create({
-        data: { email, name: identity.name || nameFrom(email), avatar: identity.picture, googleSub: identity.sub, emailVerifiedAt: new Date(), termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
+        data: { email, name: identity.name || nameFrom(email), username: await suggestUsername(this.prisma, identity.name || nameFrom(email)), avatar: identity.picture, googleSub: identity.sub, emailVerifiedAt: new Date(), termsAcceptedAt: new Date(), travelStyles: [], savedDestinations: [], notify: DEFAULT_NOTIFY, privacy: DEFAULT_PRIVACY },
       });
       return { user, token: await this.createSession(user.id) };
     }

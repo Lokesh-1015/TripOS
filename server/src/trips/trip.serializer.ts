@@ -24,6 +24,7 @@ const EVENT_WINDOW = 200;
 
 export const tripInclude = {
   members: { where: { status: { not: "removed" } }, include: { user: true }, orderBy: { joinedAt: "asc" } },
+  leaveRequests: { where: { status: "pending" }, select: { id: true, userId: true, createdAt: true }, orderBy: { createdAt: "asc" } },
   activities: { include: { comments: { orderBy: { at: "asc" } }, attachments: { orderBy: { createdAt: "asc" } } }, orderBy: [{ day: "asc" }, { position: "asc" }, { createdAt: "asc" }] },
   expenses: { include: { shares: true }, orderBy: { createdAt: "desc" } },
   settlements: { orderBy: { createdAt: "asc" } },
@@ -72,6 +73,8 @@ export function toTrip(t: TripRow, viewerId: string) {
     maxParticipants: t.maxParticipants,
     createdAt: t.createdAt.toISOString(),
     version: t.version,
+    // Admins see every request to leave. Everyone else sees only their own.
+    leaveRequests: t.leaveRequests.filter((r) => viewerIsAdmin || r.userId === viewerId).map((r) => ({ id: r.id, userId: r.userId, at: r.createdAt.toISOString() })),
     // Only people who can invite get the link.
     joinCode: viewerIsAdmin ? t.joinCode : undefined,
     members: t.members.map((m) => {

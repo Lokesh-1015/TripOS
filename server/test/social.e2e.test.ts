@@ -36,7 +36,8 @@ class Client {
     const signUp = await c.req("POST", "/auth/signup", { name: c.name, email: c.email, password: "correct-horse" });
     if (signUp.status === 409) expect((await c.req("POST", "/auth/login", { email: c.email, password: "correct-horse" })).status).toBe(200);
     c.id = (await c.req("GET", "/state")).body.user.id;
-    await db.user.update({ where: { id: c.id }, data: { onboarded: true, emailVerifiedAt: options.verified === false ? null : new Date() } });
+    // The moderator account is reused between runs, so its last username change is cleared each time.
+    await db.user.update({ where: { id: c.id }, data: { onboarded: true, emailVerifiedAt: options.verified === false ? null : new Date(), usernameChangedAt: null } });
     const me = await c.req("PATCH", "/me/profile", { username: `${name.toLowerCase()}_${tag}_${counter}`.slice(0, 30), ...profile });
     expect(me.status).toBe(200);
     c.username = me.body.username;
@@ -382,9 +383,12 @@ describe("deleting an account", () => {
     const username = leaver.username;
     expect((await leaver.req("POST", "/me/delete", { password: "correct-horse" })).status).toBe(200);
     const row = await db.user.findUniqueOrThrow({ where: { id: leaver.id } });
-    expect(row).toMatchObject({ username: null, location: "", coverPhoto: "", interests: [], favouriteDestinations: [], placesVisited: [], profileVisibility: "private" });
+    expect(row.username).toMatch(/^former\./);
+    expect(row).toMatchObject({ location: "", coverPhoto: "", interests: [], favouriteDestinations: [], placesVisited: [], profileVisibility: "private" });
     expect((await friend.req("GET", "/friends")).body).toEqual([]);
     expect(await db.friendship.count({ where: { OR: [{ userLowId: leaver.id }, { userHighId: leaver.id }] } })).toBe(0);
+    // The friend picked a username moments ago, so the 30 days are set aside here to test reuse.
+    await db.user.update({ where: { id: friend.id }, data: { usernameChangedAt: null } });
     expect((await friend.req("PATCH", "/me/profile", { username })).status).toBe(200);
   });
 });
@@ -398,7 +402,8 @@ describe("what was already here", () => {
     expect(state.body.username).toBeUndefined();
     expect(state.body.friends).toBeUndefined();
     const row = await db.user.findUniqueOrThrow({ where: { email: `tripsonly-${tag}@example.test` } });
-    expect(row.username).toBeNull();
+    // Every account now has a username from signup. It still isn't findable until they finish onboarding and confirm their email.
+    expect(row.username).toMatch(/^tripsonly\d{4,6}$/);
     expect(row.profileVisibility).toBe("private");
   });
 
