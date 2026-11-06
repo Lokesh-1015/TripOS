@@ -1,6 +1,6 @@
 // The "What's new" popup. Each person sees it once, remembered on their account. To announce a new
 // release, add it to the top of this list with a new id, and everyone sees that one once too.
-import { BellRing, CalendarDays, CalendarRange, Compass, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Radio, Route, ShieldCheck, TriangleAlert, UserPlus, Users, UserX, Wallet } from "lucide-react";
+import { BellRing, CalendarDays, CalendarRange, Compass, CopyPlus, Download, Globe, KeyRound, Mail, MailCheck, Map as MapIcon, MessagesSquare, Navigation, Newspaper, Radio, Route, Share2, ShieldCheck, TriangleAlert, UserPlus, Users, UserX, Wallet } from "lucide-react";
 
 export interface ReleaseFeature {
   icon: typeof Mail;
@@ -16,6 +16,15 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    id: "2026-11-08",
+    features: [
+      { icon: Newspaper, title: "Travel posts", body: "Share photos from your travels with a caption and destination, and choose who sees each one: everyone, your friends, or only you. Like and comment on posts in the new Feed." },
+      { icon: Share2, title: "Share a memory as a post", body: "Open one of your photos in a trip's Memories and choose Share as post. Your post gets its own copy, so the trip's memories stay exactly as they were." },
+    ],
+    improved: [],
+    fixed: [],
+  },
   {
     id: "2026-11-07",
     features: [

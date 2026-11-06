@@ -7,6 +7,7 @@ import type { TripActor } from "../authz/trip-roles.js";
 import { asDate, clientId, isoDate, parse, shortText } from "../common/validation.js";
 import type { Prisma, User } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { PostsService } from "../posts/posts.service.js";
 import { toMessage } from "./trip.serializer.js";
 import { TripWriter } from "./trip-writer.service.js";
 
@@ -30,7 +31,8 @@ const documentBody = z.object({
 });
 
 const messageBody = z.object({
-  kind: z.enum(["text", "poll", "location", "image", "file"]),
+  kind: z.enum(["text", "poll", "location", "image", "file", "post"]),
+  postId: z.string().max(64).optional(),
   text: z.string().max(5000).default(""),
   pollId: z.string().optional(),
   placeId: z.string().optional(),
@@ -74,6 +76,7 @@ export class SharingController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly writer: TripWriter,
+    private readonly posts: PostsService,
   ) {}
 
   @Put("documents/:id")
@@ -144,9 +147,11 @@ export class SharingController {
       }
       await assertFile(tx, tripId, input.imageUrl, user.id);
       await assertFile(tx, tripId, input.fileUrl, user.id);
+      // Sharing a post into chat doesn't widen who can see it: each reader still needs to be allowed.
+      if (input.kind === "post" && !(input.postId && (await this.posts.canSee(user, { id: input.postId })))) throw new UnprocessableEntityException({ message: "That post can't be shared" });
       const saved = input.kind === "location" && input.placeId ? await tx.place.findFirst({ where: { id: input.placeId, tripId } }) : null;
       const shared = saved ? { name: saved.name, address: saved.address, lat: saved.lat ?? undefined, lng: saved.lng ?? undefined } : input.kind === "location" ? input.place : undefined;
-      await tx.message.create({ data: { id, tripId, authorId: user.id, kind: input.kind, text: input.text, pollId: input.pollId, placeId: input.placeId, placeName: shared?.name, placeAddress: shared?.address, placeLat: shared?.lat, placeLng: shared?.lng, imageUrl: input.imageUrl, fileName: input.fileName, fileUrl: input.fileUrl, pinned: input.pinned ?? false } });
+      await tx.message.create({ data: { id, tripId, authorId: user.id, kind: input.kind, text: input.text, pollId: input.pollId, placeId: input.placeId, placeName: shared?.name, placeAddress: shared?.address, placeLat: shared?.lat, placeLng: shared?.lng, postId: input.kind === "post" ? input.postId : null, imageUrl: input.imageUrl, fileName: input.fileName, fileUrl: input.fileUrl, pinned: input.pinned ?? false } });
       // One unread chat notification per trip, not one per message.
       await notify({ kind: "message", title: `New messages in ${tripName}`, body: `${user.name.split(" ")[0]}: ${input.text || "shared an attachment"}`.slice(0, 200), link: `/app/trips/${tripId}/chat`, collapseUnread: true });
     });

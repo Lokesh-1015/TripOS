@@ -110,6 +110,7 @@ enum MessageKind {
   location
   image
   file
+  post
 }
 
 enum PhotoKind {
@@ -132,6 +133,14 @@ enum NotificationKind {
   join_request
   join_accepted
   join_rejected
+  post_like
+  post_comment
+}
+
+enum PostVisibility {
+  public
+  friends
+  only_me
 }
 
 enum JoinRequestStatus {
@@ -219,6 +228,9 @@ model User {
   friendshipsHigh Friendship[] @relation("FriendshipHigh")
   blocksMade      Block[]      @relation("BlockMade")
   blocksReceived  Block[]      @relation("BlockReceived")
+  posts           Post[]
+  postLikes       PostLike[]
+  postComments    PostComment[]
 
   @@map("users")
 }
@@ -266,6 +278,63 @@ model JoinRequest {
   @@unique([tripId, userId])
   @@index([userId])
   @@map("join_requests")
+}
+
+/// A travel post on someone's profile. Separate from trip memories: sharing a memory makes a copy of its photo.
+model Post {
+  id          String         @id
+  authorId    String
+  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  caption     String         @default("")
+  destination String         @default("")
+  /// Optional. Named on the post only for people who could see that trip anyway.
+  tripId      String?
+  trip        Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  visibility  PostVisibility
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  editedAt    DateTime?      @db.Timestamptz(6)
+
+  photos   PostPhoto[]
+  likes    PostLike[]
+  comments PostComment[]
+
+  @@index([authorId, createdAt])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model PostPhoto {
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  fileId   String
+  position Int
+
+  @@id([postId, fileId])
+  @@map("post_photos")
+}
+
+model PostLike {
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([postId, userId])
+  @@map("post_likes")
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([postId, createdAt])
+  @@map("post_comments")
 }
 
 model Report {
@@ -367,6 +436,7 @@ model Trip {
   notifications Notification[]
   files         StoredFile[]
   joinRequests  JoinRequest[]
+  posts         Post[]
 
   @@index([visibility, archived, startDate])
   @@map("trips")
@@ -562,6 +632,8 @@ model StoredFile {
   storageKey String?
   /// Hidden details such as GPS have been removed. Only applies to images we can rewrite.
   metadataClean Boolean  @default(false)
+  /// Set once a photo belongs to a travel post. Who can open it then follows the post's visibility.
+  postId     String?
   /// Avatars and trip covers appear on the public join page.
   isPublic   Boolean    @default(false)
   visibility Visibility @default(shared)
@@ -721,6 +793,8 @@ model Message {
   placeAddress String?
   placeLat     Float?
   placeLng     Float?
+  /// A travel post shared into the chat. Each reader sees it only if they could see the post anyway.
+  postId       String?
   imageUrl String?
   fileName String?
   fileUrl  String?

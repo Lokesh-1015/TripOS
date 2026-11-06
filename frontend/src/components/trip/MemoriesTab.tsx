@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { addDays, format, parseISO } from "date-fns";
-import { ArrowRight, CalendarDays, ImagePlus, Images, MapPin, Play, Star, Trash2 } from "lucide-react";
+import { ArrowRight, CalendarDays, ImagePlus, Images, MapPin, Play, Share2, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Avatar, ConfirmDialog, EmptyState } from "@/components/common";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { useTripAccess } from "@/lib/access";
-import { actions, saved } from "@/lib/store";
+import { actions, saved, useApp } from "@/lib/store";
+import { CreatePostDialog } from "@/components/posts";
 import { tripDays, tripStatus, uid, todayISO } from "@/lib/format";
 import type { Photo, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -71,6 +72,8 @@ export default function MemoriesTab({ trip }: { trip: Trip }) {
   const me = access.me;
   const [album, setAlbum] = useState("All");
   const [view, setView] = useState<Photo>();
+  const [sharing, setSharing] = useState<Photo>();
+  const emailVerified = useApp((s) => s.emailVerified);
   const [deleting, setDeleting] = useState<Photo>();
   const ref = useRef<HTMLInputElement>(null);
   const people = Object.fromEntries(trip.members.map((m) => [m.id, m]));
@@ -208,6 +211,7 @@ export default function MemoriesTab({ trip }: { trip: Trip }) {
                     {viewPlace && <span className="inline-flex items-center gap-0.5" data-testid="memory-place">· <MapPin className="size-3" /> {viewPlace.name}</span>}
                   </DialogDescription>
                 </div>
+                {view.authorId === me && view.kind === "photo" && emailVerified && <Button variant="outline" size="sm" className="rounded-lg" onClick={() => { setSharing(view); setView(undefined); }} data-testid="memory-share-as-post"><Share2 className="size-3.5" /> Share as post</Button>}
                 {access.canModerate(view.authorId) && <Button variant="ghost" size="icon-sm" aria-pressed={!!view.highlight} onClick={() => { const next = { ...view, highlight: !view.highlight }; setView(next); actions.upsert(trip.id, "photos", next); }} aria-label={view.highlight ? "Remove highlight" : "Mark as highlight"} data-testid="memory-highlight-button"><Star className={cn(view.highlight && "fill-coral text-coral")} /></Button>}
                 {access.canModerate(view.authorId) && <Button variant="ghost" size="icon-sm" onClick={() => { setDeleting(view); setView(undefined); }} aria-label="Delete photo" data-testid="memory-delete-button"><Trash2 /></Button>}
               </div>
@@ -215,6 +219,7 @@ export default function MemoriesTab({ trip }: { trip: Trip }) {
           )}
         </DialogContent>
       </Dialog>
+      {sharing && <CreatePostDialog open onClose={() => setSharing(undefined)} defaultVisibility="friends" memory={{ photoId: sharing.id, url: sharing.url, caption: sharing.caption, tripId: trip.id }} />}
       {adding && typeof date === "number" && <AddToDateDialog trip={trip} files={adding} day={date} onClose={() => setAdding(undefined)} onSave={(items, links) => { setAdding(undefined); save(items, date, links); }} />}
       <ConfirmDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)} title="Delete this photo?" body="It will be removed from the shared gallery for everyone." confirmLabel="Delete photo" onConfirm={() => { if (deleting) { actions.remove(trip.id, "photos", deleting.id); saved("Photo deleted"); } }} />
     </div>

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Contact, Privacy, Terms } from "@/pages/Legal";
 import People from "@/pages/People";
+import Feed, { PostPage } from "@/pages/Feed";
 import PublicTripPage from "@/pages/PublicTrip";
 import Profile from "@/pages/Profile";
 import AdminReports from "@/pages/AdminReports";
@@ -50,6 +51,8 @@ export default function App() {
           <Route path="documents" element={<DocumentsHub />} />
           <Route path="settings" element={<Settings />} />
           <Route path="people" element={<People />} />
+          <Route path="feed" element={<Feed />} />
+          <Route path="posts/:id" element={<PostPage />} />
           <Route path="u/:username" element={<Profile />} />
           <Route path="admin/reports" element={<AdminReports />} />
         </Route>

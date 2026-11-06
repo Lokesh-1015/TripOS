@@ -166,8 +166,10 @@ export interface Message {
   authorId: string;
   text: string;
   at: string;
-  kind: "text" | "poll" | "location" | "image" | "file";
+  kind: "text" | "poll" | "location" | "image" | "file" | "post";
   pollId?: string;
+  /** A travel post shared into the chat. */
+  postId?: string;
   placeId?: string;
   /** What was shared, kept with the message. Older messages only have placeId. */
   place?: { name: string; address: string; lat?: number; lng?: number };
@@ -240,7 +242,7 @@ export interface Trip {
 export interface AppNotification {
   id: string;
   tripId?: string;
-  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected";
+  kind: "invite" | "message" | "task" | "expense" | "vote" | "itinerary" | "document" | "friend_request" | "friend_accept" | "trip_full" | "trip_visibility" | "join_request" | "join_accepted" | "join_rejected" | "post_like" | "post_comment";
   title: string;
   body: string;
   at: string;

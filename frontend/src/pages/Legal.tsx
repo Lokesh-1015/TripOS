@@ -50,6 +50,7 @@ export function Privacy() {
           <li><b>Your account:</b> your name, email address, profile photo and the settings you choose. If you use a password, we store only a scrambled form of it.</li>
           <li><b>Your trips:</b> what you and your group add, such as itineraries, expenses, tasks, packing lists, places, chat, photos and documents.</li>
           <li><b>Your profile:</b> anything you add to your traveller profile, such as your username, bio, location and travel interests.</li>
+          <li><b>Your posts:</b> photos, captions, likes and comments you share, seen only by the audience you choose for each post.</li>
           <li><b>Your connections:</b> friend requests, friends, people you've blocked and reports you've made.</li>
           <li><b>Live location:</b> your position, only while you choose to share it with a trip. It isn't kept as a history.</li>
         </ul>

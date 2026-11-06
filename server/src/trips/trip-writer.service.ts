@@ -17,6 +17,8 @@ const PREF_KEY: Record<NotificationKind, string> = {
   join_request: "social",
   join_accepted: "social",
   join_rejected: "social",
+  post_like: "social",
+  post_comment: "social",
   friend_request: "social",
   friend_accept: "social",
 };

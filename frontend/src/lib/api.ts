@@ -64,7 +64,7 @@ export interface UploadedFile {
 
 /** Uploads a file; the returned URL is what screens store and display. Public is for avatars and covers. */
 /** `photo` makes a smaller copy first. Leave it off for documents, where every detail may matter. */
-export async function uploadFile(file: File, options: { visibility: "public" | "shared" | "private"; tripId?: string; photo?: boolean }): Promise<UploadedFile> {
+export async function uploadFile(file: File, options: { visibility: "public" | "shared" | "private" | "post"; tripId?: string; photo?: boolean }): Promise<UploadedFile> {
   const form = new FormData();
   form.append("visibility", options.visibility);
   if (options.tripId) form.append("tripId", options.tripId);

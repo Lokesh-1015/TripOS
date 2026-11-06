@@ -5,7 +5,7 @@ import type { Prisma } from "../generated/prisma/client.js";
 // Latest window of the append-heavy collections; the UI holds these in memory.
 export const MESSAGE_WINDOW = 300;
 
-export const toMessage = (m: { id: string; authorId: string; text: string; at: Date; kind: string; pollId: string | null; placeId: string | null; placeName: string | null; placeAddress: string | null; placeLat: number | null; placeLng: number | null; imageUrl: string | null; fileName: string | null; fileUrl: string | null; pinned: boolean }) => ({
+export const toMessage = (m: { id: string; authorId: string; text: string; at: Date; kind: string; pollId: string | null; placeId: string | null; placeName: string | null; placeAddress: string | null; placeLat: number | null; placeLng: number | null; postId: string | null; imageUrl: string | null; fileName: string | null; fileUrl: string | null; pinned: boolean }) => ({
   id: m.id,
   authorId: m.authorId,
   text: m.text,
@@ -14,6 +14,7 @@ export const toMessage = (m: { id: string; authorId: string; text: string; at: D
   pollId: m.pollId ?? undefined,
   placeId: m.placeId ?? undefined,
   place: m.placeName ? { name: m.placeName, address: m.placeAddress ?? "", lat: m.placeLat ?? undefined, lng: m.placeLng ?? undefined } : undefined,
+  postId: m.postId ?? undefined,
   imageUrl: m.imageUrl ?? undefined,
   fileName: m.fileName ?? undefined,
   fileUrl: m.fileUrl ?? undefined,

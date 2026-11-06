@@ -5,6 +5,7 @@ import { CurrentUser } from "../auth/session.guard.js";
 import { imageRef, parse } from "../common/validation.js";
 import type { Prisma, User } from "../generated/prisma/client.js";
 import { MailService } from "../mail/mail.service.js";
+import { PostsService } from "../posts/posts.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import { assertVerified } from "../trips/state.controller.js";
@@ -25,7 +26,7 @@ const searchQuery = z.object({ q: z.string().trim().min(2).max(60) });
 const requestBody = z.object({ username: z.string().trim().min(1).max(30) });
 const userBody = z.object({ userId: z.string().min(1).max(64) });
 const reportBody = z.object({
-  targetType: z.enum(["profile", "trip"]),
+  targetType: z.enum(["profile", "trip", "post"]),
   targetId: z.string().min(1).max(64),
   reason: z.enum(["spam", "harassment", "fake", "inappropriate", "other"]),
   details: z.string().trim().max(1000).default(""),
@@ -39,6 +40,7 @@ export class SocialController {
     private readonly social: SocialService,
     private readonly realtime: RealtimeGateway,
     private readonly mail: MailService,
+    private readonly posts: PostsService,
   ) {}
 
   private async own(user: User) {
@@ -209,6 +211,13 @@ export class SocialController {
   @Post("reports")
   async report(@CurrentUser() user: User, @Body() body: unknown) {
     const input = parse(reportBody, body);
+    if (input.targetType === "post") {
+      const post = await this.prisma.post.findUnique({ where: { id: input.targetId }, select: { id: true, caption: true, authorId: true } });
+      if (!post || post.authorId === user.id || !(await this.posts.canSee(user, post))) throw new NotFoundException({ message: "This post isn't available" });
+      await this.prisma.report.create({ data: { reporterId: user.id, ...input } });
+      void this.mail.sendToOwner("A post was reported on TripOS", [`A post was reported for: ${input.reason}.`, `Its caption: ${post.caption || "(no caption)"}`, input.details || "No details were given.", "Open the reports page in TripOS to review it."]);
+      return { ok: true };
+    }
     if (input.targetType === "trip") {
       // Only something this person can actually see, so reporting can't confirm that a private trip exists.
       const trip = await this.prisma.trip.findFirst({ where: { id: input.targetId, visibility: "public" }, select: { id: true, name: true } });
@@ -237,10 +246,13 @@ export class SocialController {
     const byId = new Map(people.map((p) => [p.id, p]));
     const trips = await this.prisma.trip.findMany({ where: { id: { in: reports.filter((r) => r.targetType === "trip").map((r) => r.targetId) } }, select: { id: true, name: true, visibility: true } });
     const tripById = new Map(trips.map((t) => [t.id, t]));
+    const posts = await this.prisma.post.findMany({ where: { id: { in: reports.filter((r) => r.targetType === "post").map((r) => r.targetId) } }, select: { id: true, caption: true, author: { select: { name: true } } } });
+    const postById = new Map(posts.map((p) => [p.id, p]));
     return reports.map((r) => ({
       id: r.id,
       targetType: r.targetType,
       trip: r.targetType === "trip" ? { id: r.targetId, name: tripById.get(r.targetId)?.name ?? "A deleted trip", isPublic: tripById.get(r.targetId)?.visibility === "public" } : undefined,
+      post: r.targetType === "post" ? { id: r.targetId, exists: postById.has(r.targetId), caption: postById.get(r.targetId)?.caption ?? "", author: postById.get(r.targetId)?.author.name ?? "" } : undefined,
       reason: r.reason,
       details: r.details,
       status: r.status,

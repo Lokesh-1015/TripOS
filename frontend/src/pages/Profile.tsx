@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Camera, Flag, Globe, Lock, MapPin, MoreHorizontal, ShieldOff, UserMinus, UserRound } from "lucide-react";
+import { Camera, Flag, Globe, Lock, MapPin, MoreHorizontal, Plus, ShieldOff, UserMinus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, ConfirmDialog, EmptyState, Field } from "@/components/common";
 import { FriendButton } from "@/components/social";
+import { CreatePostDialog, PostCard } from "@/components/posts";
+import { useProfilePosts } from "@/lib/posts";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { useOwnProfile, useProfile, useSocialActions, type OwnProfile, type TravellerProfile } from "@/lib/social";
 import { actions } from "@/lib/store";
@@ -152,6 +154,28 @@ function ReportDialog({ person, open, onClose }: { person: TravellerProfile; ope
   );
 }
 
+/** Their posts, as this viewer is allowed to see them. A private profile can still have public posts. */
+function ProfilePosts({ username, isMe, defaultVisibility }: { username: string; isMe: boolean; defaultVisibility: "public" | "friends" }) {
+  const { data, isPending, hasNextPage, fetchNextPage, isFetchingNextPage } = useProfilePosts(username, true);
+  const [creating, setCreating] = useState(false);
+  const posts = data?.pages.flatMap((p) => p.posts) ?? [];
+  return (
+    <section className="grid gap-4" data-testid="profile-posts">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Posts</h2>
+        {isMe && <Button className="rounded-xl" onClick={() => setCreating(true)} data-testid="profile-create-post"><Plus className="size-4" /> Create post</Button>}
+      </div>
+      {isPending ? <p className="text-sm text-ink-muted">Loading…</p> : posts.length ? (
+        <>
+          {posts.map((p) => <PostCard key={p.id} post={p} />)}
+          {hasNextPage && <Button variant="outline" className="justify-self-center rounded-xl" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>Show older posts</Button>}
+        </>
+      ) : <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-ink-muted" data-testid="profile-posts-empty">{isMe ? "Share a moment from your travels." : "No posts you can see yet."}</p>}
+      {creating && <CreatePostDialog open onClose={() => setCreating(false)} defaultVisibility={defaultVisibility} />}
+    </section>
+  );
+}
+
 export default function Profile() {
   const { username = "" } = useParams();
   const navigate = useNavigate();
@@ -216,6 +240,8 @@ export default function Profile() {
           {!profile.travelStyles.length && !profile.interests.length && !profile.favouriteDestinations.length && !profile.placesVisited.length && <p className="text-sm text-ink-muted" data-testid="profile-empty">{isMe ? "Add your travel styles and favourite places, so people can see what you have in common." : "Nothing here yet."}</p>}
         </div>
       )}
+
+      <ProfilePosts username={profile.username} isMe={isMe} defaultVisibility={profile.visibility === "public" ? "public" : "friends"} />
 
       {isMe && me && editing && <EditProfileDialog me={me} open onClose={() => setEditing(false)} />}
       {!isMe && reporting && <ReportDialog person={profile} open onClose={() => setReporting(false)} />}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
+import { Link } from "react-router-dom";
 import { FileText, ImagePlus, MapPin, Navigation, Paperclip, Pin, PinOff, Search, Send, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { useTripAccess } from "@/lib/access";
 import { actions, saved, useApp } from "@/lib/store";
 import { uid } from "@/lib/format";
 import { googleMapsUrl } from "@/lib/maps";
+import { usePost } from "@/lib/posts";
 import { searchPlaces, type PlaceResult } from "@/lib/placeSearch";
 import type { Message, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,19 @@ import { PLACE_META } from "./placeMeta";
 
 // How many recent messages come with the trip itself. The server has the same number.
 const LOADED_WITH_TRIP = 300;
+
+/** A post shared into chat. Each reader sees it only if they could see the post anyway. */
+function SharedPost({ id, messageId }: { id: string; messageId: string }) {
+  const { data, isError } = usePost(id);
+  if (isError) return <p className="rounded-2xl border border-dashed border-line px-3 py-2 text-sm text-ink-muted" data-testid={`chat-post-unavailable-${messageId}`}>This post isn't available to you</p>;
+  if (!data) return <div className="h-20 w-64 animate-pulse rounded-2xl bg-muted" />;
+  return (
+    <Link to={`/app/posts/${id}`} className="flex w-64 items-center gap-3 overflow-hidden rounded-2xl border border-line bg-card p-2 hover:border-forest/40" data-testid={`chat-post-${messageId}`}>
+      {data.photos[0] && <img src={data.photos[0]} alt="" className="size-14 shrink-0 rounded-xl object-cover" />}
+      <span className="min-w-0"><span className="block truncate text-sm font-semibold">{data.author.name}'s post</span><span className="block truncate text-xs text-ink-muted">{data.caption || data.destination || "Open to see it"}</span></span>
+    </Link>
+  );
+}
 
 function LocationCard({ id, place, color }: { id: string; place: NonNullable<Message["place"]>; color?: string }) {
   return (
@@ -137,6 +152,8 @@ export default function ChatTab({ trip }: { trip: Trip }) {
                       <div className="w-[min(420px,72vw)]"><PollCard trip={trip} poll={p} compact /></div>
                     ) : m.kind === "location" && (m.place ?? place) ? (
                       <LocationCard id={m.id} place={(m.place ?? place) as NonNullable<Message["place"]>} color={place ? PLACE_META[place.type].color : undefined} />
+                    ) : m.kind === "post" && m.postId ? (
+                      <SharedPost id={m.postId} messageId={m.id} />
                     ) : m.kind === "image" && m.imageUrl ? (
                       <img src={m.imageUrl} alt="Shared" className="max-h-64 rounded-2xl object-cover" />
                     ) : m.kind === "file" ? (

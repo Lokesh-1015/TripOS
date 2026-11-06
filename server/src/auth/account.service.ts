@@ -53,6 +53,13 @@ export class AccountService {
         const avatar = fileIdOf(user.avatar);
         await tx.storedFile.deleteMany({ where: { id: { in: [...privateFiles.map((f) => f.id), ...(avatar ? [avatar] : [])] } } });
         await tx.joinRequest.deleteMany({ where: { userId: user.id } });
+        // Posts are theirs alone, so they go, with their photos, likes and comments.
+        const posts = await tx.post.findMany({ where: { authorId: user.id }, select: { id: true } });
+        await tx.storedFile.deleteMany({ where: { postId: { in: posts.map((p) => p.id) } } });
+        await tx.notification.deleteMany({ where: { link: { in: posts.map((p) => `/app/posts/${p.id}`) } } });
+        await tx.post.deleteMany({ where: { authorId: user.id } });
+        await tx.postLike.deleteMany({ where: { userId: user.id } });
+        await tx.postComment.deleteMany({ where: { authorId: user.id } });
         await tx.friendship.deleteMany({ where: { OR: [{ userLowId: user.id }, { userHighId: user.id }] } });
         await tx.block.deleteMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] } });
         await tx.liveLocation.deleteMany({ where: { userId: user.id } });

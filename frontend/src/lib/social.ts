@@ -58,8 +58,9 @@ export interface BlockedPerson {
 
 export interface ReportRow {
   id: string;
-  targetType: "profile" | "trip";
+  targetType: "profile" | "trip" | "post";
   trip?: { id: string; name: string; isPublic: boolean };
+  post?: { id: string; exists: boolean; caption: string; author: string };
   reason: string;
   details: string;
   status: "open" | "reviewed";
@@ -107,6 +108,7 @@ export function useSocialActions() {
     unblock: (userId: string) => refreshing(apiDelete(`/blocks/${userId}`)),
     report: (targetId: string, reason: string, details: string) => apiPost("/reports", { targetType: "profile", targetId, reason, details }),
     reviewReport: (id: string) => refreshing(apiPost(`/admin/reports/${id}/review`)),
+    removePost: (postId: string) => refreshing(apiPost(`/admin/posts/${postId}/remove`)),
     unpublishTrip: (tripId: string) => refreshing(apiPost(`/admin/trips/${tripId}/unpublish`)),
     suspend: (userId: string) => refreshing(apiPost(`/admin/users/${userId}/suspend`)),
     unsuspend: (userId: string) => refreshing(apiPost(`/admin/users/${userId}/unsuspend`)),

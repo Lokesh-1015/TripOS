@@ -4,6 +4,7 @@ import type { Response } from "express";
 import { z } from "zod";
 import { CurrentUser, Public } from "../auth/session.guard.js";
 import { parse } from "../common/validation.js";
+import { PostsService } from "../posts/posts.service.js";
 import { FileStorage } from "./file-storage.service.js";
 import { CLEANABLE_IMAGES, detectType, removeImageMetadata } from "./image-safety.js";
 import type { User } from "../generated/prisma/client.js";
@@ -15,13 +16,15 @@ const MAX_BYTES_PER_PERSON = 500 * 1024 * 1024;
 // Only types browsers render safely are served inline; anything else downloads, so uploads can't run as pages.
 const INLINE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "video/mp4", "video/webm"]);
 
-const uploadBody = z.object({ tripId: z.string().optional(), visibility: z.enum(["public", "shared", "private"]) });
+// "post" is a photo for a travel post: only its uploader can open it until it's posted, then the post decides.
+const uploadBody = z.object({ tripId: z.string().optional(), visibility: z.enum(["public", "shared", "private", "post"]) });
 
 @Controller("files")
 export class FilesController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: FileStorage,
+    private readonly posts: PostsService,
   ) {}
 
   /** Decides what a file is from its contents, and rewrites images without their hidden details. */
@@ -47,18 +50,19 @@ export class FilesController {
     if (!file) throw new UnprocessableEntityException({ message: "No file was uploaded" });
     const { tripId, visibility } = parse(uploadBody, body);
     if (visibility === "public" && !file.mimetype.startsWith("image/")) throw new UnprocessableEntityException({ message: "Only images can be used here" });
-    if (visibility !== "public") {
+    if (visibility === "post" && !file.mimetype.startsWith("image/")) throw new UnprocessableEntityException({ message: "Posts are for photos" });
+    if (visibility === "shared" || visibility === "private") {
       if (!tripId) throw new UnprocessableEntityException({ message: "A trip is required" });
       const member = await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: user.id } } });
       if (member?.status !== "active" || member.role === "viewer") throw new ForbiddenException({ message: "You can't upload to this trip" });
     }
     const used = await this.prisma.storedFile.aggregate({ where: { uploadedBy: user.id }, _sum: { sizeBytes: true } });
     if ((used._sum.sizeBytes ?? 0) + file.size > MAX_BYTES_PER_PERSON) throw new UnprocessableEntityException({ message: "You've used all your storage space. Delete some photos or documents to add more." });
-    const { data, mimeType } = await this.prepare(file, visibility === "public");
+    const { data, mimeType } = await this.prepare(file, visibility === "public" || visibility === "post");
     const storageKey = await this.storage.save(data, mimeType);
     const row = await this.prisma.storedFile.create({
       data: {
-        tripId: visibility === "public" ? null : tripId,
+        tripId: visibility === "public" || visibility === "post" ? null : tripId,
         uploadedBy: user.id,
         fileName: file.originalname,
         mimeType,
@@ -82,7 +86,11 @@ export class FilesController {
     if (!file.isPublic) {
       if (!user) throw new UnauthorizedException({ message: "Please log in" });
       const member = file.tripId ? await this.prisma.tripMember.findUnique({ where: { tripId_userId: { tripId: file.tripId, userId: user.id } } }) : null;
-      const allowed = file.visibility === "private" || !file.tripId ? file.uploadedBy === user.id : member?.status === "active";
+      const allowed = file.postId
+        ? await this.posts.canSee(user, { id: file.postId })
+        : file.visibility === "private" || !file.tripId
+          ? file.uploadedBy === user.id
+          : member?.status === "active";
       // The same answer as a missing file, so ids of private files reveal nothing.
       if (!allowed) throw new NotFoundException();
     }

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  Compass, Flag, Users, FileText, HelpCircle, Home, Images, LogOut, Map as MapIcon, Menu, Plus, Receipt, Search, Settings, CheckSquare, ChevronsUpDown, User,
+  Compass, Flag, Newspaper, Users, FileText, HelpCircle, Home, Images, LogOut, Map as MapIcon, Menu, Plus, Receipt, Search, Settings, CheckSquare, ChevronsUpDown, User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
@@ -24,6 +24,7 @@ const NAV = [
   { to: "/app", label: "Overview", icon: Home, end: true },
   { to: "/app/trips", label: "My Trips", icon: MapIcon },
   { to: "/app/explore", label: "Explore", icon: Compass },
+  { to: "/app/feed", label: "Feed", icon: Newspaper },
   { to: "/app/people", label: "People", icon: Users },
   { to: "/app/expenses", label: "Expenses", icon: Receipt },
   { to: "/app/tasks", label: "Tasks", icon: CheckSquare },
@@ -38,6 +39,8 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/trips/, "My Trips"],
   [/^\/app\/explore/, "Explore"],
   [/^\/app\/people/, "People"],
+  [/^\/app\/feed/, "Feed"],
+  [/^\/app\/posts\//, "Post"],
   [/^\/app\/u\//, "Profile"],
   [/^\/app\/admin/, "Reports"],
   [/^\/app\/expenses/, "Expenses"],

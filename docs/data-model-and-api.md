@@ -83,6 +83,12 @@ Trips are private unless the host chooses otherwise, and that includes every tri
 
 `maxParticipants` counts everyone who has joined, including the host. Invitations and requests don't hold a place. Every way of joining goes through `assertRoom` in `participants.ts`, which locks the trip's row so two people can't take the last place. A limit can't go below how many have joined, and never removes anyone.
 
+## Posts
+
+Posts belong to a profile, separate from trip memories. Each has its own audience: public, friends or only me, decided by `PostsService.visibleWhere`, which every read of a post, its photos, comments and likes uses. Blocked people, and suspended or deleted authors, are left out. Post photos are uploaded with visibility "post": only the uploader can open one until it's posted, then the post's audience decides. A linked trip is named only for people who can already see that trip. Sharing a post into a trip chat doesn't widen its audience: each reader still has to be allowed.
+
+Sharing a memory as a post copies the photo into a new file owned by the post, so deleting either one leaves the other, and the trip's permissions don't change. Only the person who added a photo can share it.
+
 ## Deleting an account
 
 The `users` row stays as a nameless "Former member", because other people's expenses and chat refer to it. Name, email, photo, profile, username, sessions, notifications, friendships, blocks, shared locations and private documents go. Trips with nobody else on them are deleted, and owned trips pass to an admin, or else the longest-standing member.
@@ -212,6 +218,13 @@ GET    /trips/:id/join-requests             owner and admins
 POST   /trips/:id/join-requests/:rid/accept | reject   owner and admins
 GET    /people/suggested                    public profiles with something in common
 POST   /admin/trips/:id/unpublish           ADMIN_EMAILS only
+GET    /feed?before=&beforeId=              your posts, friends' posts and public posts, newest first
+GET    /profiles/:username/posts            that person's posts you're allowed to see
+POST   /posts                               { id, caption, destination, tripId, visibility, photos, fromPhotoId? }
+GET | PATCH | DELETE /posts/:id             PATCH and DELETE are for the author
+PUT | DELETE /posts/:id/like
+GET | POST /posts/:id/comments              DELETE /posts/:id/comments/:commentId (commenter or post author)
+POST   /admin/posts/:id/remove              ADMIN_EMAILS only
 GET    /admin/reports                       ADMIN_EMAILS only, otherwise 404; also POST /admin/reports/:id/review
 POST   /admin/users/:id/suspend | unsuspend ADMIN_EMAILS only
 GET    /auth/config                         public; the Google client id, or null if it's not set up
