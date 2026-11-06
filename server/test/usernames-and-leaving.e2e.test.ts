@@ -99,6 +99,20 @@ describe("usernames", () => {
     expect((await c.req("PATCH", "/me/profile", { username: unique("third") })).status).toBe(200);
   });
 
+  it("can be chosen freely while setting up, and the 30 days start once setup is done", async () => {
+    const c = new Client();
+    c.email = `setup-${tag}-${++counter}@example.test`;
+    expect((await c.req("POST", "/auth/signup", { name: "Setup Tester", email: c.email, password: "correct-horse" })).status).toBeLessThan(300);
+    const first = unique("pick.one");
+    const picked = await c.req("PATCH", "/me/profile", { username: first });
+    expect(picked.body).toMatchObject({ username: first, nextUsernameChangeAt: null });
+    expect((await c.req("PATCH", "/me/profile", { username: unique("pick.two") })).body.nextUsernameChangeAt).toBeNull();
+    expect((await c.req("PATCH", "/me", { onboarded: true })).status).toBe(200);
+    const changed = await c.req("PATCH", "/me/profile", { username: unique("after.setup") });
+    expect(changed.body.nextUsernameChangeAt).not.toBeNull();
+    expect((await c.req("PATCH", "/me/profile", { username: unique("too.soon") })).status).toBe(409);
+  });
+
   it("is enforced by the database itself, not only by the app", async () => {
     const c = await Client.person("Direct");
     await db.user.update({ where: { id: c.id }, data: { username: unique("once") } });

@@ -134,3 +134,47 @@ test('the only admin hands the trip over as they leave, and the last person is t
   await expect(member.page.getByTestId('leave-delete-instead')).toBeVisible();
   for (const p of [owner, member]) await p.page.context().close();
 });
+
+test('a new account chooses its username while setting up, then can change it once in Settings', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  const email = `setup-${stamp}-${++counter}@example.test`;
+  const other = await person(browser, 'Holder');
+  await page.goto('/signup');
+  await page.getByTestId('signup-name-input').fill(`Setup ${stamp}`);
+  await page.getByTestId('signup-email-input').fill(email);
+  await page.getByTestId('signup-password-input').fill('correct-horse');
+  await page.getByTestId('signup-submit-button').click();
+  await expect(page).toHaveURL(/\/onboarding/);
+  await page.evaluate(async (token) => { await fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) }); }, await verifyToken(email));
+  await page.reload();
+
+  // A suggestion is filled in, and taken names are refused before going on.
+  const field = page.getByTestId('onboarding-username-input');
+  await expect(field).not.toHaveValue('');
+  await field.fill(other.username);
+  await expect(page.getByTestId('username-unavailable')).toHaveText('That username is taken');
+  await expect(page.getByTestId('onboarding-next-button')).toBeDisabled();
+  const chosen = `setup.${stamp}`.slice(0, 30);
+  await field.fill(chosen);
+  await expect(page.getByTestId('username-available')).toContainText('change it later');
+  await page.getByTestId('onboarding-next-button').click();
+  await page.getByTestId('onboarding-finish-button').click();
+  await expect(page).toHaveURL(/\/app/);
+
+  // Choosing during setup didn't start the 30-day wait, so Settings allows one change.
+  await page.goto('/app/settings');
+  const setting = page.getByTestId('settings-username-input');
+  await expect(setting).toHaveValue(chosen);
+  await expect(setting).toBeEnabled();
+  const renamed = `${chosen.slice(0, 26)}_two`;
+  await setting.fill(renamed);
+  await expect(page.getByTestId('username-available')).toContainText(`@${renamed} is available`);
+  await page.getByTestId('settings-profile-save').click();
+  await expect(page.getByTestId('username-locked')).toContainText('You can change it again on');
+  await expect(page.getByTestId('settings-username-input')).toBeDisabled();
+  expect((await page.evaluate(async () => (await (await fetch('/api/me/profile')).json()).username))).toBe(renamed);
+  await context.close();
+  await other.page.context().close();
+});

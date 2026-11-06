@@ -20,7 +20,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-09",
     features: [
       { icon: UserX, title: "Leave a trip", body: "Leave a trip from its menu. Members ask an admin first. An admin can hand the trip over to someone else as they go. Whatever you added stays with the group." },
-      { icon: Users, title: "Usernames", body: "Everyone now has a unique username, with letters, numbers, underscores and periods. Change yours on your profile, once every 30 days." },
+      { icon: Users, title: "Usernames", body: "Everyone now has a unique username, with letters, numbers, underscores and periods. Choose yours when you set up your account, then change it in Settings or on your profile, once every 30 days." },
     ],
     improved: [],
     fixed: [],

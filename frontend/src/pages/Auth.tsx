@@ -12,6 +12,8 @@ import { IMG, img } from "@/lib/seed";
 import { apiErrorMessage } from "@/lib/api";
 import { actions, getState, peekNext, takeNext, useApp } from "@/lib/store";
 import { CURRENCIES } from "@/lib/format";
+import { useOwnProfile, useSocialActions } from "@/lib/social";
+import { UsernameField, useUsernameStatus } from "@/components/UsernameField";
 import { cn } from "@/lib/utils";
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -342,10 +344,38 @@ export function Onboarding() {
   const [styles, setStyles] = useState<string[]>([]);
   const [err, setErr] = useState<string>();
   const mustConfirmEmail = useApp((s) => s.mustConfirmEmail);
+  // Signup suggested a username. It can be kept or swapped here, before the 30-day rule starts.
+  const { data: me } = useOwnProfile();
+  const social = useSocialActions();
+  const [username, setUsername] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const current = me?.username ?? "";
+  const status = useUsernameStatus(username, current, null, true);
   // On a refresh, this screen appears before the account has loaded.
   useEffect(() => {
     if (user.name) setName((current) => current || user.name);
   }, [user.name]);
+  useEffect(() => {
+    if (current) setUsername((typed) => typed || current);
+  }, [current]);
+
+  const next = async () => {
+    if (name.trim().length < 2) return setErr("Name is required");
+    setErr(undefined);
+    if (status.state === "checking" || status.state === "unavailable" || !current) return;
+    if (status.state === "available") {
+      setSavingName(true);
+      try {
+        await social.updateProfile({ username: status.typed });
+      } catch (error) {
+        toast.error(apiErrorMessage(error));
+        return;
+      } finally {
+        setSavingName(false);
+      }
+    }
+    setStep(1);
+  };
 
   const finish = () => {
     void actions.finishOnboarding({ name: name.trim(), bio, currency, travelStyles: styles }).then(() => {
@@ -369,6 +399,7 @@ export function Onboarding() {
             <Field label="Display name" htmlFor="ob-name" error={err}>
               <Input id="ob-name" value={name} onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl" data-testid="onboarding-name-input" />
             </Field>
+            <UsernameField id="ob-username" value={username} current={current} nextChangeAt={null} setup onChange={setUsername} testId="onboarding-username-input" inputClassName="h-11 rounded-xl" />
             <Field label="Short bio (optional)" htmlFor="ob-bio">
               <Textarea id="ob-bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Window seat person. Always hungry." className="rounded-xl" data-testid="onboarding-bio-input" />
             </Field>
@@ -378,7 +409,7 @@ export function Onboarding() {
                 <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
-            <Button className="h-11 rounded-xl" onClick={() => (name.trim().length < 2 ? setErr("Name is required") : (setErr(undefined), setStep(1)))} data-testid="onboarding-next-button">Continue</Button>
+            <Button className="h-11 rounded-xl" disabled={savingName || !current || status.state === "checking" || status.state === "unavailable"} onClick={() => void next()} data-testid="onboarding-next-button">{savingName ? "Saving…" : "Continue"}</Button>
           </div>
         </div>
       ) : (

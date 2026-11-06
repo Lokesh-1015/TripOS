@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { Camera, Check, Laptop, Moon, Sun } from "lucide-react";
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, Field, PageHeader } from "@/components/common";
+import { UsernameField, useUsernameStatus } from "@/components/UsernameField";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
 import { CURRENCIES } from "@/lib/format";
@@ -150,15 +151,35 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [p, setP] = useState({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles });
   const [err, setErr] = useState<Record<string, string>>({});
-  const dirty = p.name !== user.name || p.email !== user.email || p.bio !== settings.bio || p.currency !== settings.currency || p.avatar !== user.avatar || p.styles.join() !== settings.travelStyles.join();
+  const { data: me } = useOwnProfile();
+  const social = useSocialActions();
+  const [username, setUsername] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (me?.username) setUsername(me.username);
+  }, [me?.username]);
+  const usernameStatus = useUsernameStatus(username, me?.username ?? "", me?.nextUsernameChangeAt ?? null);
+  const usernameChanged = !!me && usernameStatus.state !== "unchanged" && usernameStatus.state !== "locked";
+  const dirty = usernameChanged || p.name !== user.name || p.email !== user.email || p.bio !== settings.bio || p.currency !== settings.currency || p.avatar !== user.avatar || p.styles.join() !== settings.travelStyles.join();
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     const e: Record<string, string> = {};
     if (p.name.trim().length < 2) e.name = "Name is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) e.email = "Enter a valid email";
     if (p.bio.length > 200) e.bio = "Keep it under 200 characters";
     setErr(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length || (usernameChanged && usernameStatus.state !== "available")) return;
+    if (usernameChanged) {
+      setSaving(true);
+      try {
+        await social.updateProfile({ username: usernameStatus.typed });
+      } catch (error) {
+        toast.error(apiErrorMessage(error));
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
     actions.updateProfile({ name: p.name.trim(), email: p.email.trim(), avatar: p.avatar });
     actions.updateSettings({ bio: p.bio, currency: p.currency, travelStyles: p.styles });
     saved("Profile saved");
@@ -196,6 +217,7 @@ export default function Settings() {
               <Field label="Full name" htmlFor="st-name" error={err.name}><Input id="st-name" value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} data-testid="settings-name-input" /></Field>
               <Field label="Email" htmlFor="st-email" error={err.email}><Input id="st-email" type="email" value={p.email} onChange={(e) => setP({ ...p, email: e.target.value })} data-testid="settings-email-input" /></Field>
             </div>
+            {me && <UsernameField id="st-username" value={username} current={me.username} nextChangeAt={me.nextUsernameChangeAt} onChange={setUsername} testId="settings-username-input" />}
             <Field label="Bio" htmlFor="st-bio" error={err.bio} hint={`${p.bio.length}/200`}><Textarea id="st-bio" value={p.bio} onChange={(e) => setP({ ...p, bio: e.target.value })} data-testid="settings-bio-input" /></Field>
             <Field label="Preferred currency">
               <Select value={p.currency} onValueChange={(v) => setP({ ...p, currency: v })}>
@@ -212,8 +234,8 @@ export default function Settings() {
               </div>
             </Field>
             <div className="flex justify-end gap-2 border-t pt-4">
-              <Button variant="outline" disabled={!dirty} onClick={() => setP({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles })} data-testid="settings-profile-discard">Discard</Button>
-              <Button disabled={!dirty} onClick={saveProfile} data-testid="settings-profile-save">Save changes</Button>
+              <Button variant="outline" disabled={!dirty} onClick={() => { setP({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles }); setUsername(me?.username ?? ""); }} data-testid="settings-profile-discard">Discard</Button>
+              <Button disabled={!dirty || saving} onClick={() => void saveProfile()} data-testid="settings-profile-save">{saving ? "Saving…" : "Save changes"}</Button>
             </div>
           </section>
         </TabsContent>

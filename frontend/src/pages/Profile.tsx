@@ -14,8 +14,8 @@ import { FriendButton } from "@/components/social";
 import { CreatePostDialog, PostCard } from "@/components/posts";
 import { useProfilePosts } from "@/lib/posts";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
-import { useOwnProfile, useProfile, useSocialActions, useUsernameCheck, type OwnProfile, type TravellerProfile } from "@/lib/social";
-import { format, parseISO } from "date-fns";
+import { useOwnProfile, useProfile, useSocialActions, type OwnProfile, type TravellerProfile } from "@/lib/social";
+import { UsernameField } from "@/components/UsernameField";
 import { actions } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -43,29 +43,6 @@ function Choice({ options, chosen, onChange, testId }: { options: string[]; chos
         return <button key={option} type="button" aria-pressed={on} onClick={() => onChange(on ? chosen.filter((x) => x !== option) : [...chosen, option])} className={cn("rounded-full border px-3 py-1 text-sm transition-colors", on ? "border-forest bg-forest text-white" : "border-line text-ink-muted hover:text-ink")}>{option}</button>;
       })}
     </div>
-  );
-}
-
-/** Shows straight away whether a username is free, and when it can next change. */
-function UsernameField({ value, me, onChange }: { value: string; me: OwnProfile; onChange: (v: string) => void }) {
-  const locked = !!me.nextUsernameChangeAt;
-  const typed = value.trim().replace(/^@/, "").toLowerCase();
-  const changed = typed !== me.username;
-  const { data, isFetching } = useUsernameCheck(value, changed && !locked);
-  const next = me.nextUsernameChangeAt ? format(parseISO(me.nextUsernameChangeAt), "d MMMM yyyy") : null;
-  const status = locked
-    ? <span data-testid="username-locked">You can change it again on {next}.</span>
-    : !changed
-      ? <span>You can change it once every 30 days.</span>
-      : isFetching || !data || data.username !== typed
-        ? <span>Checking…</span>
-        : data.available
-          ? <span className="text-forest" data-testid="username-available">@{data.username} is available. After changing it, you can't change it again for 30 days.</span>
-          : <span className="text-destructive" data-testid="username-unavailable">{data.reason}</span>;
-  return (
-    <Field label="Username" htmlFor="pr-username" hint={status}>
-      <Input id="pr-username" value={value} maxLength={30} disabled={locked} onChange={(e) => onChange(e.target.value)} data-testid="profile-username-input" />
-    </Field>
   );
 }
 
@@ -117,7 +94,7 @@ function EditProfileDialog({ me, open, onClose }: { me: OwnProfile; open: boolea
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Display name" htmlFor="pr-name"><Input id="pr-name" value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="profile-name-input" /></Field>
-            <UsernameField value={f.username} me={me} onChange={(username) => setF({ ...f, username })} />
+            <UsernameField id="pr-username" value={f.username} current={me.username} nextChangeAt={me.nextUsernameChangeAt} onChange={(username) => setF({ ...f, username })} />
           </div>
           <Field label="Short bio" htmlFor="pr-bio" hint={`${f.bio.length}/200`}><Textarea id="pr-bio" value={f.bio} maxLength={200} onChange={(e) => setF({ ...f, bio: e.target.value })} data-testid="profile-bio-input" /></Field>
           <Field label="Location (optional)" htmlFor="pr-location"><Input id="pr-location" value={f.location} maxLength={100} placeholder="City or region" onChange={(e) => setF({ ...f, location: e.target.value })} data-testid="profile-location-input" /></Field>
