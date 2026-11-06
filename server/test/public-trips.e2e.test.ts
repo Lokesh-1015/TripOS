@@ -148,16 +148,16 @@ describe("what a public trip reveals", () => {
     const [seen] = responses;
     expect(seen.body.plan).toEqual([{ day: 1, title: "Reach base camp", type: "activity" }]);
     expect(seen.body.participantCount).toBe(2);
-    expect(seen.body.budgetPerPerson).toBeNull();
+    expect(seen.body.budget).toBeNull();
   });
 
   it("shows the budget only if the host chooses, and the plan only if the host chooses", async () => {
     const owner = await Client.person("Owner");
     const viewer = await Client.person("Viewer");
-    const trip = await newTrip(owner, { visibility: "public", perPersonBudget: 45000, currency: "INR", showBudget: true, showPlan: false });
+    const trip = await newTrip(owner, { visibility: "public", budget: 45000, currency: "INR", showBudget: true, showPlan: false });
     await owner.req("PUT", `/trips/${trip.id}/activities/${id("act")}`, { day: 0, title: "Hidden plan", start: "10:00", end: "11:00" });
     const seen = (await viewer.req("GET", `/public/trips/${trip.id}`)).body;
-    expect(seen).toMatchObject({ budgetPerPerson: 45000, currency: "INR", plan: [] });
+    expect(seen).toMatchObject({ budget: 45000, currency: "INR", plan: [] });
   });
 
   it("shows someone signed out only the host's first name and photo", async () => {
@@ -195,8 +195,8 @@ describe("filters", () => {
   it("narrows by each filter", async () => {
     const owner = await Client.person("Filter");
     const viewer = await Client.person("Browser");
-    const trek = await newTrip(owner, { ...PUBLIC, startDate: "2031-06-10", endDate: "2031-06-12", perPersonBudget: 10000, showBudget: true, currency: "INR", maxParticipants: 1 });
-    const beach = await newTrip(owner, { visibility: "public", category: "Beach", travelStyle: "Beaches", startDate: "2031-08-01", endDate: "2031-08-20", perPersonBudget: 90000, showBudget: true, currency: "INR" });
+    const trek = await newTrip(owner, { ...PUBLIC, startDate: "2031-06-10", endDate: "2031-06-12", budget: 10000, showBudget: true, currency: "INR", maxParticipants: 1 });
+    const beach = await newTrip(owner, { visibility: "public", category: "Beach", travelStyle: "Beaches", startDate: "2031-08-01", endDate: "2031-08-20", budget: 90000, showBudget: true, currency: "INR" });
     const both = async (query: string) => [await inExplore(viewer, trek.id, query), await inExplore(viewer, beach.id, query)];
     expect(await both("")).toEqual([true, true]);
     expect(await both("&category=Beach")).toEqual([false, true]);

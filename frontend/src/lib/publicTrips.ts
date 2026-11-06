@@ -22,7 +22,8 @@ export interface PublicTrip {
   maxParticipants: number | null;
   placesLeft: number | null;
   full: boolean;
-  budgetPerPerson: number | null;
+  /** The trip's total budget, when the host chose to show it. */
+  budget: number | null;
   currency: string | null;
   plan: { day: number; title: string; type: string }[];
   host: { id: string | null; name: string; avatar: string; username: string | null };

@@ -50,7 +50,7 @@ export function TripVisibilityFields({ value, canPublish, onChange }: { value: V
             </Field>
           </div>
           <label className="flex items-center justify-between gap-4 text-sm"><span>Show the day-by-day plan <span className="block text-xs text-ink-muted">Activity titles only, never addresses, notes or costs.</span></span><Switch checked={value.showPlan} onCheckedChange={(showPlan) => set({ showPlan })} data-testid="trip-show-plan" /></label>
-          <label className="flex items-center justify-between gap-4 text-sm"><span>Show the per-person budget</span><Switch checked={value.showBudget} onCheckedChange={(showBudget) => set({ showBudget })} data-testid="trip-show-budget" /></label>
+          <label className="flex items-center justify-between gap-4 text-sm"><span>Show the budget</span><Switch checked={value.showBudget} onCheckedChange={(showBudget) => set({ showBudget })} data-testid="trip-show-budget" /></label>
         </div>
       )}
     </div>

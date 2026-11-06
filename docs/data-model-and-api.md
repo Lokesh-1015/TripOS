@@ -186,7 +186,7 @@ POST   /trips
 GET    /trips/:tripId
 PATCH  /trips/:tripId
 DELETE /trips/:tripId
-POST   /trips/:tripId/members                   invite by email
+POST   /trips/:tripId/members                   { email } for someone new, or { userId } for a traveller found by name or username, a friend or a past co-traveller
 PATCH  /trips/:tripId/members/:userId           change role
 DELETE /trips/:tripId/members/:userId
 GET    /invites/:code                           public preview for the join page

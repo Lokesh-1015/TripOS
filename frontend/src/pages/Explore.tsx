@@ -95,15 +95,15 @@ function DiscoverTrips() {
         </div>
         {more && (
           <div className="grid gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Leaving from" htmlFor="ex-from"><Input id="ex-from" type="date" value={f.from ?? ""} onChange={(e) => set({ from: e.target.value })} className="rounded-xl" data-testid="explore-from" /></Field>
-            <Field label="Back by" htmlFor="ex-to"><Input id="ex-to" type="date" value={f.to ?? ""} onChange={(e) => set({ to: e.target.value })} className="rounded-xl" data-testid="explore-to" /></Field>
+            <Field label="Leaving from" htmlFor="ex-from"><Input id="ex-from" type="date" value={f.from ?? ""} onChange={(e) => { const from = e.target.value; set({ from, ...(from && f.to && f.to < from ? { to: undefined } : {}) }); }} className="rounded-xl" data-testid="explore-from" /></Field>
+            <Field label="Back by" htmlFor="ex-to"><Input id="ex-to" type="date" min={f.from || undefined} value={f.to ?? ""} onChange={(e) => set({ to: e.target.value })} className="rounded-xl" data-testid="explore-to" /></Field>
             <Field label="Length">
               <Select value={duration} onValueChange={(v) => { const d = DURATIONS.find(([k]) => k === v) ?? DURATIONS[0]; setDuration(d[0]); set({ minDays: d[2], maxDays: d[3] }); }}>
                 <SelectTrigger className="w-full rounded-xl" data-testid="explore-duration"><SelectValue>{(v) => DURATIONS.find(([k]) => k === v)?.[1]}</SelectValue></SelectTrigger>
                 <SelectContent>{DURATIONS.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
-            <Field label={`Budget per person, up to (${currency})`} htmlFor="ex-budget"><Input id="ex-budget" inputMode="numeric" value={f.budgetMax ?? ""} onChange={(e) => set({ budgetMax: e.target.value.replace(/\D/g, "") })} className="rounded-xl" data-testid="explore-budget" /></Field>
+            <Field label={`Trip budget, up to (${currency})`} htmlFor="ex-budget"><Input id="ex-budget" inputMode="numeric" value={f.budgetMax ?? ""} onChange={(e) => set({ budgetMax: e.target.value.replace(/\D/g, "") })} className="rounded-xl" data-testid="explore-budget" /></Field>
             <Field label="People already going, at most" htmlFor="ex-people"><Input id="ex-people" inputMode="numeric" value={f.maxPeople ?? ""} onChange={(e) => set({ maxPeople: e.target.value.replace(/\D/g, "") })} className="rounded-xl" data-testid="explore-people" /></Field>
           </div>
         )}

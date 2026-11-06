@@ -109,7 +109,7 @@ function Details({ trip, standalone }: { trip: PublicTripDetail; standalone: boo
     [CalendarDays, `${fmtRange(trip.startDate, trip.endDate)}${trip.flexibleDates ? " · dates are flexible" : ""}`],
     [Clock, trip.days === 1 ? "1 day" : `${trip.days} days`],
     [Users, capacityLabel(trip)],
-    ...(trip.budgetPerPerson != null && trip.currency ? [[Wallet, `About ${money(trip.budgetPerPerson, trip.currency)} per person`] as [typeof MapPin, string]] : []),
+    ...(trip.budget != null && trip.currency ? [[Wallet, `Budget about ${money(trip.budget, trip.currency)}`] as [typeof MapPin, string]] : []),
     ...(trip.category || trip.travelStyle ? [[Tag, [trip.category, trip.travelStyle].filter(Boolean).join(" · ")] as [typeof MapPin, string]] : []),
   ];
   const planDays = Array.from(new Set(trip.plan.map((p) => p.day))).sort((a, b) => a - b);

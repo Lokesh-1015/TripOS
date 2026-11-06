@@ -3,7 +3,7 @@ import { Link, NavLink, Navigate, useNavigate, useParams, useSearchParams } from
 import { Archive, ArchiveRestore, CalendarDays, ChevronLeft, Copy, CopyPlus, LogOut, MapPin, MoreHorizontal, Pencil, Play, Share2, Trash2, UserPlus, Users } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { toast } from "sonner";
-import { apiErrorMessage } from "@/lib/api";
+import { apiErrorMessage, apiPost } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import { CURRENCIES, daysUntil, fmtRange, hasAmounts, isTripFull, joinedCount, t
 import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
 import { TripVisibilityFields, type VisibilityDraft } from "@/components/trip/TripVisibilityFields";
 import { LeaveRequestActions, LeaveTripDialog } from "@/components/trip/LeaveTrip";
+import { InvitePeople, type PickedPerson } from "@/components/trip/InvitePeople";
 import type { Member, Role, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import OverviewTab from "@/components/trip/OverviewTab";
@@ -43,7 +44,16 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string>();
   const [removing, setRemoving] = useState<Member>();
+  const [inviting, setInviting] = useState<string>();
   const full = isTripFull(trip);
+  const onTrip = new Set(trip.members.map((m) => m.id));
+  const invitePerson = (p: PickedPerson) => {
+    if (full) return toast.error("This trip is full. Raise the limit to invite more people.");
+    setInviting(p.id);
+    void apiPost(`/trips/${trip.id}/members`, { userId: p.id })
+      .then(() => { saved(`${p.name} invited`, { description: "They'll see the invitation in TripOS." }); return actions.refreshTrip(trip.id); }, (error) => toast.error(apiErrorMessage(error)))
+      .finally(() => setInviting(undefined));
+  };
   const link = inviteLink(trip);
   const invite = () => {
     if (full) return setErr("This trip is full. Raise the limit to invite more people.");
@@ -66,7 +76,10 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
           </DialogHeader>
           {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can still share the link below." : "Email invites aren't available yet. Share the link below instead."}</p>}
           {full && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-full-note">This trip is full, so nobody new can join, even with the link. {access.canAdmin ? "Raise the limit in Edit trip to make room." : ""}</p>}
-          {access.canAdmin && emailVerified && <Field label="Invite by email" htmlFor="inv-email" error={err}>
+          {access.canAdmin && emailVerified && <Field label="Invite travellers">
+            <InvitePeople added={onTrip} busyId={inviting} onPick={invitePerson} />
+          </Field>}
+          {access.canAdmin && emailVerified && <Field label="Or invite someone new by email" htmlFor="inv-email" error={err}>
             <div className="flex gap-2">
               <Input id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invite()} placeholder="friend@email.com" className="h-10 rounded-xl" data-testid="members-invite-email-input" />
               <Button onClick={invite} className="h-10 rounded-xl" data-testid="members-invite-send-button">Invite</Button>
@@ -197,8 +210,8 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
           <Field label="Trip name" htmlFor="et-name" error={err.name}><Input id="et-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="edit-trip-name-input" /></Field>
           <Field label="Destination" htmlFor="et-dest" error={err.destination}><Input id="et-dest" value={f.destination} onChange={(e) => setF({ ...f, destination: e.target.value })} data-testid="edit-trip-destination-input" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start" htmlFor="et-s"><Input id="et-s" type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} data-testid="edit-trip-start-input" /></Field>
-            <Field label="End" htmlFor="et-e" error={err.endDate}><Input id="et-e" type="date" value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} data-testid="edit-trip-end-input" /></Field>
+            <Field label="Start" htmlFor="et-s"><Input id="et-s" type="date" value={f.startDate} onChange={(e) => { const startDate = e.target.value; setF({ ...f, startDate, ...(startDate && f.endDate < startDate ? { endDate: startDate } : {}) }); }} data-testid="edit-trip-start-input" /></Field>
+            <Field label="End" htmlFor="et-e" error={err.endDate}><Input id="et-e" type="date" min={f.startDate || undefined} value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} data-testid="edit-trip-end-input" /></Field>
           </div>
           <div className="grid grid-cols-[1fr_150px] gap-3">
             <Field label="Budget" htmlFor="et-b"><Input id="et-b" inputMode="numeric" value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value.replace(/[^\d.]/g, "") })} className="num" data-testid="edit-trip-budget-input" /></Field>

@@ -242,7 +242,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Total budget" value={trip.budget ? money(trip.budget, c) : "-"} hint={trip.perPersonBudget ? `${money(trip.perPersonBudget, c)} per person` : undefined} testId="expenses-stat-budget" />
+        <Stat label="Total budget" value={trip.budget ? money(trip.budget, c) : "-"} testId="expenses-stat-budget" />
         <Stat label="Spent" value={<span data-testid="expenses-total-spent">{money(spent, c)}</span>} hint={trip.budget ? <Progress value={(spent / trip.budget) * 100} className="mt-1.5" tone={spent > trip.budget ? "coral" : "forest"} /> : `${trip.expenses.length} expenses`} testId="expenses-stat-spent" />
         <Stat label="Remaining" value={<span className={cn(trip.budget && spent > trip.budget && "text-destructive")} data-testid="expenses-remaining">{trip.budget ? money(trip.budget - spent, c) : "-"}</span>} hint={trip.budget && spent > trip.budget ? "Over budget" : "Left to spend"} testId="expenses-stat-remaining" />
         <Stat label="Your share" value={money(myShare, c)} hint={`Avg ${money(round2(spent / Math.max(1, trip.members.length)), c)} / person`} testId="expenses-stat-my-share" />
