@@ -9,6 +9,16 @@ export class HealthController {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Whether the API process is up, without touching the database. Uptime pings use this, so keeping
+   * the server awake doesn't also keep the database awake and use up its free compute hours.
+   */
+  @Get("live")
+  live() {
+    return { status: "ok", uptimeSeconds: Math.round(process.uptime()) };
+  }
+
+  /** Whether the API can also reach its database. */
   @Get()
   async check() {
     try {
