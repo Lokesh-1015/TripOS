@@ -25,6 +25,7 @@ async function newUser(browser: Browser, name = 'Planner') {
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
   await page.getByTestId('dashboard-welcome').waitFor();
   return { page, context };
 }

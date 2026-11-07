@@ -15,6 +15,7 @@ import { uid } from "@/lib/format";
 import { useComments, usePostActions, VISIBILITY_HINT, VISIBILITY_LABEL, type PostVisibility, type TravelPost } from "@/lib/posts";
 import { actions, useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ListSkeleton } from "@/components/PageLoading";
 
 const shout = (err: unknown) => toast.error(apiErrorMessage(err));
 const MAX_PHOTOS = 10;
@@ -169,7 +170,7 @@ function Comments({ post }: { post: TravelPost }) {
   };
   return (
     <div className="grid gap-3 border-t pt-3" data-testid={`post-comments-${post.id}`}>
-      {isPending ? <p className="text-sm text-ink-muted">Loading…</p> : data?.length ? data.map((c) => (
+      {isPending ? <ListSkeleton rows={2} /> : data?.length ? data.map((c) => (
         <div key={c.id} className="flex items-start gap-2 text-sm" data-testid={`post-comment-${c.id}`}>
           <Avatar person={c.author} size={26} ring={false} />
           <p className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-2"><span className="font-medium">{c.author.name}</span> <span className="whitespace-pre-wrap break-words">{c.text}</span></p>

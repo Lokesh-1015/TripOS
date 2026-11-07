@@ -13,6 +13,7 @@ import { actions, saved, useApp } from "@/lib/store";
 import { ago, fmtDate, money, todayISO, totalSpent, tripDays, tripStatus, uid } from "@/lib/format";
 import type { Poll, PollCategory, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { GettingStarted } from "@/components/trip/GettingStarted";
 
 const POLL_LABEL: Record<PollCategory, string> = { destination: "Destination", dates: "Travel dates", activity: "Activity", restaurant: "Restaurant", hotel: "Hotel" };
 
@@ -133,7 +134,7 @@ export function NewPollDialog({ trip, open, onOpenChange, onCreated }: { trip: T
   );
 }
 
-export default function OverviewTab({ trip, onManageMembers }: { trip: Trip; onManageMembers: () => void }) {
+export default function OverviewTab({ trip, onManageMembers, onInvite }: { trip: Trip; onManageMembers: () => void; onInvite?: () => void }) {
   const access = useTripAccess(trip);
   const me = access.me;
   const [newPoll, setNewPoll] = useState(false);
@@ -147,6 +148,7 @@ export default function OverviewTab({ trip, onManageMembers }: { trip: Trip; onM
   return (
     <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
       <div className="grid content-start gap-6">
+        <GettingStarted trip={trip} onInvite={onInvite ?? onManageMembers} />
         {access.canAdmin && !!trip.leaveRequests?.length && (
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-coral bg-coral-soft p-4 text-sm text-[#8A3B22]" data-testid="leave-requests-notice">
             <span>{trip.leaveRequests.length === 1 ? "Someone has asked to leave this trip." : `${trip.leaveRequests.length} people have asked to leave this trip.`}</span>

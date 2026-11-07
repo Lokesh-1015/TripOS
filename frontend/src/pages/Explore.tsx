@@ -13,6 +13,7 @@ import { fmtRange } from "@/lib/format";
 import { TRAVEL_STYLES, TRIP_CATEGORIES, usePublicTrips, useSuggestedTravellers, type PublicTrip, type TripFilters } from "@/lib/publicTrips";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ListSkeleton } from "@/components/PageLoading";
 
 const ANY = "any";
 const MONTHS = Array.from({ length: 24 }, (_, i) => {
@@ -133,7 +134,7 @@ function DiscoverTrips() {
 
 function Travellers() {
   const { data, isPending, isError } = useSuggestedTravellers();
-  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isPending) return <ListSkeleton rows={2} />;
   if (isError) return <EmptyState icon={Users} title="Travellers couldn't be loaded" body="Please check your connection and try again." testId="travellers-error" />;
   return (
     <div className="grid gap-4">

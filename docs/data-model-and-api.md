@@ -95,6 +95,10 @@ Sharing a memory as a post copies the photo into a new file owned by the post, s
 
 A member, editor or viewer asks to leave, and an owner or admin approves or rejects it. An admin leaves straight away when another admin remains. The only admin chooses someone on the trip to take over, who gets their role, owner included, in the same transaction as the departure, with the trip row locked so two admins can't both leave it adminless. Someone alone on a trip can't leave it; they can delete it, or invite someone and hand it over. Leaving keeps the member row as `removed` with `leftAt`, so expenses, messages, memories and other contributions stay, and access ends at once. Their shared location and pending invite notifications go. Admins are told about requests and departures, and the person who asked is told the answer.
 
+## Changing your email
+
+A confirmed account that changes its email keeps the old one: the new address is stored as `pendingEmail`, and a token tied to it is mailed there ("Confirm your new TripOS email"). Opening the link moves the account to the new address, unless another account took it meanwhile. Until then the old address still signs in and gets invitations, and the change can be cancelled. An account that was never confirmed has nothing to keep, so it switches straight away and confirms the new address as before.
+
 ## Deleting an account
 
 The `users` row stays as a nameless "Former member", because other people's expenses and chat refer to it. Name, email, photo, profile, username, sessions, notifications, friendships, blocks, shared locations and private documents go. Trips with nobody else on them are deleted, and owned trips pass to an admin, or else the longest-standing member.
@@ -212,6 +216,7 @@ POST   /contact                             public, 5 per 10 minutes; emails who
 POST   /me/accept-terms                     an older account confirming it's 18+ and accepts the terms
 POST   /me/delete                           { password } or, with no password, { email }
 GET    /me/profile   PATCH /me/profile      your own traveller profile, with when your username can next change
+DELETE /me/pending-email                    stop an email change that hasn't been confirmed
 GET    /usernames/check?username=           { username, available, mine, reason }
 GET    /profiles/:username                  respects who's looking; blocked and unconfirmed people are "not found"
 GET    /people/search?q=                    by name or username, never by email

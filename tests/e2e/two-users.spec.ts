@@ -23,6 +23,7 @@ async function signUp(page: Page, name: string, email: string) {
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
 }
 
 test('two members plan a trip together and see each other live', async ({ browser }) => {
@@ -143,6 +144,7 @@ test('two members plan a trip together and see each other live', async ({ browse
 
   await test.step('removing a member takes them off the trip immediately', async () => {
     await ishita.page.getByTestId('trip-invite-button').click();
+    await ishita.page.getByTestId('members-tab-members').click();
     const row = ishita.page.locator('[data-testid^="member-row-"]', { hasText: 'Rohan Tester' });
     await row.locator('[data-testid^="member-remove-"]').click();
     await ishita.page.getByRole('button', { name: 'Remove member' }).click();

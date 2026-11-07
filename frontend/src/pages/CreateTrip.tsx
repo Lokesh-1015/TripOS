@@ -19,6 +19,7 @@ import { CURRENCIES, fmtRange, money, todayISO, uid } from "@/lib/format";
 import { addDays, format, parseISO } from "date-fns";
 import type { Member, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { DateRangeField } from "@/components/DateRangeField";
 
 const STEPS = ["Basics", "Dates", "Members", "Budget", "Review"];
 const COVERS = [IMG.manali, IMG.goa, IMG.udaipur, IMG.pangong, IMG.kerala, IMG.meghalaya, IMG.rishikesh, IMG.hawaMahal];
@@ -186,14 +187,15 @@ export default function CreateTrip() {
             )}
             {step === 1 && (
               <div className="grid gap-5" data-testid="create-trip-dates">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Start date" htmlFor="ct-start" error={err.startDate}>
-                    <Input id="ct-start" type="date" min={todayISO()} value={d.startDate} onChange={(e) => { const startDate = e.target.value; set({ startDate, ...(d.endDate && startDate && d.endDate < startDate ? { endDate: "" } : {}) }); }} className="h-11 rounded-xl" data-testid="create-trip-start-date-input" />
-                  </Field>
-                  <Field label="End date" htmlFor="ct-end" error={err.endDate}>
-                    <Input id="ct-end" type="date" min={d.startDate || todayISO()} value={d.endDate} onChange={(e) => set({ endDate: e.target.value })} className="h-11 rounded-xl" data-testid="create-trip-end-date-input" />
-                  </Field>
-                </div>
+                <DateRangeField
+                  inline
+                  min={todayISO()}
+                  value={{ start: d.startDate, end: d.endDate }}
+                  onChange={({ start, end }) => set({ startDate: start, endDate: end })}
+                  errors={{ start: err.startDate, end: err.endDate }}
+                  ids={{ start: "ct-start", end: "ct-end" }}
+                  testIds={{ start: "create-trip-start-date-input", end: "create-trip-end-date-input" }}
+                />
                 <label className="flex items-center justify-between gap-4 rounded-xl border border-line p-4">
                   <span>
                     <span className="block text-sm font-medium">My dates are flexible</span>

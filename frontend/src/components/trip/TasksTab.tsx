@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, ConfirmDialog, EmptyState, Field, Progress } from "@/components/common";
+import { Avatar, EmptyState, Field, Progress } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
 import { actions, saved } from "@/lib/store";
 import { fmtDate, todayISO, uid } from "@/lib/format";
 import type { Priority, Task, TaskStatus, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useQuickAdd } from "@/lib/quickAdd";
 
 const PRIORITY_STYLE: Record<Priority, string> = { high: "bg-[#FDE8E3] text-[#B4402A]", medium: "bg-[#FFF4DC] text-[#8A6212]", low: "bg-muted text-ink-muted" };
 const STATUS_LABEL: Record<TaskStatus, string> = { todo: "To do", in_progress: "In progress", done: "Done" };
@@ -110,7 +111,7 @@ export default function TasksTab({ trip }: { trip: Trip }) {
   const [params, setParams] = useSearchParams();
   const newTask = (): Task => ({ id: "", title: "", description: "", assignee: me, due: trip.startDate > todayISO() ? trip.startDate : todayISO(), priority: "medium", status: "todo", done: false });
   const [editing, setEditing] = useState<Task | null>(params.get("new") === "1" ? newTask() : null);
-  const [deleting, setDeleting] = useState<Task>();
+  useQuickAdd(() => canContribute && setEditing(newTask()));
   const [view, setView] = useState<View>("all");
   const [member, setMember] = useState("all");
   const [priority, setPriority] = useState("all");
@@ -156,11 +157,10 @@ export default function TasksTab({ trip }: { trip: Trip }) {
         <EmptyState icon={ListTodo} title={trip.tasks.length ? "Nothing matches these filters" : "No tasks yet"} body={trip.tasks.length ? "Try a different view or filter." : "Split up the planning - who books what, who brings what."} action={canContribute && <Button onClick={() => setEditing(newTask())} data-testid="tasks-empty-add">Create a task</Button>} testId="tasks-empty-state" />
       ) : (
         <ul className="divide-y rounded-2xl border border-line bg-card" data-testid="tasks-list">
-          {list.map((t) => <TaskRow key={t.id} trip={trip} task={t} onEdit={canContribute ? () => setEditing(t) : undefined} onDelete={canContribute ? () => setDeleting(t) : undefined} />)}
+          {list.map((t) => <TaskRow key={t.id} trip={trip} task={t} onEdit={canContribute ? () => setEditing(t) : undefined} onDelete={canContribute ? () => actions.removeWithUndo(trip.id, "tasks", t, "Task deleted") : undefined} />)}
         </ul>
       )}
       <TaskDialog trip={trip} task={editing} onClose={() => setEditing(null)} />
-      <ConfirmDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)} title={`Delete “${deleting?.title}”?`} body="This task will be removed for everyone on the trip." confirmLabel="Delete task" onConfirm={() => { if (deleting) { actions.remove(trip.id, "tasks", deleting.id); saved("Task deleted"); } }} />
     </div>
   );
 }

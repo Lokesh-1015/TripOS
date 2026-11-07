@@ -129,7 +129,20 @@ export default function ChatTab({ trip }: { trip: Trip }) {
           </div>
         )}
         <div ref={scrollBox} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" data-testid="chat-messages">
-          {trip.messages.length === 0 && <p className="py-16 text-center text-sm text-ink-muted">Say hi to the crew 👋</p>}
+          {trip.messages.length === 0 && (
+            <div className="grid justify-items-center gap-3 py-12 text-center" data-testid="chat-empty">
+              <span className="grid size-12 place-items-center rounded-2xl bg-sage text-2xl" aria-hidden>👋</span>
+              <p className="font-semibold">Say hi to the crew</p>
+              <p className="max-w-xs text-sm text-ink-muted">Everyone on the trip sees messages here. Share plans, places and photos.</p>
+              {canContribute && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {["Hi everyone! 👋", "So excited for this trip!", "When should we book?"].map((t) => (
+                    <button key={t} onClick={() => setText(t)} className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-forest/40" data-testid="chat-starter">{t}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {canLoadOlder && <div className="text-center"><Button variant="outline" size="sm" disabled={loadingOlder} onClick={() => void loadOlder()} data-testid="chat-load-older">{loadingOlder ? "Loading..." : "Load earlier messages"}</Button></div>}
           {messages.map((m, i) => {
             const mine = m.authorId === me;

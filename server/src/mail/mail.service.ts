@@ -116,6 +116,16 @@ export class MailService {
     return this.deliver !== null;
   }
 
+  /** Goes to the new address. The account keeps its current one until this link is opened. */
+  sendEmailChange(to: string, name: string, token: string) {
+    return this.send({
+      to,
+      subject: "Confirm your new TripOS email",
+      paragraphs: [`Hi ${name}, you asked to use this address for TripOS. Until you confirm it, your account keeps using your current email. This link works for 24 hours.`, "If you didn't ask for this, you can ignore this email and nothing will change."],
+      action: { label: "Confirm new email", url: `${this.appUrl}/verify-email/${token}` },
+    });
+  }
+
   sendVerification(to: string, name: string, token: string) {
     return this.send({
       to,

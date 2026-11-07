@@ -96,6 +96,7 @@ test('someone who has just joined doesn\'t see it, as nothing changed for them',
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
   await page.getByTestId('dashboard-welcome').waitFor();
   await expect(page.getByTestId('whats-new-dialog')).toHaveCount(0);
   await page.reload();

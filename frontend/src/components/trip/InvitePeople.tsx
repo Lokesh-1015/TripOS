@@ -6,6 +6,7 @@ import { Avatar } from "@/components/common";
 import { useFriends, usePeopleSearch } from "@/lib/social";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ListSkeleton } from "@/components/PageLoading";
 
 export interface PickedPerson {
   id: string;
@@ -81,7 +82,7 @@ export function InvitePeople({ added, busyId, label = "Invite", onPick }: { adde
       </div>
       <div className="max-h-64 overflow-y-auto rounded-xl border border-line">
         {searching ? (
-          search.isPending ? <p className="px-3 py-3 text-sm text-ink-muted">Searching…</p>
+          search.isPending ? <div className="p-2"><ListSkeleton rows={2} testId="invite-searching" /></div>
             : results.length ? <Section title="Travellers" people={results} testId="invite-section-search" render={row} />
             : <p className="px-3 py-3 text-sm text-ink-muted" data-testid="invite-no-results">No travellers match “{q}”.</p>
         ) : friendList.length || pastList.length ? (

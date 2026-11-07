@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { buttonVariants } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { AppSkeleton } from "@/components/PageLoading";
 
 const NAV = [
   { to: "/app", label: "Overview", icon: Home, end: true },
@@ -134,6 +135,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 export default function AppShell() {
   const { waking, mustConfirmEmail, loading, offline, offlineCopy, authed, onboarded, emailVerified, emailEnabled, email } = useApp((s) => ({ waking: s.waking, mustConfirmEmail: s.mustConfirmEmail, loading: s.loading, offline: s.offline, offlineCopy: s.offlineCopy, authed: s.authed, onboarded: s.onboarded, emailVerified: s.emailVerified, emailEnabled: s.emailEnabled, email: s.user.email }));
   const location = useLocation();
+  const inTrip = /^\/app\/trips\/(?!new(?:\/|$))[^/]+(?:\/(?!replay)[^/]+)?\/?$/.test(location.pathname);
   const navigate = useNavigate();
   const reduce = useReducedMotion();
   const [drawer, setDrawer] = useState(false);
@@ -143,10 +145,7 @@ export default function AppShell() {
 
   if (loading) {
     return (
-      <div className="grid min-h-dvh place-content-center justify-items-center gap-3 bg-background" data-testid="app-loading">
-        <Logo />
-        {waking && <p className="text-sm text-ink-muted" role="status" data-testid="app-waking">Waking TripOS up. This can take up to a minute.</p>}
-      </div>
+      <AppSkeleton message={waking ? "Waking TripOS up. This can take up to a minute." : undefined} />
     );
   }
   if (!authed) return <Navigate to="/login" replace />;
@@ -231,7 +230,8 @@ export default function AppShell() {
         </div>
 
         {/* Mobile bottom navigation */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Mobile" data-testid="mobile-bottom-nav">
+        {/* Inside a trip, the trip's own bar takes this place. */}
+        {!inTrip && <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Mobile" data-testid="mobile-bottom-nav">
           <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center">
             {[
               { to: "/app", label: "Home", icon: Home, end: true },
@@ -258,7 +258,7 @@ export default function AppShell() {
               ),
             )}
           </div>
-        </nav>
+        </nav>}
 
         <Sheet open={drawer} onOpenChange={setDrawer}>
           <SheetContent side="left" className="w-[290px] border-0 bg-sidebar p-5 text-white" data-testid="mobile-drawer">

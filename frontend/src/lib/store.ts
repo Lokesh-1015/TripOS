@@ -27,7 +27,34 @@ const listeners = new Set<() => void>();
 
 let offlineCopyTimer: ReturnType<typeof setTimeout> | undefined;
 
+/** Items deleted on screen whose delete hasn't been sent yet, because it can still be undone. */
+const UNDO_MS = 5000;
+const undoable = new Map<string, { tripId: string; key: TripCollection; path: string; commit: () => void; timer: ReturnType<typeof setTimeout> }>();
+// Closing the page mustn't lose a delete that was waiting out its Undo time.
+window.addEventListener("pagehide", () => {
+  for (const u of undoable.values()) {
+    clearTimeout(u.timer);
+    void fetch(`/api${u.path}`, { method: "DELETE", keepalive: true, credentials: "include" }).catch(() => undefined);
+  }
+  undoable.clear();
+});
+/** A server answer from before the delete was sent would bring the item back on screen, so it stays hidden. */
+function withoutUndoable(next: AppState): AppState {
+  if (!undoable.size) return next;
+  return {
+    ...next,
+    trips: next.trips.map((t) => {
+      const keys = [...undoable.values()].filter((u) => u.tripId === t.id).map((u) => u.key);
+      if (!keys.length) return t;
+      const copy = { ...t } as Record<string, unknown>;
+      for (const key of new Set(keys)) copy[key] = (t[key] as { id: string }[]).filter((x) => !undoable.has(x.id));
+      return copy as unknown as Trip;
+    }),
+  };
+}
+
 function set(next: AppState) {
+  next = withoutUndoable(next);
   state = next;
   listeners.forEach((l) => l());
   clearTimeout(offlineCopyTimer);
@@ -366,6 +393,15 @@ export const actions = {
     await apiPatch("/me", { email });
     await loadState();
   },
+  /** A confirmed account's new email waits for its link; the current one keeps working until then. */
+  async changeEmail(email: string) {
+    await apiPatch("/me", { email });
+    await loadState();
+  },
+  async cancelEmailChange() {
+    await apiDelete("/me/pending-email");
+    await loadState();
+  },
   async signUp(name: string, email: string, password: string) {
     await waitForServer();
     await apiPost("/auth/signup", { name, email, password });
@@ -382,7 +418,7 @@ export const actions = {
   resendVerification: () => apiPost("/auth/resend-verification"),
   reload: () => loadState(),
   refreshTrip: (tripId: string) => refreshTrip(tripId),
-  async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[] }) {
+  async finishOnboarding(patch: { name: string; bio: string; currency: string; travelStyles: string[]; avatar?: string }) {
     // Someone joining now has nothing to catch up on, so they start with the latest release marked as seen.
     await apiPatch("/me", { ...patch, onboarded: true, seenReleaseNotes: LATEST_RELEASE.id });
     // Apply this now: a reload may be overlapping (the live connection triggers one), and whichever
@@ -391,7 +427,7 @@ export const actions = {
       ...state,
       onboarded: true,
       seenReleaseNotes: LATEST_RELEASE.id,
-      user: { ...state.user, name: patch.name },
+      user: { ...state.user, name: patch.name, ...(patch.avatar !== undefined ? { avatar: patch.avatar } : {}) },
       settings: { ...state.settings, bio: patch.bio, currency: patch.currency, travelStyles: patch.travelStyles },
     });
     void loadState();
@@ -505,6 +541,41 @@ export const actions = {
       events: log ? [event(log.text, log.kind), ...t.events] : t.events,
     }));
     void send(tripId, () => apiDelete(key === "members" ? `/trips/${tripId}/members/${id}` : `/trips/${tripId}/${PATHS[key]}/${id}`));
+  },
+  /**
+   * Deletes straight away on screen, with Undo for a few seconds. The delete is only sent once that time
+   * is up, or right away if the page is closed, so undoing never has to recreate anything.
+   */
+  removeWithUndo<K extends TripCollection>(tripId: string, key: K, item: Item<K>, label: string, log?: { text: string; kind: string }) {
+    const index = (state.trips.find((t) => t.id === tripId)?.[key] as Item<K>[] | undefined)?.findIndex((x) => x.id === item.id) ?? -1;
+    const path = `/trips/${tripId}/${PATHS[key]}/${item.id}`;
+    const commit = () => {
+      const pendingUndo = undoable.get(item.id);
+      if (!pendingUndo) return;
+      clearTimeout(pendingUndo.timer);
+      if (log) mapTrip(tripId, (t) => ({ ...t, events: [event(log.text, log.kind), ...t.events] }));
+      void send(tripId, () => apiDelete(path)).finally(() => undoable.delete(item.id));
+    };
+    undoable.set(item.id, { tripId, key, path, commit, timer: setTimeout(commit, UNDO_MS) });
+    mapTrip(tripId, (t) => t);
+    toast(label, {
+      id: `undo-${item.id}`,
+      duration: UNDO_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          const pendingUndo = undoable.get(item.id);
+          if (!pendingUndo) return;
+          clearTimeout(pendingUndo.timer);
+          undoable.delete(item.id);
+          mapTrip(tripId, (t) => {
+            const list = (t[key] as Item<K>[]).filter((x) => x.id !== item.id);
+            list.splice(index < 0 ? list.length : Math.min(index, list.length), 0, item);
+            return { ...t, [key]: list };
+          });
+        },
+      },
+    });
   },
   /** Re-order one day. Only those items move, so someone else's new activity isn't lost. */
   reorderActivities(tripId: string, day: number, ids: string[]) {

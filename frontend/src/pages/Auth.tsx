@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Check, Loader2, Mail, MailCheck, MailX } from "lucide-react";
+import { ArrowLeft, Camera, Check, Loader2, Mail, MailCheck, MailX } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Field, Logo } from "@/components/common";
+import { Avatar, Field, Logo } from "@/components/common";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { IMG, img } from "@/lib/seed";
-import { apiErrorMessage } from "@/lib/api";
+import { apiErrorMessage, uploadFile } from "@/lib/api";
 import { actions, getState, peekNext, takeNext, useApp } from "@/lib/store";
 import { CURRENCIES } from "@/lib/format";
 import { useOwnProfile, useSocialActions } from "@/lib/social";
 import { UsernameField, useUsernameStatus } from "@/components/UsernameField";
 import { cn } from "@/lib/utils";
+import { FindFriends } from "@/components/FindFriends";
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -342,8 +343,16 @@ export function Onboarding() {
   const [bio, setBio] = useState("");
   const [currency, setCurrency] = useState(settings.currency);
   const [styles, setStyles] = useState<string[]>([]);
+  const [avatar, setAvatar] = useState(user.avatar);
+  const [uploading, setUploading] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [err, setErr] = useState<string>();
   const mustConfirmEmail = useApp((s) => s.mustConfirmEmail);
+  const choosePhoto = (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    void uploadFile(file, { visibility: "public", photo: true }).then(({ url }) => setAvatar(url), (error) => toast.error(apiErrorMessage(error))).finally(() => setUploading(false));
+  };
   // Signup suggested a username. It can be kept or swapped here, before the 30-day rule starts.
   const { data: me } = useOwnProfile();
   const social = useSocialActions();
@@ -377,25 +386,38 @@ export function Onboarding() {
     setStep(1);
   };
 
+  // Setup is saved before the last, optional step: finding friends needs a finished, findable account.
   const finish = () => {
-    void actions.finishOnboarding({ name: name.trim(), bio, currency, travelStyles: styles }).then(() => {
-      toast.success(`You're all set, ${name.split(" ")[0]}!`);
-      navigate(takeNext());
-    }, (error) => toast.error(apiErrorMessage(error)));
+    setFinishing(true);
+    void actions.finishOnboarding({ name: name.trim(), bio, currency, travelStyles: styles, ...(avatar !== user.avatar ? { avatar } : {}) }).then(
+      () => setStep(2),
+      (error) => toast.error(apiErrorMessage(error)),
+    ).finally(() => setFinishing(false));
+  };
+  const enter = () => {
+    toast.success(`You're all set, ${name.split(" ")[0]}!`);
+    navigate(takeNext());
   };
 
   if (mustConfirmEmail) return <Navigate to="/confirm-email" replace />;
 
   return (
     <AuthLayout image={IMG.kerala} quote="Set up once. Every trip after that feels effortless.">
-      <div className="mb-6 flex gap-1.5" aria-label={`Step ${step + 1} of 2`}>
-        {[0, 1].map((i) => <span key={i} className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= step ? "bg-forest" : "bg-line")} />)}
+      <div className="mb-6 flex gap-1.5" aria-label={`Step ${step + 1} of 3`}>
+        {[0, 1, 2].map((i) => <span key={i} className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= step ? "bg-forest" : "bg-line")} />)}
       </div>
       {step === 0 ? (
         <div data-testid="onboarding-step-profile">
           <h1 className="text-2xl font-semibold tracking-tight">Let's set up your profile</h1>
           <p className="mt-1 text-sm text-ink-muted">This is how your travel crew will see you.</p>
           <div className="mt-7 grid gap-4">
+            <div className="flex items-center gap-4">
+              <Avatar person={{ name: name || "?", avatar }} size={64} ring={false} />
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-medium hover:bg-muted" data-testid="onboarding-photo">
+                <Camera className="size-4" /> {uploading ? "Uploading…" : avatar ? "Change photo" : "Add a photo (optional)"}
+                <input type="file" accept="image/*" className="sr-only" onChange={(e) => choosePhoto(e.target.files?.[0])} data-testid="onboarding-photo-input" />
+              </label>
+            </div>
             <Field label="Display name" htmlFor="ob-name" error={err}>
               <Input id="ob-name" value={name} onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl" data-testid="onboarding-name-input" />
             </Field>
@@ -412,7 +434,7 @@ export function Onboarding() {
             <Button className="h-11 rounded-xl" disabled={savingName || !current || status.state === "checking" || status.state === "unavailable"} onClick={() => void next()} data-testid="onboarding-next-button">{savingName ? "Saving…" : "Continue"}</Button>
           </div>
         </div>
-      ) : (
+      ) : step === 1 ? (
         <div data-testid="onboarding-step-styles">
           <h1 className="text-2xl font-semibold tracking-tight">How do you like to travel?</h1>
           <p className="mt-1 text-sm text-ink-muted">Pick a few. They'll show on your profile, and help you find travellers like you.</p>
@@ -434,7 +456,17 @@ export function Onboarding() {
           </div>
           <div className="mt-8 flex gap-3">
             <Button variant="outline" className="h-11 rounded-xl" onClick={() => setStep(0)} data-testid="onboarding-back-button">Back</Button>
-            <Button className="h-11 flex-1 rounded-xl" onClick={finish} data-testid="onboarding-finish-button">Enter TripOS</Button>
+            <Button className="h-11 flex-1 rounded-xl" disabled={finishing || uploading} onClick={finish} data-testid="onboarding-finish-button">{finishing ? "Saving…" : "Continue"}</Button>
+          </div>
+        </div>
+      ) : (
+        <div data-testid="onboarding-step-friends">
+          <h1 className="text-2xl font-semibold tracking-tight">Find your friends</h1>
+          <p className="mt-1 text-sm text-ink-muted">Add friends to see their travel posts and invite them to trips by name. You can do this later from People.</p>
+          <div className="mt-7"><FindFriends /></div>
+          <div className="mt-8 flex gap-3">
+            <Button variant="outline" className="h-11 rounded-xl" onClick={enter} data-testid="onboarding-friends-skip">Skip for now</Button>
+            <Button className="h-11 flex-1 rounded-xl" onClick={enter} data-testid="onboarding-friends-done">Enter TripOS</Button>
           </div>
         </div>
       )}

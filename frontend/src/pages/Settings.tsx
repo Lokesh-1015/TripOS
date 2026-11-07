@@ -1,25 +1,22 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
-import { Camera, Check, Laptop, Moon, Sun } from "lucide-react";
+import { Check, Laptop, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, Field, PageHeader } from "@/components/common";
-import { UsernameField, useUsernameStatus } from "@/components/UsernameField";
-import { apiErrorMessage, uploadFile } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api";
 import { actions, saved, useApp } from "@/lib/store";
 import { CURRENCIES } from "@/lib/format";
 import { useInstallApp } from "@/lib/pwa";
 import { useOwnProfile, useSocialActions } from "@/lib/social";
 import { cn } from "@/lib/utils";
 
-const STYLES = ["Adventure", "Mountains", "Beaches", "Food trails", "Heritage", "Road trips", "Backpacking", "Luxury", "Wellness"];
 const NOTIFY: [string, string, string][] = [
   ["invites", "Trip invitations", "When someone adds you to a trip"],
   ["messages", "New messages", "Chat messages in your trips"],
@@ -144,47 +141,92 @@ function PasswordForm() {
   );
 }
 
+/** The profile itself is edited in one place, on the profile page; this shows it and links there. */
+function ProfileSummary() {
+  const user = useApp((s) => s.user);
+  const { data: me } = useOwnProfile();
+  const navigate = useNavigate();
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-5 sm:flex-row sm:items-center sm:p-7" data-testid="settings-profile-summary">
+      <Avatar person={{ name: user.name || "?", avatar: user.avatar }} size={64} ring={false} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold">{user.name}</p>
+        {me && <p className="truncate text-sm text-ink-muted" data-testid="settings-profile-username">@{me.username}</p>}
+        <p className="mt-1 text-sm text-ink-muted">Your photo, name, username, bio and travel styles are on your profile.</p>
+      </div>
+      <Button variant="outline" className="rounded-xl" disabled={!me} onClick={() => me && navigate(`/app/u/${me.username}?edit=1`)} data-testid="settings-edit-profile">Edit profile</Button>
+    </section>
+  );
+}
+
+/** A confirmed account keeps its email until the new one is confirmed by its link. */
+function EmailForm() {
+  const { user, emailVerified, pendingEmail } = useApp((s) => s);
+  const [email, setEmail] = useState("");
+  const [err, setErr] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const change = async (e: FormEvent) => {
+    e.preventDefault();
+    const next = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) return setErr("Enter a valid email");
+    if (next === user.email) return setErr("That's already your email");
+    setErr(undefined);
+    setSaving(true);
+    try {
+      await actions.changeEmail(next);
+      setEmail("");
+      saved(emailVerified ? "Check your new inbox" : "Email changed", { description: emailVerified ? `Open the link we sent to ${next}. Until then, you'll keep using ${user.email}.` : `We've sent a link to ${next} to confirm it.` });
+    } catch (error) {
+      setErr(apiErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="grid gap-4 rounded-2xl border border-line bg-card p-5 sm:p-7" data-testid="settings-email">
+      <div>
+        <h3 className="font-semibold">Email</h3>
+        <p className="text-sm text-ink-muted">You sign in and get invitations at <span className="font-medium text-ink" data-testid="settings-current-email">{user.email}</span>.</p>
+      </div>
+      {pendingEmail && (
+        <div className="flex flex-col gap-3 rounded-xl bg-coral-soft px-4 py-3 text-sm text-[#8A3B22] sm:flex-row sm:items-center" data-testid="settings-email-pending">
+          <span className="flex-1">Waiting for you to confirm <span className="font-semibold">{pendingEmail}</span>. Open the link we sent there. Until then, your account keeps using {user.email}.</span>
+          <Button size="sm" variant="outline" className="rounded-lg bg-card" onClick={() => void actions.cancelEmailChange().then(() => saved("Change cancelled"), (error: unknown) => toast.error(apiErrorMessage(error)))} data-testid="settings-email-cancel">Cancel change</Button>
+        </div>
+      )}
+      <form onSubmit={(e) => void change(e)} className="grid gap-2">
+        <Field label="New email" htmlFor="st-email" error={err} hint={emailVerified ? "We'll send a link to the new address. Nothing changes until you open it." : undefined}>
+          <div className="flex gap-2">
+            <Input id="st-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" data-testid="settings-email-input" />
+            <Button type="submit" variant="outline" className="h-10" disabled={saving || !email.trim()} data-testid="settings-email-save">{saving ? "Sending…" : "Change email"}</Button>
+          </div>
+        </Field>
+      </form>
+    </section>
+  );
+}
+
+function CurrencySetting() {
+  const currency = useApp((s) => s.settings.currency);
+  return (
+    <section className="grid gap-3 rounded-2xl border border-line bg-card p-5 sm:p-7">
+      <div>
+        <h3 className="font-semibold">Preferred currency</h3>
+        <p className="text-sm text-ink-muted">New trips start in this currency.</p>
+      </div>
+      <Select value={currency} onValueChange={(v) => { void actions.updateSettings({ currency: v as string }); saved("Currency saved"); }}>
+        <SelectTrigger className="w-full sm:w-64" data-testid="settings-currency-select"><SelectValue>{(v) => CURRENCIES.find((c) => c.code === v)?.label}</SelectValue></SelectTrigger>
+        <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}</SelectContent>
+      </Select>
+    </section>
+  );
+}
+
 export default function Settings() {
   const hasPassword = useApp((s) => s.hasPassword);
   const user = useApp((s) => s.user);
   const settings = useApp((s) => s.settings);
   const { theme, setTheme } = useTheme();
-  const [p, setP] = useState({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles });
-  const [err, setErr] = useState<Record<string, string>>({});
-  const { data: me } = useOwnProfile();
-  const social = useSocialActions();
-  const [username, setUsername] = useState("");
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    if (me?.username) setUsername(me.username);
-  }, [me?.username]);
-  const usernameStatus = useUsernameStatus(username, me?.username ?? "", me?.nextUsernameChangeAt ?? null);
-  const usernameChanged = !!me && usernameStatus.state !== "unchanged" && usernameStatus.state !== "locked";
-  const dirty = usernameChanged || p.name !== user.name || p.email !== user.email || p.bio !== settings.bio || p.currency !== settings.currency || p.avatar !== user.avatar || p.styles.join() !== settings.travelStyles.join();
-
-  const saveProfile = async () => {
-    const e: Record<string, string> = {};
-    if (p.name.trim().length < 2) e.name = "Name is required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) e.email = "Enter a valid email";
-    if (p.bio.length > 200) e.bio = "Keep it under 200 characters";
-    setErr(e);
-    if (Object.keys(e).length || (usernameChanged && usernameStatus.state !== "available")) return;
-    if (usernameChanged) {
-      setSaving(true);
-      try {
-        await social.updateProfile({ username: usernameStatus.typed });
-      } catch (error) {
-        toast.error(apiErrorMessage(error));
-        return;
-      } finally {
-        setSaving(false);
-      }
-    }
-    actions.updateProfile({ name: p.name.trim(), email: p.email.trim(), avatar: p.avatar });
-    actions.updateSettings({ bio: p.bio, currency: p.currency, travelStyles: p.styles });
-    saved("Profile saved");
-  };
-
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Settings" subtitle="Manage your profile, notifications and privacy." />
@@ -197,47 +239,10 @@ export default function Settings() {
           <TabsTrigger value="account" data-testid="settings-tab-account">Account</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile">
-          <section className="grid gap-5 rounded-2xl border border-line bg-card p-5 sm:p-7">
-            <div className="flex items-center gap-4">
-              <Avatar person={{ name: p.name || "?", avatar: p.avatar }} size={72} ring={false} />
-              <div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-medium hover:bg-muted" data-testid="settings-avatar-upload">
-                  <Camera className="size-4" /> Change photo
-                  <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    void uploadFile(f, { visibility: "public", photo: true }).then(({ url }) => setP((x) => ({ ...x, avatar: url })), (err) => toast.error(apiErrorMessage(err)));
-                  }} />
-                </label>
-                <p className="mt-1 text-xs text-ink-muted">JPG or PNG</p>
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" htmlFor="st-name" error={err.name}><Input id="st-name" value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} data-testid="settings-name-input" /></Field>
-              <Field label="Email" htmlFor="st-email" error={err.email}><Input id="st-email" type="email" value={p.email} onChange={(e) => setP({ ...p, email: e.target.value })} data-testid="settings-email-input" /></Field>
-            </div>
-            {me && <UsernameField id="st-username" value={username} current={me.username} nextChangeAt={me.nextUsernameChangeAt} onChange={setUsername} testId="settings-username-input" />}
-            <Field label="Bio" htmlFor="st-bio" error={err.bio} hint={`${p.bio.length}/200`}><Textarea id="st-bio" value={p.bio} onChange={(e) => setP({ ...p, bio: e.target.value })} data-testid="settings-bio-input" /></Field>
-            <Field label="Preferred currency">
-              <Select value={p.currency} onValueChange={(v) => setP({ ...p, currency: v })}>
-                <SelectTrigger className="w-full sm:w-64" data-testid="settings-currency-select"><SelectValue>{(v) => CURRENCIES.find((c) => c.code === v)?.label}</SelectValue></SelectTrigger>
-                <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-            <Field label="Travel preferences">
-              <div className="flex flex-wrap gap-2">
-                {STYLES.map((s) => {
-                  const on = p.styles.includes(s);
-                  return <button key={s} onClick={() => setP({ ...p, styles: on ? p.styles.filter((x) => x !== s) : [...p.styles, s] })} className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors", on ? "border-forest bg-forest text-white" : "border-line hover:border-forest/40")} aria-pressed={on} data-testid={`settings-style-${s.toLowerCase().replace(/\s+/g, "-")}`}>{on && <Check className="size-3.5" />}{s}</button>;
-                })}
-              </div>
-            </Field>
-            <div className="flex justify-end gap-2 border-t pt-4">
-              <Button variant="outline" disabled={!dirty} onClick={() => { setP({ name: user.name, email: user.email, bio: settings.bio, currency: settings.currency, avatar: user.avatar, styles: settings.travelStyles }); setUsername(me?.username ?? ""); }} data-testid="settings-profile-discard">Discard</Button>
-              <Button disabled={!dirty || saving} onClick={() => void saveProfile()} data-testid="settings-profile-save">{saving ? "Saving…" : "Save changes"}</Button>
-            </div>
-          </section>
+        <TabsContent value="profile" className="grid gap-4">
+          <ProfileSummary />
+          <EmailForm />
+          <CurrencySetting />
         </TabsContent>
 
         <TabsContent value="notifications">

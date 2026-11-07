@@ -82,6 +82,7 @@ test('the host invites by username, from friends and from past trips, never by s
   await host.page.getByTestId(`invite-pick-${friendId}`).click();
   await host.page.getByTestId(`invite-pick-${mateId}`).click();
   await expect(host.page.getByTestId(`invite-person-${mateId}`)).toContainText('Added');
+  await host.page.getByTestId('members-tab-members').click();
   for (const userId of [foundId, friendId, mateId]) await expect(host.page.getByTestId(`member-row-${userId}`)).toContainText('Invited');
 
   await found.page.goto('/app');
@@ -125,6 +126,7 @@ test('the trip wizard adds travellers by name, has no per-person budget, and kee
   await expect(page.getByTestId('trip-header-name')).toHaveText('Wizard Trip');
 
   await page.getByTestId('trip-invite-button').click();
+await page.getByTestId('members-tab-members').click();
   await expect(page.getByTestId(`member-row-${palId}`)).toContainText('Invited');
   await page.keyboard.press('Escape');
   await page.getByTestId('trip-tab-expenses').click();
