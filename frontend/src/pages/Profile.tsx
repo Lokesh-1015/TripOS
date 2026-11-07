@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Camera, Flag, Globe, Lock, MapPin, MoreHorizontal, Plus, ShieldOff, UserMinus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { useOwnProfile, useProfile, useSocialActions, type OwnProfile, type Trav
 import { UsernameField } from "@/components/UsernameField";
 import { actions } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { CardsSkeleton, ProfileSkeleton } from "@/components/PageLoading";
 
 const shout = (err: unknown) => toast.error(apiErrorMessage(err));
 const STYLES = ["Adventure", "Mountains", "Beaches", "Food trails", "Heritage", "Road trips", "Backpacking", "Luxury", "Wellness"];
@@ -166,7 +167,7 @@ function ProfilePosts({ username, isMe, defaultVisibility }: { username: string;
         <h2 className="text-lg font-semibold">Posts</h2>
         {isMe && <Button className="rounded-xl" onClick={() => setCreating(true)} data-testid="profile-create-post"><Plus className="size-4" /> Create post</Button>}
       </div>
-      {isPending ? <p className="text-sm text-ink-muted">Loading…</p> : posts.length ? (
+      {isPending ? <CardsSkeleton count={2} testId="profile-posts-loading" /> : posts.length ? (
         <>
           {posts.map((p) => <PostCard key={p.id} post={p} />)}
           {hasNextPage && <Button variant="outline" className="justify-self-center rounded-xl" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>Show older posts</Button>}
@@ -187,8 +188,18 @@ export default function Profile() {
   const [reporting, setReporting] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [removing, setRemoving] = useState(false);
+  // Settings sends people here to edit their profile, which lives in one place.
+  const [params, setParams] = useSearchParams();
+  const askedToEdit = params.get("edit") === "1";
+  const isSelf = profile?.relationship === "self";
+  useEffect(() => {
+    if (!askedToEdit || !profile) return;
+    if (isSelf) setEditing(true);
+    params.delete("edit");
+    setParams(params, { replace: true });
+  }, [askedToEdit, profile, isSelf, params, setParams]);
 
-  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isPending) return <ProfileSkeleton />;
   if (isError || !profile) return <EmptyState icon={UserRound} title="We couldn't find that traveller" body="The link may be wrong, or this profile may no longer be available." action={<Link to="/app/people" className="font-medium text-forest underline">Back to People</Link>} testId="profile-not-found" />;
 
   const isMe = profile.relationship === "self";

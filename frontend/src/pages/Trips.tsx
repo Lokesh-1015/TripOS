@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AvatarStack, EmptyState, PageHeader, StatusBadge } from "@/components/common";
 import { TripCard } from "@/components/TripCard";
+import { Invitations } from "@/components/Invitations";
 import { useApp } from "@/lib/store";
 import { fmtRange, money, totalSpent, tripStatus } from "@/lib/format";
 import type { TripStatus } from "@/lib/types";
@@ -45,6 +46,7 @@ export default function Trips() {
         subtitle="Every trip you're planning, on, or reminiscing about."
         actions={<Link to="/app/trips/new" className={cn(buttonVariants(), "h-10 rounded-xl")} data-testid="trips-create-button"><Plus className="size-4" /> Create trip</Link>}
       />
+      <Invitations testId="trips-invitations" prefix="trips" />
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:px-0">
           {FILTERS.map((f) => (

@@ -206,6 +206,8 @@ model User {
   mustConfirmEmail  Boolean  @default(false)
   /// Set by clicking an emailed link or resetting a password: both prove the person owns this address.
   emailVerifiedAt   DateTime? @db.Timestamptz(6)
+  /// A new address waiting for its owner to click the link. The current one keeps working until then.
+  pendingEmail      String?
   /// When this person confirmed they're 18 or over and accepted the terms. Older accounts are asked once.
   termsAcceptedAt   DateTime? @db.Timestamptz(6)
   /// Set when an account is deleted. The nameless row stays, as other people's expenses and chat refer to it.
@@ -411,6 +413,8 @@ model EmailVerificationToken {
   tokenHash String   @unique
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Set when the link confirms a change of address: clicking it moves the account to this email.
+  email     String?
   expiresAt DateTime @db.Timestamptz(6)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 

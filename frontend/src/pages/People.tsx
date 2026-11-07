@@ -9,6 +9,7 @@ import { Avatar, EmptyState, PageHeader } from "@/components/common";
 import { TravellerRow } from "@/components/social";
 import { apiErrorMessage } from "@/lib/api";
 import { useBlocked, useFriendRequests, useFriends, useOwnProfile, usePeopleSearch, useSocialActions, type TravellerCard } from "@/lib/social";
+import { ListSkeleton } from "@/components/PageLoading";
 
 const List = ({ children, testId }: { children: React.ReactNode; testId: string }) => <section className="divide-y rounded-2xl border border-line bg-card" data-testid={testId}>{children}</section>;
 const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="mb-2 mt-5 text-sm font-semibold first:mt-0">{children}</h3>;
@@ -45,7 +46,7 @@ function FriendsTab() {
   const { data, isPending, isError } = useFriends();
   const social = useSocialActions();
   const [q, setQ] = useState("");
-  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isPending) return <ListSkeleton />;
   if (isError) return <p className="text-sm text-destructive" role="alert">Your friends couldn't be loaded. Please try again.</p>;
   if (!data.length) return <EmptyState icon={Users} title="No friends yet" body="Find someone who loves the kind of travel you do, and say hello." testId="friends-empty" />;
   const shown = data.filter((f: TravellerCard) => `${f.name} ${f.username}`.toLowerCase().includes(q.toLowerCase()));
@@ -62,7 +63,7 @@ function FriendsTab() {
 function RequestsTab() {
   const { data, isPending, isError } = useFriendRequests();
   const social = useSocialActions();
-  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isPending) return <ListSkeleton />;
   if (isError) return <p className="text-sm text-destructive" role="alert">Your requests couldn't be loaded. Please try again.</p>;
   if (!data.incoming.length && !data.sent.length && !data.declined.length) return <EmptyState icon={UserRound} title="No friend requests" body="Requests you receive or send will appear here." testId="requests-empty" />;
   return (
@@ -95,7 +96,7 @@ function RequestsTab() {
 function BlockedTab() {
   const { data, isPending, isError } = useBlocked();
   const social = useSocialActions();
-  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isPending) return <ListSkeleton />;
   if (isError) return <p className="text-sm text-destructive" role="alert">This list couldn't be loaded. Please try again.</p>;
   if (!data.length) return <EmptyState icon={ShieldOff} title="Nobody blocked" body="You can block someone from their profile. They aren't told." testId="blocked-empty" />;
   return (

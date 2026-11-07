@@ -80,12 +80,46 @@ describe("email verification", () => {
     expect(await mailCount(u.email, "Verify your TripOS email")).toBe(1);
   });
 
-  it("makes a new address prove itself all over again", async () => {
+  it("keeps a confirmed account's address until the new one is confirmed", async () => {
     const u = await signUp("Mover");
     await verify(u);
     const next = `moved-${tag}@example.test`;
     expect((await u.c.req("PATCH", "/me", { email: next })).status).toBe(200);
-    expect((await u.c.req("GET", "/state")).body.emailVerified).toBe(false);
+    let state = (await u.c.req("GET", "/state")).body;
+    expect(state).toMatchObject({ emailVerified: true, pendingEmail: next, user: { email: u.email } });
+    // The old address still signs in while the change waits.
+    expect((await new Client().req("POST", "/auth/login", { email: u.email, password: "correct-horse" })).status).toBe(200);
+    const token = tokenIn(await mailTo(next, "Confirm your new TripOS email"), "verify-email");
+    expect((await new Client().req("POST", "/auth/verify-email", { token })).status).toBeLessThan(300);
+    state = (await u.c.req("GET", "/state")).body;
+    expect(state).toMatchObject({ emailVerified: true, pendingEmail: null, user: { email: next } });
+    expect((await new Client().req("POST", "/auth/login", { email: next, password: "correct-horse" })).status).toBe(200);
+    expect((await new Client().req("POST", "/auth/verify-email", { token })).status).toBe(422);
+  });
+
+  it("lets a typo be cancelled, and never moves to an address someone else took meanwhile", async () => {
+    const u = await signUp("Typo");
+    await verify(u);
+    const typo = `typo-${tag}@example.test`;
+    await u.c.req("PATCH", "/me", { email: typo });
+    const token = tokenIn(await mailTo(typo, "Confirm your new TripOS email"), "verify-email");
+    expect((await u.c.req("DELETE", "/me/pending-email")).status).toBe(200);
+    expect((await u.c.req("GET", "/state")).body).toMatchObject({ pendingEmail: null, user: { email: u.email } });
+    expect((await new Client().req("POST", "/auth/verify-email", { token })).status).toBe(422);
+
+    const wanted = `wanted-${tag}@example.test`;
+    await u.c.req("PATCH", "/me", { email: wanted });
+    const second = tokenIn(await mailTo(wanted, "Confirm your new TripOS email"), "verify-email");
+    await signUp("Wanted", wanted);
+    expect((await new Client().req("POST", "/auth/verify-email", { token: second })).status).toBe(409);
+    expect((await u.c.req("GET", "/state")).body.user.email).toBe(u.email);
+  });
+
+  it("switches an address that was never confirmed straight away", async () => {
+    const u = await signUp("Unconfirmed");
+    const next = `fixed-${tag}@example.test`;
+    expect((await u.c.req("PATCH", "/me", { email: next })).status).toBe(200);
+    expect((await u.c.req("GET", "/state")).body).toMatchObject({ emailVerified: false, pendingEmail: null, user: { email: next } });
     await mailTo(next, "Verify your TripOS email");
   });
 });

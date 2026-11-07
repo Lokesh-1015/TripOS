@@ -28,6 +28,7 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
 
   // Inviting by email needs a verified address.
   let verifyLink = '';
@@ -57,6 +58,7 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
 
   await test.step('an emailed invitee shows as pending', async () => {
     await page.getByTestId('trip-invite-button').click();
+    await page.getByTestId('members-tab-members').click();
     await expect(page.getByTestId('members-dialog')).toContainText('Invited');
     await page.keyboard.press('Escape');
   });
@@ -185,13 +187,19 @@ test('itinerary, packing, documents, map, memories, settings and hubs all persis
   });
 
   await test.step('settings: profile, notifications and password persist', async () => {
+    // The profile is edited in one place: Settings opens the profile page's editor.
     await page.goto('/app/settings');
-    await page.getByTestId('settings-bio-input').fill('Always hungry');
-    await page.getByTestId('settings-profile-save').click();
+    await page.getByTestId('settings-edit-profile').click();
+    await page.getByTestId('profile-bio-input').fill('Always hungry');
+    await page.getByTestId('profile-save').click();
+    await expect(page.getByTestId('profile-edit-dialog')).toHaveCount(0);
+    await page.goto('/app/settings');
     await page.getByTestId('settings-tab-notifications').click();
     await page.getByTestId('settings-notify-itinerary').click();
     await page.reload();
-    await expect(page.getByTestId('settings-bio-input')).toHaveValue('Always hungry');
+    await page.getByTestId('settings-edit-profile').click();
+    await expect(page.getByTestId('profile-bio-input')).toHaveValue('Always hungry');
+    await page.goto('/app/settings');
     await page.getByTestId('settings-tab-notifications').click();
     await expect(page.getByTestId('settings-notify-itinerary')).toHaveAttribute('aria-checked', 'true');
     await page.getByTestId('settings-tab-account').click();

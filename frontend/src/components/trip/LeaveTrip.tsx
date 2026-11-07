@@ -10,6 +10,7 @@ import { Field } from "@/components/common";
 import { apiDelete, apiErrorMessage, apiGet, apiPost } from "@/lib/api";
 import { actions, saved } from "@/lib/store";
 import type { Member, Trip } from "@/lib/types";
+import { ListSkeleton } from "@/components/PageLoading";
 
 interface LeaveOptions {
   mode: "request" | "direct" | "choose_successor" | "only_person";
@@ -49,7 +50,7 @@ export function LeaveTripDialog({ trip, open, onClose, onDeleteTrip }: { trip: T
   const ask = () => run(() => apiPost(`/trips/${trip.id}/leave`, {}), () => { saved("Request sent", { description: "An admin will decide, and we'll let you know." }); void actions.refreshTrip(trip.id); });
   const cancel = () => run(() => apiDelete(`/trips/${trip.id}/leave`), () => { saved("Request cancelled"); void actions.refreshTrip(trip.id); });
 
-  let body: React.ReactNode = <p className="text-sm text-ink-muted">Loading…</p>;
+  let body: React.ReactNode = <ListSkeleton rows={1} />;
   let footer: React.ReactNode = null;
   if (isError) body = <p className="text-sm text-destructive" role="alert">This couldn't be loaded. Please try again.</p>;
   else if (!isPending && data) {

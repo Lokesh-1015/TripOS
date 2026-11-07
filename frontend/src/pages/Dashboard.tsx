@@ -1,10 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, CalendarClock, CheckCircle2, Circle, Compass, Plus, Receipt, UserPlus, Wallet } from "lucide-react";
-import { toast } from "sonner";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Avatar, AvatarStack, EmptyState, Progress, StatusBadge } from "@/components/common";
 import { TripCard } from "@/components/TripCard";
-import { apiErrorMessage } from "@/lib/api";
+import { Invitations } from "@/components/Invitations";
 import { actions, saved, useApp } from "@/lib/store";
 import { ago, CATEGORY_COLOR, daysUntil, fmtDate, fmtRange, money, todayISO, totalSpent, tripStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -31,7 +30,6 @@ export default function Dashboard() {
     .flatMap((t) => t.events.map((e) => ({ ...e, trip: t })))
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 6);
-  const invites = notifications.filter((n) => n.kind === "invite");
   const people = Object.fromEntries(trips.flatMap((t) => t.members).map((m) => [m.id, m]));
   const otherTrips = [...ongoing, ...upcoming, ...recent].filter((t) => t.id !== next?.id).slice(0, 4);
   const roleOn = (t: { members: { id: string; role: string }[] }) => t.members.find((m) => m.id === user.id)?.role ?? "viewer";
@@ -99,20 +97,7 @@ export default function Dashboard() {
         <EmptyState icon={Compass} title="No upcoming trips" body="Start planning your next adventure with your crew." action={<Button onClick={() => navigate("/app/trips/new")} data-testid="dashboard-empty-create">Create a trip</Button>} />
       )}
 
-      {/* Invitations */}
-      {invites.length > 0 && (
-        <section className="flex flex-col gap-3 rounded-2xl border border-coral/30 bg-coral-soft/60 p-4 sm:flex-row sm:items-center" data-testid="dashboard-invitations">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-coral text-white"><UserPlus className="size-5" /></span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{invites[0].title}</p>
-            <p className="text-xs text-ink-muted">{invites[0].body} · {ago(invites[0].at)}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="rounded-xl bg-card" onClick={() => { actions.dismissNotification(invites[0].id); toast("Invitation declined"); }} data-testid="dashboard-invite-decline">Decline</Button>
-            <Button className="rounded-xl" onClick={() => { void actions.acceptInvite(invites[0].id).then((id) => { toast.success("You joined the trip"); navigate(`/app/trips/${id}`); }, (e) => toast.error(apiErrorMessage(e))); }} data-testid="dashboard-invite-accept">Accept invite</Button>
-          </div>
-        </section>
-      )}
+      <Invitations testId="dashboard-invitations" prefix="dashboard" />
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <div className="grid content-start gap-6">

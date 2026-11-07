@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarStack, ConfirmDialog, Field, StatusBadge, Tip } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
 import { actions, inviteLink, saved, useApp, useTrip } from "@/lib/store";
@@ -29,6 +30,8 @@ import DocumentsTab from "@/components/trip/DocumentsTab";
 import MapTab from "@/components/trip/MapTab";
 import ChatTab from "@/components/trip/ChatTab";
 import MemoriesTab from "@/components/trip/MemoriesTab";
+import { DateRangeField } from "@/components/DateRangeField";
+import { TripMobileBar } from "@/components/trip/TripMobileBar";
 
 const TABS = [
   ["overview", "Overview"], ["itinerary", "Itinerary"], ["expenses", "Expenses"], ["tasks", "Tasks"], ["packing", "Packing"],
@@ -36,7 +39,9 @@ const TABS = [
 ] as const;
 type TabKey = (typeof TABS)[number][0];
 
-function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean; onOpenChange: (o: boolean) => void }) {
+type MembersTab = "invite" | "members";
+
+function MembersDialog({ trip, open, onOpenChange, tab, onTabChange }: { trip: Trip; open: boolean; onOpenChange: (o: boolean) => void; tab: MembersTab; onTabChange: (tab: MembersTab) => void }) {
   const access = useTripAccess(trip);
   const me = access.me;
   const emailVerified = useApp((s) => s.emailVerified);
@@ -74,37 +79,72 @@ function MembersDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolean
             <DialogTitle>Trip members</DialogTitle>
             <DialogDescription>{access.canAdmin ? "Invite people, change roles or remove members." : "Everyone on this trip."}</DialogDescription>
           </DialogHeader>
-          {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can still share the link below." : "Email invites aren't available yet. Share the link below instead."}</p>}
           {full && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-full-note">This trip is full, so nobody new can join, even with the link. {access.canAdmin ? "Raise the limit in Edit trip to make room." : ""}</p>}
-          {access.canAdmin && emailVerified && <Field label="Invite travellers">
-            <InvitePeople added={onTrip} busyId={inviting} onPick={invitePerson} />
-          </Field>}
-          {access.canAdmin && emailVerified && <Field label="Or invite someone new by email" htmlFor="inv-email" error={err}>
-            <div className="flex gap-2">
-              <Input id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invite()} placeholder="friend@email.com" className="h-10 rounded-xl" data-testid="members-invite-email-input" />
-              <Button onClick={invite} className="h-10 rounded-xl" data-testid="members-invite-send-button">Invite</Button>
-            </div>
-          </Field>}
-          {link && (
-            <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
-              <Copy className="size-4" /> <span className="truncate">{link}</span>
-            </button>
+          {access.canAdmin ? (
+            <Tabs value={tab} onValueChange={(v) => onTabChange(v as MembersTab)}>
+              <TabsList className="w-full" data-testid="members-tabs">
+                <TabsTrigger value="invite" data-testid="members-tab-invite">Invite</TabsTrigger>
+                <TabsTrigger value="members" data-testid="members-tab-members">Members <span className="num ml-1 opacity-70">{trip.members.length}</span>{!!trip.leaveRequests?.length && <span className="ml-1.5 size-2 rounded-full bg-coral" aria-label="Someone has asked to leave" />}</TabsTrigger>
+              </TabsList>
+              <TabsContent value="invite" className="mt-3 grid gap-4">
+                  {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can still share the link below." : "Email invites aren't available yet. Share the link below instead."}</p>}
+                  {access.canAdmin && emailVerified && <Field label="Invite travellers">
+                    <InvitePeople added={onTrip} busyId={inviting} onPick={invitePerson} />
+                  </Field>}
+                  {access.canAdmin && emailVerified && <Field label="Or invite someone new by email" htmlFor="inv-email" error={err}>
+                    <div className="flex gap-2">
+                      <Input id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invite()} placeholder="friend@email.com" className="h-10 rounded-xl" data-testid="members-invite-email-input" />
+                      <Button onClick={invite} className="h-10 rounded-xl" data-testid="members-invite-send-button">Invite</Button>
+                    </div>
+                  </Field>}
+                  {link && (
+                    <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
+                      <Copy className="size-4" /> <span className="truncate">{link}</span>
+                    </button>
+                  )}
+              </TabsContent>
+              <TabsContent value="members" className="mt-3">
+                  <div className="max-h-72 overflow-y-auto rounded-xl border border-line">
+                    {trip.members.map((m) => (
+                      <div key={m.id} className="flex items-center gap-3 border-b px-3 py-2.5 last:border-0" data-testid={`member-row-${m.id}`}>
+                        <Avatar person={m} size={34} ring={false} />
+                        <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === me && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.status === "invited" ? `Invited${m.email ? ` · ${m.email}` : ""}` : m.email}</p>{access.canAdmin && <LeaveRequestActions trip={trip} member={m} />}</div>
+                        <Select value={m.role} onValueChange={(v) => { actions.upsert(trip.id, "members", { ...m, role: v as Role }); saved(`${m.name.split(" ")[0]} is now ${v}`); }} disabled={!access.canManageMember(m)}>
+                          <SelectTrigger size="sm" className="w-28 rounded-lg capitalize" data-testid={`member-role-select-${m.id}`}><SelectValue>{(v) => <span className="capitalize">{v as string}</span>}</SelectValue></SelectTrigger>
+                          <SelectContent>{access.grantableRoles.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent>
+                        </Select>
+                        {access.canManageMember(m) && (
+                          <button onClick={() => setRemoving(m)} className="rounded-md p-1.5 text-ink-muted hover:bg-muted hover:text-destructive" aria-label={`Remove ${m.name}`} data-testid={`member-remove-${m.id}`}><Trash2 className="size-4" /></button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <>
+                  {link && (
+                    <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
+                      <Copy className="size-4" /> <span className="truncate">{link}</span>
+                    </button>
+                  )}
+                  <div className="max-h-72 overflow-y-auto rounded-xl border border-line">
+                    {trip.members.map((m) => (
+                      <div key={m.id} className="flex items-center gap-3 border-b px-3 py-2.5 last:border-0" data-testid={`member-row-${m.id}`}>
+                        <Avatar person={m} size={34} ring={false} />
+                        <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === me && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.status === "invited" ? `Invited${m.email ? ` · ${m.email}` : ""}` : m.email}</p>{access.canAdmin && <LeaveRequestActions trip={trip} member={m} />}</div>
+                        <Select value={m.role} onValueChange={(v) => { actions.upsert(trip.id, "members", { ...m, role: v as Role }); saved(`${m.name.split(" ")[0]} is now ${v}`); }} disabled={!access.canManageMember(m)}>
+                          <SelectTrigger size="sm" className="w-28 rounded-lg capitalize" data-testid={`member-role-select-${m.id}`}><SelectValue>{(v) => <span className="capitalize">{v as string}</span>}</SelectValue></SelectTrigger>
+                          <SelectContent>{access.grantableRoles.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent>
+                        </Select>
+                        {access.canManageMember(m) && (
+                          <button onClick={() => setRemoving(m)} className="rounded-md p-1.5 text-ink-muted hover:bg-muted hover:text-destructive" aria-label={`Remove ${m.name}`} data-testid={`member-remove-${m.id}`}><Trash2 className="size-4" /></button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+            </>
           )}
-          <div className="max-h-72 overflow-y-auto rounded-xl border border-line">
-            {trip.members.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 border-b px-3 py-2.5 last:border-0" data-testid={`member-row-${m.id}`}>
-                <Avatar person={m} size={34} ring={false} />
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{m.name}{m.id === me && " (you)"}</p><p className="truncate text-xs text-ink-muted">{m.status === "invited" ? `Invited${m.email ? ` · ${m.email}` : ""}` : m.email}</p>{access.canAdmin && <LeaveRequestActions trip={trip} member={m} />}</div>
-                <Select value={m.role} onValueChange={(v) => { actions.upsert(trip.id, "members", { ...m, role: v as Role }); saved(`${m.name.split(" ")[0]} is now ${v}`); }} disabled={!access.canManageMember(m)}>
-                  <SelectTrigger size="sm" className="w-28 rounded-lg capitalize" data-testid={`member-role-select-${m.id}`}><SelectValue>{(v) => <span className="capitalize">{v as string}</span>}</SelectValue></SelectTrigger>
-                  <SelectContent>{access.grantableRoles.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}</SelectContent>
-                </Select>
-                {access.canManageMember(m) && (
-                  <button onClick={() => setRemoving(m)} className="rounded-md p-1.5 text-ink-muted hover:bg-muted hover:text-destructive" aria-label={`Remove ${m.name}`} data-testid={`member-remove-${m.id}`}><Trash2 className="size-4" /></button>
-                )}
-              </div>
-            ))}
-          </div>
         </DialogContent>
       </Dialog>
       <ConfirmDialog
@@ -209,10 +249,14 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
         <div className="grid gap-4">
           <Field label="Trip name" htmlFor="et-name" error={err.name}><Input id="et-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="edit-trip-name-input" /></Field>
           <Field label="Destination" htmlFor="et-dest" error={err.destination}><Input id="et-dest" value={f.destination} onChange={(e) => setF({ ...f, destination: e.target.value })} data-testid="edit-trip-destination-input" /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Start" htmlFor="et-s"><Input id="et-s" type="date" value={f.startDate} onChange={(e) => { const startDate = e.target.value; setF({ ...f, startDate, ...(startDate && f.endDate < startDate ? { endDate: startDate } : {}) }); }} data-testid="edit-trip-start-input" /></Field>
-            <Field label="End" htmlFor="et-e" error={err.endDate}><Input id="et-e" type="date" min={f.startDate || undefined} value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} data-testid="edit-trip-end-input" /></Field>
-          </div>
+          <DateRangeField
+            onStartPastEnd="move"
+            value={{ start: f.startDate, end: f.endDate }}
+            onChange={({ start, end }) => setF({ ...f, startDate: start, endDate: end })}
+            errors={{ end: err.endDate }}
+            ids={{ start: "et-s", end: "et-e" }}
+            testIds={{ start: "edit-trip-start-input", end: "edit-trip-end-input" }}
+          />
           <div className="grid grid-cols-[1fr_150px] gap-3">
             <Field label="Budget" htmlFor="et-b"><Input id="et-b" inputMode="numeric" value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value.replace(/[^\d.]/g, "") })} className="num" data-testid="edit-trip-budget-input" /></Field>
             <Field label="Currency">
@@ -251,6 +295,8 @@ export default function TripWorkspace() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [members, setMembers] = useState(params.get("invite") === "1");
+  const [membersTab, setMembersTab] = useState<MembersTab>("members");
+  const openMembers = (tab: MembersTab) => { setMembersTab(tab); setMembers(true); };
   const [edit, setEdit] = useState(false);
   const [del, setDel] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -259,7 +305,7 @@ export default function TripWorkspace() {
 
   useEffect(() => {
     if (params.get("invite") === "1") {
-      setMembers(true);
+      openMembers("members");
       params.delete("invite");
       setParams(params, { replace: true });
     }
@@ -298,8 +344,8 @@ export default function TripWorkspace() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setMembers(true)} className="mr-1 rounded-full" aria-label="Manage members" data-testid="trip-header-members-button"><AvatarStack people={trip.members} size={32} max={5} /></button>
-            <Button onClick={() => setMembers(true)} className="h-9 rounded-xl bg-white text-forest hover:bg-sage" data-testid="trip-invite-button">{access.canAdmin ? <><UserPlus className="size-4" /> Invite</> : <><Users className="size-4" /> Members</>}</Button>
+            <button onClick={() => openMembers("members")} className="mr-1 rounded-full" aria-label="Manage members" data-testid="trip-header-members-button"><AvatarStack people={trip.members} size={32} max={5} /></button>
+            <Button onClick={() => openMembers(access.canAdmin ? "invite" : "members")} className="h-9 rounded-xl bg-white text-forest hover:bg-sage" data-testid="trip-invite-button">{access.canAdmin ? <><UserPlus className="size-4" /> Invite</> : <><Users className="size-4" /> Members</>}</Button>
             {access.canAdmin && <Tip label="Edit trip"><Button size="icon" onClick={() => setEdit(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Edit trip" data-testid="trip-edit-button"><Pencil className="size-4" /></Button></Tip>}
             <Tip label="Use as a template"><Button size="icon" onClick={() => setCopying(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Use as a template" data-testid="trip-copy-button"><CopyPlus className="size-4" /></Button></Tip>
             {access.canAdmin && <Tip label="Share"><Button size="icon" onClick={share} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Share trip" data-testid="trip-share-button"><Share2 className="size-4" /></Button></Tip>}
@@ -323,7 +369,7 @@ export default function TripWorkspace() {
       </section>
 
       {/* Tabs */}
-      <nav className="no-scrollbar sticky top-16 z-10 -mx-4 mt-4 flex gap-1 overflow-x-auto border-b border-line bg-background/90 px-4 backdrop-blur sm:mx-0 sm:px-0" aria-label="Trip sections" data-testid="trip-tabs">
+      <nav className="no-scrollbar sticky top-16 z-10 -mx-4 mt-4 hidden gap-1 overflow-x-auto border-b border-line bg-background/90 px-4 backdrop-blur sm:mx-0 sm:px-0 lg:flex" aria-label="Trip sections" data-testid="trip-tabs">
         {TABS.map(([k, label]) => (
           <NavLink
             key={k}
@@ -353,12 +399,13 @@ export default function TripWorkspace() {
             case "map": return <MapTab trip={trip} />;
             case "chat": return <ChatTab trip={trip} />;
             case "memories": return <MemoriesTab trip={trip} />;
-            default: return <OverviewTab trip={trip} onManageMembers={() => setMembers(true)} />;
+            default: return <OverviewTab trip={trip} onManageMembers={() => openMembers("members")} onInvite={() => openMembers("invite")} />;
           }
         })()}
       </div>
 
-      <MembersDialog trip={trip} open={members} onOpenChange={setMembers} />
+      <TripMobileBar tripId={trip.id} tab={tab} canContribute={access.canContribute} />
+      <MembersDialog trip={trip} open={members} onOpenChange={setMembers} tab={membersTab} onTabChange={setMembersTab} />
       <EditTripDialog trip={trip} open={edit} onOpenChange={setEdit} />
       {leaving && <LeaveTripDialog trip={trip} open onClose={() => setLeaving(false)} onDeleteTrip={() => setDel(true)} />}
       <CopyTripDialog trip={trip} open={copying} onOpenChange={setCopying} />

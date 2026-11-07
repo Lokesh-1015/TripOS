@@ -16,6 +16,7 @@ import { actions, saved, useApp } from "@/lib/store";
 import { balances, CATEGORY_COLOR, CATEGORY_LABEL, CURRENCIES, equalShares, fmtDate, hasAmounts, money, round2, suggestTransfers, todayISO, totalSpent, uid } from "@/lib/format";
 import type { Expense, ExpenseCategory, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useQuickAdd } from "@/lib/quickAdd";
 
 interface Draft { id: string; title: string; amount: string; currency: string; rate: string; category: ExpenseCategory; paidBy: string; date: string; splitType: "equal" | "custom"; participants: string[]; custom: Record<string, string>; notes: string }
 
@@ -197,8 +198,8 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
   const me = access.me;
   const [params, setParams] = useSearchParams();
   const [dialog, setDialog] = useState<{ open: boolean; exp: Expense | null }>({ open: params.get("new") === "1", exp: null });
+  useQuickAdd(() => setDialog({ open: true, exp: null }));
   const [convertTo, setConvertTo] = useState<string>();
-  const [deleting, setDeleting] = useState<Expense>();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<"all" | ExpenseCategory>("all");
   const [settle, setSettle] = useState<{ from: string; to: string; amount: number }>();
@@ -370,7 +371,7 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
                   </div>
                   {access.canModerate(e.createdBy ?? me) && <div className="flex gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100">
                     <Button variant="ghost" size="icon-xs" onClick={() => setDialog({ open: true, exp: e })} aria-label="Edit expense" data-testid={`expense-edit-${e.id}`}><Pencil /></Button>
-                    <Button variant="ghost" size="icon-xs" onClick={() => setDeleting(e)} aria-label="Delete expense" data-testid={`expense-delete-${e.id}`}><Trash2 /></Button>
+                    <Button variant="ghost" size="icon-xs" onClick={() => actions.removeWithUndo(trip.id, "expenses", e, "Expense deleted", { text: `deleted the expense “${e.title}”`, kind: "expense" })} aria-label="Delete expense" data-testid={`expense-delete-${e.id}`}><Trash2 /></Button>
                   </div>}
                 </li>
               );
@@ -381,7 +382,6 @@ export default function ExpensesTab({ trip }: { trip: Trip }) {
 
       <ExpenseDialog trip={trip} open={dialog.open} initial={dialog.exp} onClose={() => setDialog({ open: false, exp: null })} />
       <ConvertDialog trip={trip} currency={convertTo} onClose={() => setConvertTo(undefined)} />
-      <ConfirmDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)} title={`Delete “${deleting?.title}”?`} body="Balances and settlements will be recalculated without it." confirmLabel="Delete expense" onConfirm={() => { if (deleting) { actions.remove(trip.id, "expenses", deleting.id, { text: `deleted the expense “${deleting.title}”`, kind: "expense" }); saved("Expense deleted"); } }} />
       <ConfirmDialog
         open={!!settle}
         onOpenChange={(o) => !o && setSettle(undefined)}

@@ -14,6 +14,7 @@ async function newUser(browser: Browser, first: string, viewport = { width: 1440
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
   await page.getByTestId('dashboard-welcome').waitFor();
   return { page, context };
 }
@@ -226,6 +227,7 @@ test('finishing onboarding on a slow connection reaches the dashboard', async ({
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
   await expect(page.getByTestId('dashboard-welcome')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(2500);
   await expect(page.getByTestId('dashboard-welcome')).toBeVisible();

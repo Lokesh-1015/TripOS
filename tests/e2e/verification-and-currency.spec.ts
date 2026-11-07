@@ -26,6 +26,7 @@ async function fillSignup(page: Page, name: string, email: string) {
   await page.getByTestId('signup-submit-button').click();
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
 }
 
 async function newUser(browser: Browser, first: string) {
@@ -88,6 +89,7 @@ test('verifying an email unlocks invites, and an invitee joins from the email th
     await owner.page.getByTestId('trip-invite-button').click();
     await owner.page.getByTestId('members-invite-email-input').fill(invitee);
     await owner.page.getByTestId('members-invite-send-button').click();
+await owner.page.getByTestId('members-tab-members').click();
     await expect(owner.page.getByTestId('members-dialog')).toContainText('Invited');
     await owner.page.keyboard.press('Escape');
   });

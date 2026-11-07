@@ -61,7 +61,7 @@ export class StateController {
   @Get("state")
   async state(@CurrentUser() user: User) {
     const [trips, notifications] = await Promise.all([this.tripsFor(user.id), this.notificationsFor(user)]);
-    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, mustConfirmEmail: user.mustConfirmEmail && !user.emailVerifiedAt, hasPassword: !!user.passwordHash, termsAccepted: !!user.termsAcceptedAt, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
+    return { version: 1, authed: true, onboarded: user.onboarded, emailVerified: !!user.emailVerifiedAt, mustConfirmEmail: user.mustConfirmEmail && !user.emailVerifiedAt, pendingEmail: user.pendingEmail, hasPassword: !!user.passwordHash, termsAccepted: !!user.termsAcceptedAt, emailEnabled: this.auth.emailEnabled, seenReleaseNotes: user.seenReleaseNotes, user: toPerson(user), settings: toSettings(user), saved: user.savedDestinations, trips, notifications };
   }
 
   @Get("notifications")
@@ -77,9 +77,15 @@ export class StateController {
     if (email && email !== user.email && (await this.prisma.user.findUnique({ where: { email } }))) throw new ConflictException({ message: "That email is already in use" });
     const emailChanged = !!email && email !== user.email;
     if (emailChanged) await this.auth.assertCanChangeEmailTo(user.id, email);
-    // A new address is unproven until its owner clicks the link, so anything sent to it stays hidden until then.
-    const updated = await this.prisma.user.update({ where: { id: user.id }, data: { ...patch, email, ...(emailChanged ? { emailVerifiedAt: null } : {}) } });
-    if (emailChanged) await this.auth.sendVerificationToNewAddress(updated);
+    // A confirmed account keeps its address until the new one is confirmed, so a typo can't lock anyone out.
+    // One that was never confirmed has nothing to keep, so it switches straight away and proves the new one.
+    const confirmLater = emailChanged && !!user.emailVerifiedAt;
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { ...patch, email: confirmLater ? undefined : email, ...(emailChanged && !confirmLater ? { emailVerifiedAt: null, pendingEmail: null } : {}) },
+    });
+    if (confirmLater) await this.auth.requestEmailChange(updated, email);
+    else if (emailChanged) await this.auth.sendVerificationToNewAddress(updated);
     // Every trip this person belongs to shows their name and avatar.
     const memberships = await this.prisma.tripMember.findMany({ where: { userId: user.id, status: "active" }, select: { tripId: true } });
     if (patch.name || patch.avatar !== undefined || email) memberships.forEach((m) => this.realtime.tripChanged(m.tripId));
@@ -89,7 +95,15 @@ export class StateController {
       await this.prisma.liveLocation.deleteMany({ where: { userId: user.id } });
       shares.forEach((s) => this.realtime.locationsChanged(s.tripId));
     }
-    return { user: toPerson(updated), settings: toSettings(updated), onboarded: updated.onboarded, emailVerified: !!updated.emailVerifiedAt };
+    return { user: toPerson(updated), settings: toSettings(updated), onboarded: updated.onboarded, emailVerified: !!updated.emailVerifiedAt, pendingEmail: confirmLater ? email : updated.pendingEmail };
+  }
+
+  /** Stops a change of address that hasn't been confirmed yet. */
+  @AllowUnconfirmed()
+  @Delete("me/pending-email")
+  async cancelEmailChange(@CurrentUser() user: User) {
+    await this.auth.cancelEmailChange(user.id);
+    return { ok: true };
   }
 
   /** Older accounts confirm once that they're 18 or over and accept the terms. */

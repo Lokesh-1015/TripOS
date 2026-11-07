@@ -17,6 +17,22 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-11",
+    features: [
+      { icon: UserPlus, title: "Invitations you can't miss", body: "Trips you're invited to wait at the top of My Trips and Home, each with Accept and Decline." },
+      { icon: CalendarRange, title: "Pick dates on a calendar", body: "Choose the start, then the end, and see how many days and nights the trip is." },
+    ],
+    improved: [
+      "On a phone, a trip has its own bar at the bottom and a + for adding an expense, activity or task.",
+      "Deleted something by mistake? Undo it for a few seconds after.",
+      "A new trip shows its first steps, ticked off as you go.",
+      "Changing your email keeps the old one working until you confirm the new one.",
+      "Your profile is edited in one place. Settings links to it.",
+      "Setting up an account can add a photo and find your friends.",
+    ],
+    fixed: [],
+  },
+  {
     id: "2026-11-10",
     features: [
       { icon: UserPlus, title: "Invite travellers by name", body: "Search for people by name or username, or pick from your friends and people from your past trips. Email still works for someone new." },

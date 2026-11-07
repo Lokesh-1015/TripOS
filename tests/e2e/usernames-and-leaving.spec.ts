@@ -161,19 +161,25 @@ test('a new account chooses its username while setting up, then can change it on
   await expect(page.getByTestId('username-available')).toContainText('change it later');
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
   await expect(page).toHaveURL(/\/app/);
 
-  // Choosing during setup didn't start the 30-day wait, so Settings allows one change.
+  // Choosing during setup didn't start the 30-day wait, so one change is allowed, from Settings' Edit profile.
   await page.goto('/app/settings');
-  const setting = page.getByTestId('settings-username-input');
+  await expect(page.getByTestId('settings-profile-username')).toHaveText(`@${chosen}`);
+  await page.getByTestId('settings-edit-profile').click();
+  const setting = page.getByTestId('profile-username-input');
   await expect(setting).toHaveValue(chosen);
   await expect(setting).toBeEnabled();
   const renamed = `${chosen.slice(0, 26)}_two`;
   await setting.fill(renamed);
   await expect(page.getByTestId('username-available')).toContainText(`@${renamed} is available`);
-  await page.getByTestId('settings-profile-save').click();
+  await page.getByTestId('profile-save').click();
+  await expect(page).toHaveURL(new RegExp(`/app/u/${renamed.replace(/\./g, '\\.')}$`));
+  await page.goto('/app/settings');
+  await page.getByTestId('settings-edit-profile').click();
   await expect(page.getByTestId('username-locked')).toContainText('You can change it again on');
-  await expect(page.getByTestId('settings-username-input')).toBeDisabled();
+  await expect(page.getByTestId('profile-username-input')).toBeDisabled();
   expect((await page.evaluate(async () => (await (await fetch('/api/me/profile')).json()).username))).toBe(renamed);
   await context.close();
   await other.page.context().close();

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarStack, ConfirmDialog, EmptyState, Field, Tip } from "@/components/common";
+import { Avatar, AvatarStack, EmptyState, Field, Tip } from "@/components/common";
 import { useTripAccess } from "@/lib/access";
 import { actions, saved } from "@/lib/store";
 import { ago, money, tripDays, uid } from "@/lib/format";
@@ -16,6 +16,7 @@ import { overlapsWith } from "@/lib/planning";
 import { apiErrorMessage, uploadFile } from "@/lib/api";
 import type { Activity, ActivityType, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useQuickAdd } from "@/lib/quickAdd";
 
 const ACTIVITY_TYPES: Record<ActivityType, { label: string; icon: typeof Flag }> = {
   travel: { label: "Travel", icon: Plane },
@@ -120,8 +121,8 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
   const { canContribute } = useTripAccess(trip);
   const days = tripDays(trip);
   const [day, setDay] = useState(0);
+  useQuickAdd(() => canContribute && setEditing(blank(day, trip.members.map((m) => m.id))));
   const [editing, setEditing] = useState<Activity | null>(null);
-  const [deleting, setDeleting] = useState<Activity>();
   const [open, setOpen] = useState<string>();
   const [comment, setComment] = useState("");
   const [dragId, setDragId] = useState<string>();
@@ -231,7 +232,7 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
                         <Tip label="Move up"><Button variant="ghost" size="icon-xs" onClick={() => move(idx, -1)} disabled={idx === 0} aria-label="Move up" data-testid={`activity-move-up-${a.id}`}><ArrowUp /></Button></Tip>
                         <Tip label="Move down"><Button variant="ghost" size="icon-xs" onClick={() => move(idx, 1)} disabled={idx === list.length - 1} aria-label="Move down" data-testid={`activity-move-down-${a.id}`}><ArrowDown /></Button></Tip>
                         <Tip label="Edit"><Button variant="ghost" size="icon-xs" onClick={() => setEditing(a)} aria-label="Edit activity" data-testid={`activity-edit-${a.id}`}><Pencil /></Button></Tip>
-                        <Tip label="Delete"><Button variant="ghost" size="icon-xs" onClick={() => setDeleting(a)} aria-label="Delete activity" data-testid={`activity-delete-${a.id}`}><Trash2 /></Button></Tip>
+                        <Tip label="Delete"><Button variant="ghost" size="icon-xs" onClick={() => actions.removeWithUndo(trip.id, "activities", a, "Activity deleted", { text: `removed “${a.title}” from the itinerary`, kind: "itinerary" })} aria-label="Delete activity" data-testid={`activity-delete-${a.id}`}><Trash2 /></Button></Tip>
                       </div>}
                     </div>
                   </div>
@@ -267,7 +268,6 @@ export default function ItineraryTab({ trip }: { trip: Trip }) {
         )}
       </div>
       <ActivityDialog trip={trip} value={editing} onClose={() => setEditing(null)} />
-      <ConfirmDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)} title={`Delete “${deleting?.title}”?`} body="This removes the activity, its comments and attachments for everyone." confirmLabel="Delete activity" onConfirm={() => { if (deleting) { actions.remove(trip.id, "activities", deleting.id, { text: `removed “${deleting.title}” from the itinerary`, kind: "itinerary" }); saved("Activity deleted"); } }} />
     </div>
   );
 }

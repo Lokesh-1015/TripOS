@@ -7,6 +7,7 @@ import { EmptyState, PageHeader } from "@/components/common";
 import { apiErrorMessage } from "@/lib/api";
 import { useAdminReports, useSocialActions } from "@/lib/social";
 import { cn } from "@/lib/utils";
+import { ListSkeleton } from "@/components/PageLoading";
 
 const shout = (err: unknown) => toast.error(apiErrorMessage(err));
 
@@ -14,7 +15,7 @@ const shout = (err: unknown) => toast.error(apiErrorMessage(err));
 export default function AdminReports() {
   const { data, isPending, isError } = useAdminReports();
   const social = useSocialActions();
-  if (isPending) return <p className="text-sm text-ink-muted">Loading…</p>;
+  if (isPending) return <ListSkeleton />;
   if (isError) return <EmptyState icon={Flag} title="Nothing to see here" body="This page isn't available." testId="reports-unavailable" />;
   return (
     <div>

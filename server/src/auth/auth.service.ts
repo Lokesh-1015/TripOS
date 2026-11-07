@@ -74,10 +74,42 @@ export class AuthService {
     void this.mail.sendVerification(user.email, user.name, token);
   }
 
+  /**
+   * A confirmed account changing its address: the new one waits, and the current one keeps working,
+   * until the link sent to the new address is opened. A typo can't lock anyone out.
+   */
+  async requestEmailChange(user: Pick<User, "id" | "name">, email: string) {
+    const token = newToken();
+    await this.prisma.$transaction([
+      this.prisma.emailVerificationToken.deleteMany({ where: { userId: user.id, email: { not: null } } }),
+      this.prisma.emailVerificationToken.create({ data: { tokenHash: hashToken(token), userId: user.id, email, expiresAt: new Date(Date.now() + VERIFY_MS) } }),
+      this.prisma.user.update({ where: { id: user.id }, data: { pendingEmail: email } }),
+    ]);
+    void this.mail.sendEmailChange(email, user.name, token);
+  }
+
+  async cancelEmailChange(userId: string) {
+    await this.prisma.$transaction([
+      this.prisma.emailVerificationToken.deleteMany({ where: { userId, email: { not: null } } }),
+      this.prisma.user.update({ where: { id: userId }, data: { pendingEmail: null } }),
+    ]);
+  }
+
   /** Doesn't need a session: the link may be opened on a different device from the one that signed up. */
   async verifyEmail(token: string) {
     const row = await this.prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!row || row.expiresAt < new Date()) throw new UnprocessableEntityException({ message: "This link has expired. Log in to get a new one." });
+    if (row.email) {
+      // The address may have been taken since the change was asked for.
+      const taken = await this.prisma.user.findFirst({ where: { email: row.email, id: { not: row.userId } }, select: { id: true } });
+      if (taken) throw new ConflictException({ message: "That email is already in use by another account" });
+      await this.prisma.$transaction([
+        this.prisma.user.update({ where: { id: row.userId }, data: { email: row.email, pendingEmail: null, emailVerifiedAt: new Date() } }),
+        this.prisma.emailVerificationToken.deleteMany({ where: { userId: row.userId, email: { not: null } } }),
+      ]);
+      this.realtime.userChanged(row.userId);
+      return;
+    }
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: row.userId }, data: { emailVerifiedAt: new Date() } }),
       this.prisma.emailVerificationToken.deleteMany({ where: { userId: row.userId } }),

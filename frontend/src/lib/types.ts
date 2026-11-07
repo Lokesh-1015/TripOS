@@ -275,6 +275,8 @@ export interface AppState {
   emailVerified: boolean;
   /** A new account that hasn't confirmed its address yet, so the app stays closed until it does. */
   mustConfirmEmail: boolean;
+  /** A new email waiting to be confirmed. The account keeps its current one until then. */
+  pendingEmail?: string | null;
   /** False for someone who only signs in with Google. */
   hasPassword: boolean;
   /** False for an account from before the terms existed, until they accept. */

@@ -54,6 +54,7 @@ async function fillSignup(page: Page, email: string, name = 'Real Person') {
 async function finishOnboarding(page: Page) {
   await page.getByTestId('onboarding-next-button').click();
   await page.getByTestId('onboarding-finish-button').click();
+  await page.getByTestId('onboarding-friends-skip').click();
   await page.getByTestId('dashboard-welcome').waitFor();
 }
 
