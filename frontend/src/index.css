@@ -187,7 +187,8 @@
   }
 }
 
-.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+/* Figures line up in columns without looking like code: the body font, with fixed-width digits. */
+.num { font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.005em; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 .map-grid {
@@ -212,4 +213,10 @@
 /* Forest is both a fill and a text colour. As text on dark surfaces it needs the lighter shade to stay readable. */
 .dark .text-forest {
     color: var(--brand-sage-ink);
+}
+
+/* A field with an error is outlined in red as well as described in words. */
+[data-invalid] :is(input, textarea, [data-slot="select-trigger"]) {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 14%, transparent);
 }

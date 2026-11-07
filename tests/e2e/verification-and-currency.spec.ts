@@ -223,13 +223,14 @@ test('people who have not joined are not charged by default', async ({ browser }
 test('the wizard asks for a cover, and the other product gaps work', async ({ browser }) => {
   const { page, context } = await newUser(browser, 'Gaps');
 
-  await test.step('a trip needs a chosen cover', async () => {
+  await test.step('a trip gets a cover that suits its destination, without having to choose', async () => {
     await page.goto('/app/trips/new');
+    await page.getByTestId('create-trip-next-button').click();
+    await expect(page.getByTestId('create-trip-basics')).toContainText('Give your trip a name');
+    await expect(page.locator('[data-invalid] #ct-name')).toBeVisible();
     await page.getByTestId('create-trip-name-input').fill('Gap Trip');
     await page.getByTestId('create-trip-destination-input').fill('Goa');
-    await page.getByTestId('create-trip-next-button').click();
-    await expect(page.getByTestId('create-trip-basics')).toContainText('Choose a cover image');
-    await page.locator('[data-testid^="create-trip-cover-photo"]').first().click();
+    await expect(page.locator('[data-testid^="create-trip-cover-"][aria-pressed="true"]')).toHaveAttribute('data-testid', /photo-1614082242765/);
     await page.getByTestId('create-trip-next-button').click();
     await page.getByTestId('create-trip-start-date-input').fill('2020-03-01');
     await page.getByTestId('create-trip-end-date-input').fill('2020-03-03');

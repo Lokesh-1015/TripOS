@@ -105,6 +105,23 @@ export class SocialController {
     return this.social.cards(user, await this.prisma.user.findMany({ where, orderBy: { name: "asc" }, take: 20 }));
   }
 
+  /** People this person has travelled with: active members of trips they're active on. Blocked people never show. */
+  @Get("people/co-travellers")
+  async coTravellers(@CurrentUser() user: User) {
+    const hidden = [...(await this.social.blockedIds(user.id)), user.id];
+    const people = await this.prisma.user.findMany({
+      where: {
+        id: { notIn: hidden },
+        deletedAt: null,
+        suspendedAt: null,
+        memberships: { some: { status: "active", trip: { members: { some: { userId: user.id, status: "active" } } } } },
+      },
+      orderBy: { name: "asc" },
+      take: 30,
+    });
+    return this.social.cards(user, people);
+  }
+
   @Get("friends")
   async friends(@CurrentUser() user: User) {
     const ids = [...(await this.social.friendIds(user.id))];

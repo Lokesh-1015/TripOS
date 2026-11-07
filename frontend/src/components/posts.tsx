@@ -191,6 +191,7 @@ function Comments({ post }: { post: TravelPost }) {
 export function PostCard({ post, startWithComments = false }: { post: TravelPost; startWithComments?: boolean }) {
   const posts = usePostActions();
   const [photo, setPhoto] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const [showComments, setShowComments] = useState(startWithComments);
   const [editing, setEditing] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -232,7 +233,9 @@ export function PostCard({ post, startWithComments = false }: { post: TravelPost
       </header>
       {post.photos.length > 0 && (
         <div className="relative bg-muted">
-          <img src={post.photos[photo]} alt={post.caption || `Photo by ${post.author.name}`} className="max-h-[560px] w-full object-cover" loading="lazy" data-testid={`post-photo-${post.id}`} />
+          <button type="button" onClick={() => setExpanded(true)} className="block w-full cursor-zoom-in" aria-label="View full photo" data-testid={`post-image-open-${post.id}`}>
+            <img src={post.photos[photo]} alt={post.caption || `Photo by ${post.author.name}`} className="aspect-[4/5] max-h-[min(560px,70dvh)] w-full object-cover sm:aspect-[4/3]" loading="lazy" data-testid={`post-photo-${post.id}`} />
+          </button>
           {post.photos.length > 1 && (
             <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5" data-testid={`post-photo-dots-${post.id}`}>
               {post.photos.map((url, i) => <button key={url} onClick={() => setPhoto(i)} className={cn("size-2 rounded-full", i === photo ? "bg-white" : "bg-white/50")} aria-label={`Photo ${i + 1} of ${post.photos.length}`} />)}
@@ -240,6 +243,12 @@ export function PostCard({ post, startWithComments = false }: { post: TravelPost
           )}
         </div>
       )}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="max-w-[min(96vw,1100px)] border-0 bg-black/95 p-2 sm:max-w-[min(96vw,1100px)]" data-testid={`post-image-viewer-${post.id}`}>
+          <DialogTitle className="sr-only">Photo by {post.author.name}</DialogTitle>
+          {post.photos.length > 0 && <img src={post.photos[photo]} alt={post.caption || `Photo by ${post.author.name}`} className="max-h-[88dvh] w-full rounded-lg object-contain" />}
+        </DialogContent>
+      </Dialog>
       <div className="grid gap-3 p-4">
         {post.caption && <p className="whitespace-pre-wrap break-words text-[15px]" data-testid={`post-caption-${post.id}`}>{post.caption}</p>}
         {post.trip && <Link to={post.trip.isMember ? `/app/trips/${post.trip.id}` : `/app/explore/${post.trip.id}`} className="inline-flex items-center gap-1.5 justify-self-start rounded-full bg-sage px-3 py-1 text-xs font-medium text-forest" data-testid={`post-trip-${post.id}`}>From {post.trip.name}</Link>}

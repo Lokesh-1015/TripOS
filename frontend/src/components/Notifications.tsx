@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, CheckCheck, Heart, LogOut, CheckSquare, FileText, Map, MessageCircle, Receipt, UserPlus, Users, Vote, X } from "lucide-react";
 import { toast } from "sonner";
@@ -15,11 +16,31 @@ const ICON: Record<AppNotification["kind"], typeof Bell> = {
 
 export function NotificationsBell({ dark = false }: { dark?: boolean }) {
   const list = useApp((s) => s.notifications);
-  const unread = list.filter((n) => !n.read).length;
+  // The badge counts what's new since the panel was last opened. Items stay highlighted as unread until read.
+  const me = useApp((s) => s.user.id);
+  const seenKey = `tripos.notifications.seen.${me}`;
+  const [seenAt, setSeenAt] = useState(() => {
+    try {
+      return localStorage.getItem(seenKey) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const unread = list.filter((n) => !n.read && n.at > seenAt).length;
+  const [open, setOpen] = useState(false);
+  const markSeen = () => {
+    const now = new Date().toISOString();
+    setSeenAt(now);
+    try {
+      localStorage.setItem(seenKey, now);
+    } catch {
+      // Private browsing: the badge clears for this visit only.
+    }
+  };
   const navigate = useNavigate();
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); if (next) markSeen(); }}>
       <PopoverTrigger
         className={cn("relative grid size-10 place-items-center rounded-xl transition-colors duration-150", dark ? "text-white hover:bg-white/10" : "text-ink hover:bg-muted")}
         aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
@@ -35,7 +56,7 @@ export function NotificationsBell({ dark = false }: { dark?: boolean }) {
       <PopoverContent align="end" className="w-[min(380px,calc(100vw-24px))] p-0" data-testid="notifications-panel">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <p className="text-sm font-semibold">Notifications</p>
-          <Button variant="ghost" size="xs" onClick={() => actions.markRead()} disabled={!unread} data-testid="notifications-mark-all-read">
+          <Button variant="ghost" size="xs" onClick={() => actions.markRead()} disabled={!list.some((n) => !n.read)} data-testid="notifications-mark-all-read">
             <CheckCheck className="size-3.5" /> Mark all read
           </Button>
         </div>
@@ -52,6 +73,8 @@ export function NotificationsBell({ dark = false }: { dark?: boolean }) {
                   className="min-w-0 flex-1 text-left"
                   onClick={() => {
                     actions.markRead(n.id);
+                    // Opening one takes you there, so the panel gets out of the way.
+                    if (n.link) setOpen(false);
                     if (n.link) navigate(n.link);
                   }}
                   data-testid={`notification-open-${n.id}`}
@@ -68,6 +91,7 @@ export function NotificationsBell({ dark = false }: { dark?: boolean }) {
                           void actions.acceptInvite(n.id).then(
                             (id) => {
                               toast.success("You joined the trip");
+                              setOpen(false);
                               navigate(`/app/trips/${id}`);
                             },
                             (err) => toast.error(apiErrorMessage(err)),

@@ -93,6 +93,23 @@ describe("inviting travellers by name or username", () => {
     expect(await statusOn(created, blocker.id)).toBeNull();
   });
 
+  it("lists people you've travelled with, but never strangers or blocked people", async () => {
+    const me = await Client.person("Lister");
+    const mate = await Client.person("Mate");
+    const stranger = await Client.person("Stranger");
+    const blocker = await Client.person("Blocker");
+    const tripId = await newTrip(me);
+    const code = (await db.trip.findUniqueOrThrow({ where: { id: tripId } })).joinCode;
+    for (const c of [mate, blocker]) expect((await c.req("POST", `/invites/${code}/accept`)).status).toBeLessThan(300);
+    expect((await blocker.req("POST", "/blocks", { userId: me.id })).status).toBeLessThan(300);
+    const ids = ((await me.req("GET", "/people/co-travellers")).body as { id: string }[]).map((p) => p.id);
+    expect(ids).toContain(mate.id);
+    expect(ids).not.toContain(stranger.id);
+    expect(ids).not.toContain(blocker.id);
+    expect(ids).not.toContain(me.id);
+    expect(JSON.stringify((await me.req("GET", "/people/co-travellers")).body)).not.toContain(mate.email);
+  });
+
   it("only lets people who can invite do it", async () => {
     const host = await Client.person("Owner");
     const member = await Client.person("Member");

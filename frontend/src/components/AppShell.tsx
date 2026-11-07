@@ -1,4 +1,4 @@
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useState } from "react";
 import { PageLoading } from "@/components/PageLoading";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
@@ -21,6 +21,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AppSkeleton } from "@/components/PageLoading";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 const NAV = [
   { to: "/app", label: "Overview", icon: Home, end: true },
@@ -113,7 +114,7 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150",
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 [@media(max-height:820px)]:py-1.5",
               isActive ? "bg-sidebar-accent text-white" : "text-[#C5D6CF] hover:bg-white/5 hover:text-white",
             )
           }
@@ -141,7 +142,9 @@ export default function AppShell() {
   const [drawer, setDrawer] = useState(false);
   const [help, setHelp] = useState(false);
   const [whatsNew, setWhatsNew] = useState(false);
-  const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
+  // Inside a trip, the breadcrumb names it.
+  const tripCrumb = useApp((s) => { const m = /^\/app\/trips\/([^/]+)/.exec(location.pathname); return m && m[1] !== "new" ? s.trips.find((t) => t.id === m[1]) : undefined; });
 
   if (loading) {
     return (
@@ -153,10 +156,7 @@ export default function AppShell() {
   if (!onboarded) return <Navigate to="/onboarding" replace />;
 
   const title = TITLES.find(([re]) => re.test(location.pathname))?.[1] ?? "TripOS";
-  const search = (e: FormEvent) => {
-    e.preventDefault();
-    navigate(`/app/trips?q=${encodeURIComponent(q.trim())}`);
-  };
+
 
   const sectionKey = location.pathname.split("/").slice(0, 4).join("/");
 
@@ -166,11 +166,12 @@ export default function AppShell() {
         {/* Desktop sidebar */}
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col bg-sidebar px-4 py-5 lg:flex" data-testid="desktop-sidebar">
           <Link to="/app" className="px-2" aria-label="TripOS home"><Logo light /></Link>
-          <Link to="/app/trips/new" className={cn(buttonVariants({ size: "lg" }), "mt-6 h-11 w-full rounded-xl bg-coral text-white hover:bg-[#e97a56]")} data-testid="sidebar-create-trip-button">
-            <Plus className="size-4" /> Create Trip
+          <Link to="/app/trips/new" className={cn(buttonVariants({ size: "lg" }), "mt-6 h-11 w-full rounded-xl bg-coral text-white hover:bg-[#e97a56] [@media(max-height:820px)]:mt-4 [@media(max-height:820px)]:h-10")} data-testid="sidebar-create-trip-button">
+            <Plus className="size-4" /> Create trip
           </Link>
-          <div className="mt-6 flex-1 overflow-y-auto no-scrollbar"><SideNav /></div>
-          <button onClick={() => setHelp(true)} className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#C5D6CF] transition-colors hover:bg-white/5 hover:text-white" data-testid="sidebar-help-button">
+          <div className="mt-6 min-h-0 flex-1 overflow-y-auto no-scrollbar [@media(max-height:820px)]:mt-3"><SideNav /></div>
+          {/* On short screens Help lives in the account menu below, so Settings never falls out of view. */}
+          <button onClick={() => setHelp(true)} className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#C5D6CF] transition-colors hover:bg-white/5 hover:text-white [@media(max-height:760px)]:hidden" data-testid="sidebar-help-button">
             <HelpCircle className="size-[18px]" /> Help & support
           </button>
           <div className="border-t border-sidebar-border pt-3"><AccountMenu onHelp={() => setHelp(true)} /></div>
@@ -182,24 +183,19 @@ export default function AppShell() {
             <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:px-8">
               <Link to="/app" className="lg:hidden" aria-label="TripOS home"><Logo /></Link>
               <div className="hidden min-w-0 lg:block">
-                <p className="text-xs text-ink-muted" data-testid="header-breadcrumb">
-                  TripOS <span className="mx-1">/</span> <span className="text-ink">{title}</span>
+                <p className="truncate text-xs text-ink-muted" data-testid="header-breadcrumb">
+                  {tripCrumb ? (
+                    <><Link to="/app/trips" className="hover:text-ink">My Trips</Link> <span className="mx-1">/</span> <span className="text-ink">{tripCrumb.name}</span></>
+                  ) : (
+                    <>TripOS <span className="mx-1">/</span> <span className="text-ink">{title}</span></>
+                  )}
                 </p>
               </div>
-              <form onSubmit={search} className="ml-auto hidden w-full max-w-xs md:block" role="search">
-                <label className="relative block">
-                  <span className="sr-only">Search trips</span>
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search trips, destinations…"
-                    className="h-10 w-full rounded-xl border border-line bg-card pl-9 pr-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-forest focus:ring-3 focus:ring-forest/10"
-                    data-testid="header-search-input"
-                  />
-                </label>
-              </form>
+              <GlobalSearch className="ml-auto hidden max-w-sm md:block" />
               <div className="ml-auto flex items-center gap-1 md:ml-0">
+                <button className="grid size-10 place-items-center rounded-xl hover:bg-muted md:hidden" onClick={() => setSearching(true)} aria-label="Search" data-testid="mobile-search-button">
+                  <Search className="size-5" />
+                </button>
                 <NotificationsBell />
                 <div className="hidden lg:block"><AccountMenu compact onHelp={() => setHelp(true)} /></div>
                 <button className="grid size-10 place-items-center rounded-xl hover:bg-muted lg:hidden" onClick={() => setDrawer(true)} aria-label="Open menu" data-testid="mobile-menu-button">
@@ -232,16 +228,16 @@ export default function AppShell() {
         {/* Mobile bottom navigation */}
         {/* Inside a trip, the trip's own bar takes this place. */}
         {!inTrip && <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Mobile" data-testid="mobile-bottom-nav">
-          <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center">
+          <div className={cn("mx-auto grid h-16 max-w-md items-center", location.pathname === "/app/trips/new" ? "grid-cols-4" : "grid-cols-5")}>
             {[
               { to: "/app", label: "Home", icon: Home, end: true },
               { to: "/app/trips", label: "Trips", icon: MapIcon },
               { to: "/app/trips/new", label: "Create", icon: Plus, primary: true },
               { to: "/app/expenses", label: "Expenses", icon: Receipt },
               { to: "/app/memories", label: "Memories", icon: Images },
-            ].map(({ to, label, icon: Icon, end, primary }) =>
+            ].filter(({ primary }) => !(primary && location.pathname === "/app/trips/new")).map(({ to, label, icon: Icon, end, primary }) =>
               primary ? (
-                <Link key={to} to={to} className="mx-auto grid size-12 -translate-y-3 place-items-center rounded-2xl bg-forest text-white shadow-lg shadow-forest/25 transition-transform active:scale-95" aria-label="Create trip" data-testid="mobile-nav-create">
+                <Link key={to} to={to} className="mx-auto grid size-12 -translate-y-3 place-items-center rounded-2xl bg-coral text-white shadow-lg shadow-coral/30 transition-transform active:scale-95" aria-label="Create trip" data-testid="mobile-nav-create">
                   <Icon className="size-5" />
                 </Link>
               ) : (
@@ -289,6 +285,12 @@ export default function AppShell() {
         <TermsDialog />
         <WhatsNewDialog reopened={whatsNew} onClose={() => setWhatsNew(false)} />
       </div>
+      <Dialog open={searching} onOpenChange={setSearching}>
+        <DialogContent className="top-6 translate-y-0 sm:max-w-lg" data-testid="mobile-search-dialog">
+          <DialogHeader><DialogTitle>Search</DialogTitle></DialogHeader>
+          <GlobalSearch autoFocus onDone={() => setSearching(false)} />
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }

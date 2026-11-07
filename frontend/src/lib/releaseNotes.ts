@@ -17,6 +17,26 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-12",
+    features: [
+      { icon: Compass, title: "Search everything", body: "The search at the top finds your trips, places in them, people by name or username, and trips in Explore. Press Ctrl K (⌘K on a Mac) from anywhere." },
+    ],
+    improved: [
+      "Empty pages now suggest what to do next, like uploading photos or adding the first expense.",
+      "New trips get a cover that suits the destination, so you can carry on straight away.",
+      "Required fields are marked, and mistakes are outlined in red.",
+      "People shows who you've travelled with, and travellers like you, before you search.",
+      "The activity feed says who accepted whose invitation, in one line.",
+      "Opening notifications clears the badge.",
+      "My Trips has a Past filter, and your own trips are labelled in Explore.",
+    ],
+    fixed: [
+      "Settings no longer disappears off the sidebar on short screens.",
+      "Feed photos no longer fill the whole screen. Tap one to see it in full.",
+      "On phones, the trip header fits on one row and the wizard names each step.",
+    ],
+  },
+  {
     id: "2026-11-11",
     features: [
       { icon: UserPlus, title: "Invitations you can't miss", body: "Trips you're invited to wait at the top of My Trips and Home, each with Accept and Decline." },

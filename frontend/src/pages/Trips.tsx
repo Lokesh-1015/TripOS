@@ -13,6 +13,7 @@ import type { TripStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const FILTERS: ("all" | TripStatus)[] = ["all", "upcoming", "ongoing", "completed", "archived"];
+const FILTER_LABEL: Record<(typeof FILTERS)[number], string> = { all: "All", upcoming: "Upcoming", ongoing: "Ongoing", completed: "Past", archived: "Archived" };
 const SORTS: Record<string, string> = { soonest: "Start date (soonest)", latest: "Start date (latest)", name: "Name (A-Z)" };
 
 export default function Trips() {
@@ -44,11 +45,11 @@ export default function Trips() {
       <PageHeader
         title="My Trips"
         subtitle="Every trip you're planning, on, or reminiscing about."
-        actions={<Link to="/app/trips/new" className={cn(buttonVariants(), "h-10 rounded-xl")} data-testid="trips-create-button"><Plus className="size-4" /> Create trip</Link>}
+        actions={<Link to="/app/trips/new" className={cn(buttonVariants(), "h-10 rounded-xl bg-coral text-white hover:bg-[#e97a56] lg:hidden")} data-testid="trips-create-button"><Plus className="size-4" /> Create trip</Link>}
       />
       <Invitations testId="trips-invitations" prefix="trips" />
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+        <div className="flex flex-wrap gap-1.5" data-testid="trips-filters">
           {FILTERS.map((f) => (
             <button
               key={f}
@@ -56,7 +57,7 @@ export default function Trips() {
               className={cn("shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium capitalize transition-colors duration-150", filter === f ? "border-forest bg-forest text-white" : "border-line bg-card text-ink-muted hover:text-ink")}
               data-testid={`trips-filter-${f}`}
             >
-              {f} <span className="num ml-1 opacity-70">{count(f)}</span>
+              {FILTER_LABEL[f]} <span className="num ml-1 opacity-70">{count(f)}</span>
             </button>
           ))}
         </div>
@@ -69,7 +70,7 @@ export default function Trips() {
           <label className="relative min-w-0 flex-1 lg:w-64">
             <span className="sr-only">Search trips</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-            <Input value={q} onChange={(e) => setParam("q", e.target.value)} placeholder="Search trips or people" className="h-10 rounded-xl pl-9" data-testid="trips-search-input" />
+            <Input value={q} onChange={(e) => setParam("q", e.target.value)} placeholder="Filter my trips by name, place or person" aria-label="Filter my trips" className="h-10 rounded-xl pl-9" data-testid="trips-search-input" />
           </label>
           <Select value={sort} onValueChange={(v) => setParam("sort", v)}>
             <SelectTrigger className="h-10 w-36 shrink-0 rounded-xl sm:w-44" data-testid="trips-sort-select"><SelectValue>{(v) => SORTS[v as string]}</SelectValue></SelectTrigger>
@@ -82,7 +83,7 @@ export default function Trips() {
           icon={MapIcon}
           title={q ? `No trips match “${q}”` : "No trips here yet"}
           body={q ? "Try a different search or clear the filters." : "Create a trip and invite your crew to start planning."}
-          action={<Link to="/app/trips/new" className={cn(buttonVariants(), "rounded-xl")} data-testid="trips-empty-create">Create trip</Link>}
+          action={<Link to="/app/trips/new" className={cn(buttonVariants(), "rounded-xl bg-coral text-white hover:bg-[#e97a56]")} data-testid="trips-empty-create">Create trip</Link>}
           testId="trips-empty-state"
         />
       ) : view === "list" ? (
