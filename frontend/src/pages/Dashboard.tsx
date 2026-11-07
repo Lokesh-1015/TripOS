@@ -7,6 +7,7 @@ import { Invitations } from "@/components/Invitations";
 import { actions, saved, useApp } from "@/lib/store";
 import { ago, CATEGORY_COLOR, daysUntil, fmtDate, fmtRange, money, todayISO, totalSpent, tripStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { tidyEvents } from "@/lib/activity";
 
 export default function Dashboard() {
   const { user, trips, notifications } = useApp((s) => s);
@@ -27,7 +28,7 @@ export default function Dashboard() {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
   const events = active
-    .flatMap((t) => t.events.map((e) => ({ ...e, trip: t })))
+    .flatMap((t) => tidyEvents(t.events, (id) => t.members.find((m) => m.id === id)?.name, user.id).map((e) => ({ ...e, trip: t })))
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 6);
   const people = Object.fromEntries(trips.flatMap((t) => t.members).map((m) => [m.id, m]));
@@ -47,7 +48,7 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link to="/app/explore" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-xl")} data-testid="dashboard-explore-button"><Compass className="size-4" /> Get inspired</Link>
-          <Link to="/app/trips/new" className={cn(buttonVariants(), "h-10 rounded-xl")} data-testid="dashboard-create-trip-button"><Plus className="size-4" /> Create trip</Link>
+          <Link to="/app/trips/new" className={cn(buttonVariants(), "h-10 rounded-xl bg-coral text-white hover:bg-[#e97a56]")} data-testid="dashboard-create-trip-button"><Plus className="size-4" /> Create trip</Link>
         </div>
       </div>
 
@@ -94,7 +95,7 @@ export default function Dashboard() {
           </div>
         </section>
       ) : (
-        <EmptyState icon={Compass} title="No upcoming trips" body="Start planning your next adventure with your crew." action={<Button onClick={() => navigate("/app/trips/new")} data-testid="dashboard-empty-create">Create a trip</Button>} />
+        <EmptyState icon={Compass} title="No upcoming trips" body="Start planning your next adventure with your crew." action={<Button className="bg-coral text-white hover:bg-[#e97a56]" onClick={() => navigate("/app/trips/new")} data-testid="dashboard-empty-create">Create a trip</Button>} />
       )}
 
       <Invitations testId="dashboard-invitations" prefix="dashboard" />

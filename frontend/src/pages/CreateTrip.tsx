@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Link2, Pencil, X } from "lucide-react";
@@ -23,6 +23,20 @@ import { DateRangeField } from "@/components/DateRangeField";
 
 const STEPS = ["Basics", "Dates", "Members", "Budget", "Review"];
 const COVERS = [IMG.manali, IMG.goa, IMG.udaipur, IMG.pangong, IMG.kerala, IMG.meghalaya, IMG.rishikesh, IMG.hawaMahal];
+/** A cover that suits the destination, so nobody has to choose one before they can continue. */
+const COVER_HINTS: [RegExp, string][] = [
+  [/goa|beach|andaman|gokarna|pondicherry|puducherry|varkala/i, IMG.goa],
+  [/kerala|alleppey|alappuzha|munnar|kochi|backwater/i, IMG.kerala],
+  [/ladakh|leh|pangong|spiti|zanskar/i, IMG.pangong],
+  [/manali|himachal|kasol|shimla|kullu|dharamshala|snow|mountain/i, IMG.manali],
+  [/udaipur|lake/i, IMG.udaipur],
+  [/jaipur|rajasthan|jaisalmer|jodhpur|pushkar/i, IMG.hawaMahal],
+  [/rishikesh|uttarakhand|haridwar|ganga|ganges/i, IMG.rishikesh],
+  [/meghalaya|shillong|cherrapunji|northeast|assam|sikkim/i, IMG.meghalaya],
+];
+const suggestCover = (destination: string) => img(COVER_HINTS.find(([re]) => re.test(destination))?.[1] ?? COVERS[0]);
+
+const LEAVE_WARNING = "Leave without creating this trip? What you've entered will be lost.";
 
 interface Draft {
   name: string; destination: string; description: string; cover: string;
@@ -53,13 +67,14 @@ export default function CreateTrip() {
   const [err, setErr] = useState<Record<string, string>>({});
   const [email, setEmail] = useState("");
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
+  // Until someone chooses, the cover follows the destination.
+  const cover = d.cover || suggestCover(d.destination);
 
   const validate = (s: number) => {
     const e: Record<string, string> = {};
     if (s === 0) {
       if (d.name.trim().length < 3) e.name = "Give your trip a name (3+ characters)";
       if (d.destination.trim().length < 2) e.destination = "Where are you headed?";
-      if (!d.cover) e.cover = "Choose a cover image, or upload your own";
     }
     if (s === 1) {
       if (!d.startDate) e.startDate = "Pick a start date";
@@ -89,8 +104,36 @@ export default function CreateTrip() {
     setErr({});
   };
 
+  // Warn before throwing away a half-filled trip: on closing the tab, and on following a link inside the app.
+  const created = useRef(false);
+  const dirty = !!(d.name.trim() || d.destination.trim() || d.description.trim() || d.startDate || d.endDate || d.budget || d.members.length > 1);
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (created.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const onLink = (e: MouseEvent) => {
+      const link = (e.target as Element | null)?.closest?.("a[href]");
+      const href = link?.getAttribute("href");
+      if (!link || created.current || link.getAttribute("target") === "_blank" || !href || href.startsWith("#") || href.startsWith("/app/trips/new")) return;
+      if (!window.confirm(LEAVE_WARNING)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onLink, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", onLink, true);
+    };
+  }, [dirty]);
+
   const create = () => {
     if (!validate(4)) return;
+    created.current = true;
     const id = tripId;
     const trip: Trip = {
       ...blankTrip(),
@@ -98,7 +141,7 @@ export default function CreateTrip() {
       name: d.name.trim(),
       destination: d.destination.trim(),
       description: d.description.trim(),
-      cover: d.cover,
+      cover,
       startDate: d.startDate,
       endDate: d.endDate,
       flexibleDates: d.flexibleDates,
@@ -125,11 +168,12 @@ export default function CreateTrip() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <button onClick={() => navigate(-1)} className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink" data-testid="create-trip-back-link"><ArrowLeft className="size-4" /> Back</button>
+      <button onClick={() => (!dirty || window.confirm(LEAVE_WARNING)) && navigate(-1)} className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink" data-testid="create-trip-back-link"><ArrowLeft className="size-4" /> Back</button>
       <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Create a new trip</h1>
       <p className="mt-1 text-sm text-ink-muted">Five quick steps. You can change everything later.</p>
 
-      <ol className="mt-6 flex items-center gap-2" aria-label="Progress">
+      <p className="mt-6 text-sm font-medium text-forest md:hidden" aria-live="polite" data-testid="create-trip-step-label">Step {step + 1} of {STEPS.length} · {STEPS[step]}</p>
+      <ol className="mt-2 flex items-center gap-2 md:mt-6" aria-label="Progress">
         {STEPS.map((s, i) => (
           <li key={s} className="flex flex-1 items-center gap-2">
             <button
@@ -153,20 +197,20 @@ export default function CreateTrip() {
           <motion.div key={step} initial={{ opacity: 0, x: 16 * dir }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 * dir }} transition={{ duration: 0.18 }}>
             {step === 0 && (
               <div className="grid gap-5" data-testid="create-trip-basics">
-                <Field label="Trip name" htmlFor="ct-name" error={err.name}>
+                <Field label="Trip name" htmlFor="ct-name" error={err.name} required>
                   <Input id="ct-name" value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Kerala Backwaters Escape" className="h-11 rounded-xl" data-testid="create-trip-name-input" />
                 </Field>
-                <Field label="Destination" htmlFor="ct-dest" error={err.destination}>
+                <Field label="Destination" htmlFor="ct-dest" error={err.destination} required>
                   <Input id="ct-dest" value={d.destination} onChange={(e) => set({ destination: e.target.value })} placeholder="City, region or country" className="h-11 rounded-xl" data-testid="create-trip-destination-input" />
                 </Field>
-                <Field label="Cover image" error={err.cover}>
+                <Field label="Cover image" hint={d.cover ? undefined : "Picked to suit your destination. Choose another or upload your own."}>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                     {COVERS.map((c) => {
                       const url = img(c);
                       return (
-                        <button key={c} onClick={() => set({ cover: url })} className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2 transition-shadow", d.cover === url && "ring-2 ring-forest")} aria-label="Choose cover" aria-pressed={d.cover === url} data-testid={`create-trip-cover-${c}`}>
+                        <button key={c} onClick={() => set({ cover: url })} className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2 transition-shadow", cover === url && "ring-2 ring-forest")} aria-label="Choose cover" aria-pressed={cover === url} data-testid={`create-trip-cover-${c}`}>
                           <img src={img(c, 200)} alt="" className="size-full object-cover" />
-                          {d.cover === url && <span className="absolute inset-0 grid place-items-center bg-forest/40 text-white"><Check className="size-4" /></span>}
+                          {cover === url && <span className="absolute inset-0 grid place-items-center bg-forest/40 text-white"><Check className="size-4" /></span>}
                         </button>
                       );
                     })}
@@ -251,7 +295,7 @@ export default function CreateTrip() {
             {step === 4 && (
               <div data-testid="create-trip-review">
                 <div className="relative h-40 overflow-hidden rounded-xl">
-                  <img src={d.cover} alt="" className="size-full object-cover" />
+                  <img src={cover} alt="" className="size-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <div className="absolute bottom-3 left-4 text-white"><p className="text-lg font-semibold">{d.name}</p><p className="text-sm opacity-85">{d.destination}</p></div>
                 </div>

@@ -29,12 +29,14 @@ export function capacityLabel(t: Pick<PublicTrip, "full" | "participantCount" | 
 }
 
 function TripCard({ trip }: { trip: PublicTrip }) {
+  // Your own trips still show, so you see what others see, but they're labelled as yours.
+  const mine = useApp((s) => s.trips.some((t) => t.id === trip.id));
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-card transition-shadow hover:shadow-lg" data-testid={`public-trip-${trip.id}`}>
       <div className="relative h-44 overflow-hidden">
         <img src={trip.cover} alt="" loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
         {trip.category && <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-medium text-forest">{trip.category}</span>}
-        {trip.full && <span className="absolute right-3 top-3 rounded-full bg-forest px-2.5 py-0.5 text-xs font-semibold text-white" data-testid={`public-trip-full-${trip.id}`}>Trip Full</span>}
+        {mine ? <span className="absolute right-3 top-3 rounded-full bg-coral px-2.5 py-0.5 text-xs font-semibold text-white" data-testid={`public-trip-mine-${trip.id}`}>Your trip</span> : trip.full && <span className="absolute right-3 top-3 rounded-full bg-forest px-2.5 py-0.5 text-xs font-semibold text-white" data-testid={`public-trip-full-${trip.id}`}>Trip Full</span>}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="text-lg font-semibold leading-snug"><Link to={`/app/explore/${trip.id}`} className="after:absolute after:inset-0" data-testid={`public-trip-link-${trip.id}`}>{trip.title}</Link></h3>
@@ -119,7 +121,7 @@ function DiscoverTrips() {
           icon={Compass}
           title={filtering ? "No trips match that" : "No public trips yet"}
           body={filtering ? "Try removing a filter or two." : "Be the first. Host a trip and invite other travellers to join you."}
-          action={!filtering && <Link to="/app/trips/new?public=1" className={buttonVariants()} data-testid="explore-empty-host">Host a Trip</Link>}
+          action={!filtering && <Link to="/app/trips/new?public=1" className={cn(buttonVariants(), "bg-coral text-white hover:bg-[#e97a56]")} data-testid="explore-empty-host">Host a trip</Link>}
           testId="explore-empty"
         />
       ) : (
@@ -157,7 +159,7 @@ export default function Explore() {
       <PageHeader
         title="Explore"
         subtitle="Find a trip to join, or host one and find people to travel with."
-        actions={<Link to="/app/trips/new?public=1" className={cn(buttonVariants(), "h-10 rounded-xl")} data-testid="explore-host-button"><Plus className="size-4" /> Host a Trip</Link>}
+        actions={<Link to="/app/trips/new?public=1" className={cn(buttonVariants(), "h-10 rounded-xl bg-coral text-white hover:bg-[#e97a56]")} data-testid="explore-host-button"><Plus className="size-4" /> Host a trip</Link>}
       />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v as string })}>
         <TabsList className="mb-5">

@@ -2,18 +2,46 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search, ShieldOff, UserRound, Users } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, EmptyState, PageHeader } from "@/components/common";
 import { TravellerRow } from "@/components/social";
 import { apiErrorMessage } from "@/lib/api";
-import { useBlocked, useFriendRequests, useFriends, useOwnProfile, usePeopleSearch, useSocialActions, type TravellerCard } from "@/lib/social";
+import { useBlocked, useCoTravellers, useFriendRequests, useFriends, useOwnProfile, usePeopleSearch, useSocialActions, type TravellerCard } from "@/lib/social";
+import { useSuggestedTravellers } from "@/lib/publicTrips";
 import { ListSkeleton } from "@/components/PageLoading";
 
 const List = ({ children, testId }: { children: React.ReactNode; testId: string }) => <section className="divide-y rounded-2xl border border-line bg-card" data-testid={testId}>{children}</section>;
 const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="mb-2 mt-5 text-sm font-semibold first:mt-0">{children}</h3>;
 const shout = (err: unknown) => toast.error(apiErrorMessage(err));
+
+/** Before anything is typed: people from your trips, then travellers like you, so Find is never blank. */
+function Discover() {
+  const past = useCoTravellers();
+  const suggested = useSuggestedTravellers();
+  const pastIds = new Set((past.data ?? []).map((p) => p.id));
+  const others = (suggested.data ?? []).filter((p) => !pastIds.has(p.id));
+  if (past.isPending || suggested.isPending) return <ListSkeleton rows={3} testId="people-discover-loading" />;
+  return (
+    <div className="grid gap-5" data-testid="people-discover">
+      <p className="text-sm text-ink-muted">Find travellers by name or username. Email addresses are never searched or shown.</p>
+      {!!past.data?.length && (
+        <section className="grid gap-2">
+          <h2 className="text-sm font-semibold">From your trips</h2>
+          <List testId="people-co-travellers">{past.data.map((p) => <TravellerRow key={p.id} person={p} />)}</List>
+        </section>
+      )}
+      {!!others.length && (
+        <section className="grid gap-2">
+          <h2 className="text-sm font-semibold">Travellers like you</h2>
+          <List testId="people-suggested">{others.map((p) => <TravellerRow key={p.id} person={p} />)}</List>
+        </section>
+      )}
+      {!past.data?.length && !others.length && <EmptyState icon={UserRound} title="No suggestions yet" body="Add travel styles and places to your profile, or go on a trip together, and people will show up here." action={<Link to="/app/settings" className={buttonVariants({ variant: "outline" })} data-testid="people-discover-profile">Update your profile</Link>} testId="people-discover-empty" />}
+    </div>
+  );
+}
 
 function FindTab() {
   const [typed, setTyped] = useState("");
@@ -30,7 +58,7 @@ function FindTab() {
         <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search by name or username" className="h-11 rounded-xl pl-9" aria-label="Search for travellers" data-testid="people-search-input" />
       </div>
       {q.length < 2 ? (
-        <p className="text-sm text-ink-muted">Find travellers by name or username. Email addresses are never searched or shown.</p>
+        <Discover />
       ) : isError ? (
         <p className="text-sm text-destructive" role="alert">Search isn't available right now. Please try again.</p>
       ) : data?.length ? (

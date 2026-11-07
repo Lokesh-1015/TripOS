@@ -1,6 +1,7 @@
 // Cross-trip hubs reachable from the sidebar: Expenses, Tasks, Memories, Shared Documents.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { buttonVariants } from "@/components/ui/button";
 import { ArrowRight, FileText, Images, ListTodo, Lock, Play, Receipt, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,21 @@ import type { Trip } from "@/lib/types";
 
 const activeTrips = (trips: Trip[]) => trips.filter((t) => !t.archived);
 
+/** Where a hub's "add" button goes: the trip happening now, else the next one, else the latest. */
+function focusTrip(trips: Trip[]) {
+  const live = activeTrips(trips);
+  return live.find((t) => tripStatus(t) === "ongoing")
+    ?? [...live].filter((t) => tripStatus(t) === "upcoming").sort((a, b) => a.startDate.localeCompare(b.startDate))[0]
+    ?? [...live].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+}
+
+/** A next step for an empty hub: into the right tab of the trip that matters now, or to create one. */
+function NextStep({ trips, tab, label, testId }: { trips: Trip[]; tab: string; label: string; testId: string }) {
+  const t = focusTrip(trips);
+  if (!t) return <Link to="/app/trips/new" className={cn(buttonVariants(), "rounded-xl bg-coral text-white hover:bg-[#e97a56]")} data-testid={testId}>Create trip</Link>;
+  return <Link to={`/app/trips/${t.id}/${tab}`} className={cn(buttonVariants(), "rounded-xl")} data-testid={testId}>{label}{trips.length > 1 ? ` to ${t.name}` : ""}</Link>;
+}
+
 export function ExpensesHub() {
   const trips = useApp((s) => s.trips);
   const me = useApp((s) => s.user.id);
@@ -27,6 +43,9 @@ export function ExpensesHub() {
   const owe = sumAcross(rows.filter((r) => r.bal < -0.009).map((r) => ({ amount: -r.bal, currency: r.t.currency })), shownIn, rates);
   const get = sumAcross(rows.filter((r) => r.bal > 0.009).map((r) => ({ amount: r.bal, currency: r.t.currency })), shownIn, rates);
   const logged = sumAcross(rows.map((r) => ({ amount: r.spent, currency: r.t.currency })), shownIn, rates);
+  // Zero isn't a problem, so it isn't red or green.
+  const owes = rows.some((r) => r.bal < -0.009);
+  const owed = rows.some((r) => r.bal > 0.009);
   const hint = (total: typeof owe) => (total.unavailable ? "By currency, as rates aren't available" : total.converted ? "Converted at today's rates" : "Across all trips");
   const recent = list.flatMap((t) => t.expenses.map((e) => ({ e, t }))).sort((a, b) => b.e.date.localeCompare(a.e.date)).slice(0, 10);
   return (
@@ -45,8 +64,8 @@ export function ExpensesHub() {
         }
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="You owe" value={<span className="text-[#C2462F]">{owe.text}</span>} hint={hint(owe)} testId="hub-expenses-owe" />
-        <Stat label="You're owed" value={<span className="text-[#1E7B58]">{get.text}</span>} hint={hint(get)} testId="hub-expenses-owed" />
+        <Stat label="You owe" value={<span className={owes ? "text-[#C2462F]" : "text-ink"}>{owe.text}</span>} hint={hint(owe)} testId="hub-expenses-owe" />
+        <Stat label="You're owed" value={<span className={owed ? "text-[#1E7B58]" : "text-ink"}>{get.text}</span>} hint={hint(get)} testId="hub-expenses-owed" />
         <Stat label="Trips tracked" value={rows.length} testId="hub-expenses-trips" />
         <Stat label="Total logged" value={logged.text} hint={hint(logged)} testId="hub-expenses-total" />
       </div>
@@ -62,7 +81,7 @@ export function ExpensesHub() {
                 {t.budget > 0 && <Progress value={(spent / t.budget) * 100} className="mt-2 h-1.5" />}
               </div>
               <span className={cn("num text-right text-sm font-semibold", bal > 0.009 ? "text-[#1E7B58]" : bal < -0.009 ? "text-[#C2462F]" : "text-ink-muted")}>
-                {bal > 0.009 ? `+${money(bal, t.currency)}` : bal < -0.009 ? `-${money(-bal, t.currency)}` : "Settled"}
+                {bal > 0.009 ? `+${money(bal, t.currency)}` : bal < -0.009 ? `-${money(-bal, t.currency)}` : t.expenses.length ? "Settled up" : "No expenses yet"}
               </span>
               <ArrowRight className="size-4 text-ink-muted" />
             </Link>
@@ -70,6 +89,13 @@ export function ExpensesHub() {
         </section>
         <section className="rounded-2xl border border-line bg-card">
           <h2 className="border-b px-5 py-4 font-semibold">Latest expenses</h2>
+          {recent.length === 0 && (
+            <div className="grid justify-items-center gap-3 px-5 py-10 text-center" data-testid="hub-expenses-latest-empty">
+              <Receipt className="size-6 text-sage-ink" />
+              <p className="text-sm text-ink-muted">No expenses yet. Log tickets, stays and meals as you go.</p>
+              <NextStep trips={trips} tab="expenses?new=1" label="Add expense" testId="hub-expenses-add" />
+            </div>
+          )}
           <ul className="divide-y">
             {recent.map(({ e, t }) => (
               <li key={e.id} className="flex items-center gap-3 px-5 py-3">
@@ -94,12 +120,13 @@ export function TasksHub() {
   const today = todayISO();
   const tasks = list.flatMap((t) => t.tasks.map((k) => ({ k, t }))).filter(({ k }) => (scope === "all" || k.assignee === me) && (show === "done" ? k.done : !k.done)).sort((a, b) => a.k.due.localeCompare(b.k.due));
   const mine = list.flatMap((t) => t.tasks).filter((k) => k.assignee === me);
+  const overdue = mine.filter((k) => !k.done && k.due < today).length;
   return (
     <div>
       <PageHeader title="Tasks" subtitle="Everything you've signed up for, across all trips." />
       <div className="mb-5 grid grid-cols-3 gap-3">
         <Stat label="Assigned to you" value={mine.filter((k) => !k.done).length} testId="hub-tasks-open" />
-        <Stat label="Overdue" value={<span className="text-destructive">{mine.filter((k) => !k.done && k.due < today).length}</span>} testId="hub-tasks-overdue" />
+        <Stat label="Overdue" value={<span className={overdue ? "text-destructive" : "text-ink"}>{overdue}</span>} testId="hub-tasks-overdue" />
         <Stat label="Completed" value={mine.filter((k) => k.done).length} testId="hub-tasks-done" />
       </div>
       <div className="mb-4 flex flex-wrap gap-1.5">
@@ -107,7 +134,15 @@ export function TasksHub() {
         <span className="mx-1 w-px bg-line" />
         {([["open", "Open"], ["done", "Completed"]] as const).map(([k, l]) => <button key={k} onClick={() => setShow(k)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium", show === k ? "border-forest bg-forest text-white" : "border-line bg-card text-ink-muted")} data-testid={`hub-tasks-show-${k}`}>{l}</button>)}
       </div>
-      {tasks.length === 0 ? <EmptyState icon={ListTodo} title="Nothing here" body="No tasks match this view." /> : (
+      {tasks.length === 0 ? (
+        <EmptyState
+          icon={ListTodo}
+          title={show === "done" ? "No completed tasks yet" : scope === "mine" ? "Nothing on your list" : "No open tasks"}
+          body={show === "done" ? "Tasks you finish will show here." : "Split up the planning: who books what, who brings what."}
+          action={<NextStep trips={trips} tab="tasks?new=1" label="Create a task" testId="hub-tasks-add" />}
+          testId="hub-tasks-empty"
+        />
+      ) : (
         <ul className="divide-y rounded-2xl border border-line bg-card" data-testid="hub-tasks-list">
           {tasks.map(({ k, t }) => <TaskRow key={`${t.id}-${k.id}`} trip={t} task={k} showTrip />)}
         </ul>
@@ -122,7 +157,7 @@ export function MemoriesHub() {
   return (
     <div>
       <PageHeader title="Memories" subtitle="Shared galleries and Trip Replays from your journeys." />
-      {withPhotos.length === 0 ? <EmptyState icon={Images} title="No memories yet" body="Photos from your trips will appear here." /> : (
+      {withPhotos.length === 0 ? <EmptyState icon={Images} title="No memories yet" body="Photos from your trips will appear here, with a Trip Replay once a trip ends." action={<NextStep trips={trips} tab="memories" label="Upload photos" testId="hub-memories-upload" />} testId="hub-memories-empty" /> : (
         <div className="grid gap-6">
           {withPhotos.map((t) => (
             <section key={t.id} className="overflow-hidden rounded-2xl border border-line bg-card" data-testid={`hub-memories-trip-${t.id}`}>
@@ -164,7 +199,17 @@ export function DocumentsHub() {
           <SelectContent><SelectItem value="all">All trips</SelectItem>{trips.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
-      {docs.length === 0 ? <EmptyState icon={FileText} title="No documents found" body="Upload documents from a trip's Documents tab." /> : (
+      {docs.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title={q ? "No documents match" : "No documents yet"}
+          body={q ? "Try another name, or all trips." : "Keep tickets, bookings and emergency contacts where the whole group can find them."}
+          action={!q && (trip !== "all"
+            ? <Link to={`/app/trips/${trip}/documents`} className={cn(buttonVariants(), "rounded-xl")} data-testid="hub-documents-add">Add a document</Link>
+            : <NextStep trips={trips} tab="documents" label="Add a document" testId="hub-documents-add" />)}
+          testId="hub-documents-empty"
+        />
+      ) : (
         <ul className="divide-y rounded-2xl border border-line bg-card" data-testid="hub-documents-list">
           {docs.map(({ d, t }) => (
             <li key={d.id}>

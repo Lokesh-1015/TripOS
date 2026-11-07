@@ -130,7 +130,7 @@ export class LeaveController {
       await tx.tripLeaveRequest.update({ where: { id }, data: { status: "approved", respondedAt: new Date(), respondedById: user.id } });
       await this.depart(tx, tripId, request.userId);
       const name = (await tx.user.findUniqueOrThrow({ where: { id: request.userId }, select: { name: true } })).name;
-      await log(`let ${name} leave the trip`, "member");
+      await log(`approved ${name}'s request to leave`, "member");
       return tripName;
     });
     this.realtime.membershipChanged(request.userId, tripId, false);

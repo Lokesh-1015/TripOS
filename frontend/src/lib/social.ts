@@ -94,6 +94,8 @@ const KEY = "social";
 export const useOwnProfile = () => useQuery({ queryKey: [KEY, "me"], queryFn: () => apiGet<OwnProfile>("/me/profile") });
 export const useProfile = (username: string) => useQuery({ queryKey: [KEY, "profile", username.toLowerCase()], queryFn: () => apiGet<TravellerProfile>(`/profiles/${encodeURIComponent(username)}`), retry: false });
 export const useFriends = () => useQuery({ queryKey: [KEY, "friends"], queryFn: () => apiGet<TravellerCard[]>("/friends") });
+/** People you've been on a trip with. */
+export const useCoTravellers = () => useQuery({ queryKey: [KEY, "co-travellers"], queryFn: () => apiGet<TravellerCard[]>("/people/co-travellers") });
 export const useFriendRequests = () => useQuery({ queryKey: [KEY, "requests"], queryFn: () => apiGet<FriendRequests>("/friends/requests") });
 export const useBlocked = () => useQuery({ queryKey: [KEY, "blocks"], queryFn: () => apiGet<BlockedPerson[]>("/blocks") });
 export const usePeopleSearch = (q: string) => useQuery({ queryKey: [KEY, "search", q], queryFn: () => apiGet<TravellerCard[]>(`/people/search?q=${encodeURIComponent(q)}`), enabled: q.length >= 2 });

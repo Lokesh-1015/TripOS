@@ -14,6 +14,7 @@ import { ago, fmtDate, money, todayISO, totalSpent, tripDays, tripStatus, uid } 
 import type { Poll, PollCategory, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GettingStarted } from "@/components/trip/GettingStarted";
+import { tidyEvents } from "@/lib/activity";
 
 const POLL_LABEL: Record<PollCategory, string> = { destination: "Destination", dates: "Travel dates", activity: "Activity", restaurant: "Restaurant", hotel: "Hotel" };
 
@@ -239,7 +240,7 @@ export default function OverviewTab({ trip, onManageMembers, onInvite }: { trip:
           <h2 className="border-b px-5 py-4 text-base font-semibold">Activity</h2>
           <ul className="grid gap-4 p-5">
             {trip.events.length === 0 && <li className="text-sm text-ink-muted">Nothing yet.</li>}
-            {trip.events.slice(0, 8).map((e) => (
+            {tidyEvents(trip.events, (id) => people[id]?.name, me).slice(0, 8).map((e) => (
               <li key={e.id} className="flex gap-3">
                 <Avatar person={people[e.actorId]} size={26} ring={false} />
                 <p className="text-[13px] leading-snug"><b className="font-semibold">{e.actorId === me ? "You" : people[e.actorId]?.name.split(" ")[0] ?? "Someone"}</b> {e.text}<span className="block text-xs text-ink-muted">{ago(e.at)}</span></p>

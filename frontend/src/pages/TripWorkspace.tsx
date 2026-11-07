@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Archive, ArchiveRestore, CalendarDays, ChevronLeft, Copy, CopyPlus, LogOut, MapPin, MoreHorizontal, Pencil, Play, Share2, Trash2, UserPlus, Users } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -38,6 +38,23 @@ const TABS = [
   ["documents", "Documents"], ["map", "Map"], ["chat", "Chat"], ["memories", "Memories"],
 ] as const;
 type TabKey = (typeof TABS)[number][0];
+
+/** True while a scrolling row has more to the right, so its edge can fade out as a hint. */
+function useMoreToRight<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => { el.removeEventListener("scroll", check); observer.disconnect(); };
+  }, []);
+  return [ref, more] as const;
+}
 
 type MembersTab = "invite" | "members";
 
@@ -300,6 +317,7 @@ export default function TripWorkspace() {
   const [edit, setEdit] = useState(false);
   const [del, setDel] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [tabsRef, moreTabs] = useMoreToRight<HTMLElement>();
   const [copying, setCopying] = useState(false);
   const access = useTripAccess(trip ?? { members: [] });
 
@@ -346,12 +364,16 @@ export default function TripWorkspace() {
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => openMembers("members")} className="mr-1 rounded-full" aria-label="Manage members" data-testid="trip-header-members-button"><AvatarStack people={trip.members} size={32} max={5} /></button>
             <Button onClick={() => openMembers(access.canAdmin ? "invite" : "members")} className="h-9 rounded-xl bg-white text-forest hover:bg-sage" data-testid="trip-invite-button">{access.canAdmin ? <><UserPlus className="size-4" /> Invite</> : <><Users className="size-4" /> Members</>}</Button>
-            {access.canAdmin && <Tip label="Edit trip"><Button size="icon" onClick={() => setEdit(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Edit trip" data-testid="trip-edit-button"><Pencil className="size-4" /></Button></Tip>}
-            <Tip label="Use as a template"><Button size="icon" onClick={() => setCopying(true)} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Use as a template" data-testid="trip-copy-button"><CopyPlus className="size-4" /></Button></Tip>
-            {access.canAdmin && <Tip label="Share"><Button size="icon" onClick={share} className="size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25" aria-label="Share trip" data-testid="trip-share-button"><Share2 className="size-4" /></Button></Tip>}
+            {access.canAdmin && <Tip label="Edit trip"><Button size="icon" onClick={() => setEdit(true)} className="hidden size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25 sm:inline-flex" aria-label="Edit trip" data-testid="trip-edit-button"><Pencil className="size-4" /></Button></Tip>}
+            <Tip label="Use as a template"><Button size="icon" onClick={() => setCopying(true)} className="hidden size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25 sm:inline-flex" aria-label="Use as a template" data-testid="trip-copy-button"><CopyPlus className="size-4" /></Button></Tip>
+            {access.canAdmin && <Tip label="Share"><Button size="icon" onClick={share} className="hidden size-9 rounded-xl bg-white/15 text-white backdrop-blur hover:bg-white/25 sm:inline-flex" aria-label="Share trip" data-testid="trip-share-button"><Share2 className="size-4" /></Button></Tip>}
             <DropdownMenu>
               <DropdownMenuTrigger className="grid size-9 place-items-center rounded-xl bg-white/15 backdrop-blur transition-colors hover:bg-white/25" aria-label="More actions" data-testid="trip-more-menu-button"><MoreHorizontal className="size-4" /></DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
+                {/* On phones the header keeps only Invite; the rest live here so the buttons fit on one row. */}
+                {access.canAdmin && <DropdownMenuItem className="sm:hidden" onClick={() => setEdit(true)} data-testid="trip-menu-edit"><Pencil /> Edit trip</DropdownMenuItem>}
+                <DropdownMenuItem className="sm:hidden" onClick={() => setCopying(true)} data-testid="trip-menu-copy"><CopyPlus /> Use as a template</DropdownMenuItem>
+                {access.canAdmin && <DropdownMenuItem className="sm:hidden" onClick={share} data-testid="trip-menu-share"><Share2 /> Share trip</DropdownMenuItem>}
                 {(status === "completed" || status === "archived") && <DropdownMenuItem onClick={() => navigate(`/app/trips/${trip.id}/replay`)} data-testid="trip-menu-replay"><Play /> Trip Replay</DropdownMenuItem>}
                 {access.canAdmin && <DropdownMenuItem
                   onClick={() => { actions.patchTrip(trip.id, { archived: !trip.archived }, trip.archived ? "restored the trip" : "archived the trip"); saved(trip.archived ? "Trip restored" : "Trip archived"); }}
@@ -369,7 +391,7 @@ export default function TripWorkspace() {
       </section>
 
       {/* Tabs */}
-      <nav className="no-scrollbar sticky top-16 z-10 -mx-4 mt-4 hidden gap-1 overflow-x-auto border-b border-line bg-background/90 px-4 backdrop-blur sm:mx-0 sm:px-0 lg:flex" aria-label="Trip sections" data-testid="trip-tabs">
+      <nav ref={tabsRef} className={cn("no-scrollbar sticky top-16 z-10 -mx-4 mt-4 hidden gap-1 overflow-x-auto border-b border-line bg-background/90 px-4 backdrop-blur sm:mx-0 sm:px-0 lg:flex", moreTabs && "[mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent)]")} aria-label="Trip sections" data-testid="trip-tabs" data-more={moreTabs || undefined}>
         {TABS.map(([k, label]) => (
           <NavLink
             key={k}

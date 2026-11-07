@@ -220,6 +220,7 @@ DELETE /me/pending-email                    stop an email change that hasn't bee
 GET    /usernames/check?username=           { username, available, mine, reason }
 GET    /profiles/:username                  respects who's looking; blocked and unconfirmed people are "not found"
 GET    /people/search?q=                    by name or username, never by email
+GET    /people/co-travellers                people on trips you're on, as cards; blocked people never show
 GET    /friends                             DELETE /friends/:userId
 GET    /friends/requests                    POST /friends/requests { username }
 POST   /friends/requests/:id/accept | decline   DELETE /friends/requests/:id
