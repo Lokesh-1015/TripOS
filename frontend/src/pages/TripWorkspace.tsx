@@ -240,6 +240,17 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
     // Only when it opens: a live update arriving while someone types must not wipe what they've typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  // A message goes away as soon as its field is fixed, rather than waiting for the next Save.
+  useEffect(() => {
+    setErr((shown) => {
+      if (!Object.keys(shown).length) return shown;
+      const next = { ...shown };
+      if (next.name && f.name.trim().length >= 3) delete next.name;
+      if (next.destination && f.destination.trim()) delete next.destination;
+      if (next.endDate && !next.endDate.includes("planned") && f.startDate && f.endDate && f.endDate >= f.startDate) delete next.endDate;
+      return Object.keys(next).length === Object.keys(shown).length ? shown : next;
+    });
+  }, [f]);
   const save = (confirmed = false) => {
     const e: Record<string, string> = {};
     if (f.name.trim().length < 3) e.name = "Name must be at least 3 characters";

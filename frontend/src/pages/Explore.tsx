@@ -72,6 +72,14 @@ function DiscoverTrips() {
   const { data, isPending, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = usePublicTrips({ ...f, currency: f.budgetMax ? currency : undefined });
   const trips = data?.pages.flatMap((p) => p.trips) ?? [];
   const filtering = Object.values(f).some(Boolean);
+  // Only a place was typed, with no filters: the empty result can offer to host a trip there.
+  const searched = (f.destination ?? "").trim();
+  const searchOnly = !!searched && Object.entries(f).every(([k, v]) => k === "destination" || !v);
+  const clearAll = () => {
+    setF({});
+    setTyped("");
+    setDuration(ANY);
+  };
   const pick = (value: string | null, label: string) => <SelectValue>{() => (value === ANY || !value ? `Any ${label}` : value)}</SelectValue>;
   return (
     <div className="grid gap-5">
@@ -121,9 +129,18 @@ function DiscoverTrips() {
       ) : trips.length === 0 ? (
         <EmptyState
           icon={Compass}
-          title={filtering ? "No trips match that" : "No public trips yet"}
-          body={filtering ? "Try removing a filter or two." : "Be the first. Host a trip and invite other travellers to join you."}
-          action={!filtering && <Link to="/app/trips/new?public=1" className={cn(buttonVariants(), "bg-coral text-white hover:bg-[#e97a56]")} data-testid="explore-empty-host">Host a trip</Link>}
+          title={searchOnly ? `No trips to ${searched} yet` : filtering ? "No trips match that" : "No public trips yet"}
+          body={searchOnly ? "Try another place, or host a trip there and invite travellers to join you." : filtering ? "Try removing a filter or two." : "Be the first. Host a trip and invite other travellers to join you."}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {filtering && <Button variant="outline" className="rounded-xl" onClick={clearAll} data-testid="explore-empty-clear">{searchOnly ? "Clear search" : "Clear filters"}</Button>}
+              {(searchOnly || !filtering) && (
+                <Link to={searchOnly ? `/app/trips/new?public=1&dest=${encodeURIComponent(searched)}` : "/app/trips/new?public=1"} className={cn(buttonVariants(), "rounded-xl bg-coral text-white hover:bg-[#e97a56]")} data-testid="explore-empty-host">
+                  {searchOnly ? `Host a trip to ${searched}` : "Host a trip"}
+                </Link>
+              )}
+            </div>
+          }
           testId="explore-empty"
         />
       ) : (

@@ -102,7 +102,11 @@ test('search shows people with their photos, and offers Explore when nothing mat
   const pic = await person(browser, 'Pictured');
   await pic.page.goto('/app/settings');
   await pic.page.getByTestId('settings-edit-profile').click();
-  await pic.page.getByTestId('profile-avatar-input').setInputFiles(RECEIPT);
+  // Save only once the photo has finished uploading.
+  await Promise.all([
+    pic.page.waitForResponse((r) => r.url().includes('/api/files') && r.request().method() === 'POST' && r.ok()),
+    pic.page.getByTestId('profile-avatar-input').setInputFiles(RECEIPT),
+  ]);
   await pic.page.getByTestId('profile-save').click();
   await expect(pic.page.getByTestId('profile-edit-dialog')).toHaveCount(0);
 
@@ -159,4 +163,43 @@ test('the trip page balances its columns and scrolls clear of the phone +', asyn
   const lastCard = await me.page.evaluate(() => Math.max(...[...document.querySelectorAll('main section')].map((s) => s.getBoundingClientRect().bottom)));
   expect(lastCard).toBeLessThanOrEqual(plus!.y);
   await me.page.context().close();
+});
+
+test('an error goes away as soon as the field is fixed', async ({ browser }) => {
+  const me = await person(browser, 'Fixer');
+  const page = me.page;
+  await page.goto('/app/trips/new');
+  await page.getByTestId('create-trip-next-button').click();
+  const basics = page.getByTestId('create-trip-basics');
+  await expect(basics).toContainText('Give your trip a name (3+ characters)');
+  await expect(basics).toContainText('Where are you headed?');
+  await page.getByTestId('create-trip-name-input').fill('Goa Weekend');
+  await expect(basics).not.toContainText('Give your trip a name');
+  await expect(page.getByTestId('create-trip-name-input')).not.toHaveAttribute('aria-invalid', 'true');
+  // The other field's message stays until it's fixed too, and nothing new appears while typing.
+  await expect(basics).toContainText('Where are you headed?');
+  await page.getByTestId('create-trip-name-input').fill('Go');
+  await expect(basics).not.toContainText('Give your trip a name');
+  await page.getByTestId('create-trip-destination-input').fill('Goa');
+  await expect(basics).not.toContainText('Where are you headed?');
+  await page.context().close();
+});
+
+test('an empty Explore search offers to clear it or host a trip there', async ({ browser }) => {
+  const me = await person(browser, 'Explorer');
+  const page = me.page;
+  const place = `Nowhere${stamp}`;
+  await page.goto('/app/explore');
+  await page.getByTestId('explore-destination').fill(place);
+  const empty = page.getByTestId('explore-empty');
+  await expect(empty).toContainText(`No trips to ${place} yet`);
+  await expect(empty).not.toContainText('filter');
+  await expect(page.getByTestId('explore-empty-host')).toHaveText(`Host a trip to ${place}`);
+  await page.getByTestId('explore-empty-clear').click();
+  await expect(page.getByTestId('explore-destination')).toHaveValue('');
+  await page.getByTestId('explore-destination').fill(place);
+  await page.getByTestId('explore-empty-host').click();
+  await expect(page).toHaveURL(/\/app\/trips\/new/);
+  await expect(page.getByTestId('create-trip-destination-input')).toHaveValue(place);
+  await page.context().close();
 });

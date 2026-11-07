@@ -67,26 +67,42 @@ export default function CreateTrip() {
   });
   const [err, setErr] = useState<Record<string, string>>({});
   const [email, setEmail] = useState("");
+  // Once a field has an error, it's checked again as it changes, so the message goes as soon as it's fixed.
+  // New errors only appear on Continue, never mid-typing.
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
   // Until someone chooses, the cover follows the destination.
   const cover = d.cover || suggestCover(d.destination);
 
-  const validate = (s: number) => {
+  const errorsFor = (s: number, x: Draft) => {
     const e: Record<string, string> = {};
     if (s === 0) {
-      if (d.name.trim().length < 3) e.name = "Give your trip a name (3+ characters)";
-      if (d.destination.trim().length < 2) e.destination = "Where are you headed?";
+      if (x.name.trim().length < 3) e.name = "Give your trip a name (3+ characters)";
+      if (x.destination.trim().length < 2) e.destination = "Where are you headed?";
     }
     if (s === 1) {
-      if (!d.startDate) e.startDate = "Pick a start date";
-      if (!d.endDate) e.endDate = "Pick an end date";
-      if (d.startDate && d.endDate && d.endDate < d.startDate) e.endDate = "End date must be on or after the start date";
+      if (!x.startDate) e.startDate = "Pick a start date";
+      if (!x.endDate) e.endDate = "Pick an end date";
+      if (x.startDate && x.endDate && x.endDate < x.startDate) e.endDate = "End date must be on or after the start date";
     }
-    if (s === 3 && d.budget && (isNaN(+d.budget) || +d.budget < 0)) e.budget = "Enter a valid amount";
+    if (s === 3 && x.budget && (isNaN(+x.budget) || +x.budget < 0)) e.budget = "Enter a valid amount";
     if (s === 4) {
-      const limit = participantLimitError(d.limited, d.maxParticipants, 1);
+      const limit = participantLimitError(x.limited, x.maxParticipants, 1);
       if (limit) e.maxParticipants = limit;
     }
+    return e;
+  };
+  useEffect(() => {
+    setErr((shown) => {
+      if (!Object.keys(shown).length) return shown;
+      const now = errorsFor(step, d);
+      const kept = Object.fromEntries(Object.entries(now).filter(([k]) => k in shown));
+      return Object.keys(kept).length === Object.keys(shown).length && Object.entries(kept).every(([k, v]) => shown[k] === v) ? shown : kept;
+    });
+    // errorsFor is rebuilt each render from the same rules; only the draft and step matter here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d, step]);
+  const validate = (s: number) => {
+    const e = errorsFor(s, d);
     setErr(e);
     return Object.keys(e).length === 0;
   };

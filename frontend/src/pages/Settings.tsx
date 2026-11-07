@@ -198,7 +198,7 @@ function EmailForm() {
       <form onSubmit={(e) => void change(e)} className="grid gap-2">
         <Field label="New email" htmlFor="st-email" error={err} hint={emailVerified ? "We'll send a link to the new address. Nothing changes until you open it." : undefined}>
           <div className="flex gap-2">
-            <Input id="st-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" data-testid="settings-email-input" />
+            <Input id="st-email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(undefined); }} className="h-10" data-testid="settings-email-input" />
             <Button type="submit" variant="outline" className="h-10" disabled={saving || !email.trim()} data-testid="settings-email-save">{saving ? "Sending…" : "Change email"}</Button>
           </div>
         </Field>
