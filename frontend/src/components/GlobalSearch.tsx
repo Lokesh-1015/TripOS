@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Compass, MapPin, Search, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Avatar } from "@/components/common";
 import { apiGet } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { fmtRange } from "@/lib/format";
@@ -17,6 +18,8 @@ interface Result {
   title: string;
   detail: string;
   to: string;
+  /** People show their photo rather than an icon. */
+  person?: { name: string; avatar: string };
 }
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -81,7 +84,7 @@ export function GlobalSearch({ autoFocus = false, onDone, className }: { autoFoc
       .slice(0, 4);
     const found = (remote.length >= 2 ? people.data ?? [] : [])
       .slice(0, 5)
-      .map((p) => ({ key: `person-${p.id}`, group: "People", icon: UserRound, title: p.name, detail: `@${p.username}`, to: `/app/u/${p.username}` }));
+      .map((p) => ({ key: `person-${p.id}`, group: "People", icon: UserRound, title: p.name, detail: `@${p.username}`, to: `/app/u/${p.username}`, person: { name: p.name, avatar: p.avatar } }));
     const mineIds = new Set(trips.map((t) => t.id));
     const discover = (remote.length >= 2 ? explore.data?.trips ?? [] : [])
       .filter((t) => !mineIds.has(t.id))
@@ -123,6 +126,7 @@ export function GlobalSearch({ autoFocus = false, onDone, className }: { autoFoc
               if (e.key === "Escape") { setOpen(false); input.current?.blur(); }
             }}
             placeholder="Search trips, places, people…"
+            aria-label="Search trips, places, people and Explore"
             role="combobox"
             aria-expanded={open && !!needle}
             aria-controls="global-search-results"
@@ -151,7 +155,7 @@ export function GlobalSearch({ autoFocus = false, onDone, className }: { autoFoc
                   className={cn("flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left", i === active ? "bg-sage" : "hover:bg-muted")}
                   data-testid={`search-result-${r.key}`}
                 >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-card text-forest ring-1 ring-line"><r.icon className="size-4" /></span>
+                  {r.person ? <Avatar person={r.person} size={32} ring={false} /> : <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-card text-forest ring-1 ring-line"><r.icon className="size-4" /></span>}
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{r.title}</span>
                     <span className="block truncate text-xs text-ink-muted">{r.detail}</span>
@@ -160,7 +164,17 @@ export function GlobalSearch({ autoFocus = false, onDone, className }: { autoFoc
               </div>
             );
           })}
-          {!results.length && <p className="px-3 py-4 text-sm text-ink-muted" data-testid="search-no-results">{searching || remote !== needle.replace(/^@/, "") ? "Searching…" : `Nothing matches “${q.trim()}”.`}</p>}
+          {!results.length && (
+            <div className="grid gap-1 px-3 py-3" data-testid="search-no-results">
+              <p className="text-sm text-ink-muted">{searching || remote !== needle.replace(/^@/, "") ? "Searching…" : `Nothing matches “${q.trim()}” in your trips or people.`}</p>
+            </div>
+          )}
+          {/* Never a dead end: Explore can always be searched for the place. */}
+          {needle.length >= 2 && !needle.includes("@") && (
+            <button onClick={() => go(`/app/explore?destination=${encodeURIComponent(q.trim())}`)} className="mt-1 flex w-full items-center gap-3 rounded-xl border-t border-line px-2.5 py-2.5 text-left text-sm font-medium text-forest hover:bg-muted" data-testid="search-explore-link">
+              <Compass className="size-4" /> Search Explore for “{q.trim()}”
+            </button>
+          )}
           {!!results.length && searching && <p className="px-3 py-2 text-xs text-ink-muted">Looking for more…</p>}
         </div>
       )}

@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { FieldContext } from "@/lib/fieldContext";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { initials, STATUS_LABEL } from "@/lib/format";
@@ -149,12 +150,16 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: strin
 
 /** A labelled form field. `required` marks it before anyone gets it wrong; an error outlines it in red too. */
 export function Field({ label, htmlFor, error, hint, required = false, children }: { label: string; htmlFor?: string; error?: string; hint?: ReactNode; required?: boolean; children: ReactNode }) {
+  const messageId = `${useId()}-message`;
+  const hasMessage = !!error || !!hint;
   return (
+    <FieldContext.Provider value={{ invalid: !!error, describedBy: hasMessage ? messageId : undefined }}>
     <div className="grid gap-1.5" data-invalid={error ? "" : undefined}>
       <Label htmlFor={htmlFor} className="text-[13px] font-medium">{label}{required && <span className="text-destructive" aria-hidden> *</span>}{required && <span className="sr-only"> (required)</span>}</Label>
       {children}
-      {error ? <p className="text-xs font-medium text-destructive" role="alert">{error}</p> : hint ? <div className="text-xs text-ink-muted">{hint}</div> : null}
+      {error ? <p id={messageId} className="text-xs font-medium text-destructive" role="alert">{error}</p> : hint ? <div id={messageId} className="text-xs text-ink-muted">{hint}</div> : null}
     </div>
+    </FieldContext.Provider>
   );
 }
 

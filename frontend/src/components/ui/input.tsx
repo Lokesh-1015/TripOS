@@ -2,8 +2,12 @@ import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
+import { FieldContext } from "@/lib/fieldContext"
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  // Inside a form Field, say whether it's invalid and which message describes it.
+  const field = React.useContext(FieldContext)
+  const describedBy = [props["aria-describedby"], field?.describedBy].filter(Boolean).join(" ") || undefined
   return (
     <InputPrimitive
       type={type}
@@ -13,6 +17,8 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         className
       )}
       {...props}
+      aria-invalid={props["aria-invalid"] ?? (field?.invalid || undefined)}
+      aria-describedby={describedBy}
     />
   )
 }

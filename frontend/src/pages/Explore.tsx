@@ -58,8 +58,10 @@ function TripCard({ trip }: { trip: PublicTrip }) {
 
 function DiscoverTrips() {
   const currency = useApp((s) => s.settings.currency);
-  const [f, setF] = useState<TripFilters>({});
-  const [typed, setTyped] = useState("");
+  // Search can send people here with a destination already filled in.
+  const [initial] = useState(() => new URLSearchParams(window.location.search).get("destination") ?? "");
+  const [f, setF] = useState<TripFilters>(initial ? { destination: initial } : {});
+  const [typed, setTyped] = useState(initial);
   const [more, setMore] = useState(false);
   const [duration, setDuration] = useState(ANY);
   const set = (patch: TripFilters) => setF((x) => ({ ...x, ...patch }));

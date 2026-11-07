@@ -147,7 +147,7 @@ export default function OverviewTab({ trip, onManageMembers, onInvite }: { trip:
   const base = `/app/trips/${trip.id}`;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+    <div className="grid items-start gap-6 xl:grid-cols-[1.6fr_1fr]">
       <div className="grid content-start gap-6">
         <GettingStarted trip={trip} onInvite={onInvite ?? onManageMembers} />
         {access.canAdmin && !!trip.leaveRequests?.length && (
@@ -201,6 +201,19 @@ export default function OverviewTab({ trip, onManageMembers, onInvite }: { trip:
             </ul>
           )}
         </section>
+
+        <section className="rounded-2xl border border-line bg-card" data-testid="trip-activity-feed">
+          <h2 className="border-b px-5 py-4 text-base font-semibold">Activity</h2>
+          <ul className="grid gap-4 p-5">
+            {trip.events.length === 0 && <li className="text-sm text-ink-muted">Nothing yet.</li>}
+            {tidyEvents(trip.events, (id) => people[id]?.name, me).slice(0, 8).map((e) => (
+              <li key={e.id} className="flex gap-3">
+                <Avatar person={people[e.actorId]} size={26} ring={false} />
+                <p className="text-[13px] leading-snug"><b className="font-semibold">{e.actorId === me ? "You" : people[e.actorId]?.name.split(" ")[0] ?? "Someone"}</b> {e.text}<span className="block text-xs text-ink-muted">{ago(e.at)}</span></p>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
       <div className="grid content-start gap-6">
@@ -231,19 +244,6 @@ export default function OverviewTab({ trip, onManageMembers, onInvite }: { trip:
                 <Avatar person={people[t.assignee]} size={26} ring={false} />
                 <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
                 <span className={cn("text-xs", t.due < today ? "font-medium text-destructive" : "text-ink-muted")}>{t.due < today ? "Overdue" : fmtDate(t.due, "dd MMM")}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="rounded-2xl border border-line bg-card" data-testid="trip-activity-feed">
-          <h2 className="border-b px-5 py-4 text-base font-semibold">Activity</h2>
-          <ul className="grid gap-4 p-5">
-            {trip.events.length === 0 && <li className="text-sm text-ink-muted">Nothing yet.</li>}
-            {tidyEvents(trip.events, (id) => people[id]?.name, me).slice(0, 8).map((e) => (
-              <li key={e.id} className="flex gap-3">
-                <Avatar person={people[e.actorId]} size={26} ring={false} />
-                <p className="text-[13px] leading-snug"><b className="font-semibold">{e.actorId === me ? "You" : people[e.actorId]?.name.split(" ")[0] ?? "Someone"}</b> {e.text}<span className="block text-xs text-ink-muted">{ago(e.at)}</span></p>
               </li>
             ))}
           </ul>

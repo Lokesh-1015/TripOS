@@ -73,7 +73,7 @@ export default function Trips() {
             <Input value={q} onChange={(e) => setParam("q", e.target.value)} placeholder="Filter my trips by name, place or person" aria-label="Filter my trips" className="h-10 rounded-xl pl-9" data-testid="trips-search-input" />
           </label>
           <Select value={sort} onValueChange={(v) => setParam("sort", v)}>
-            <SelectTrigger className="h-10 w-36 shrink-0 rounded-xl sm:w-44" data-testid="trips-sort-select"><SelectValue>{(v) => SORTS[v as string]}</SelectValue></SelectTrigger>
+            <SelectTrigger className="h-10 w-36 shrink-0 rounded-xl sm:w-44" aria-label="Sort trips" data-testid="trips-sort-select"><SelectValue>{(v) => SORTS[v as string]}</SelectValue></SelectTrigger>
             <SelectContent>{Object.entries(SORTS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
           </Select>
         </div>

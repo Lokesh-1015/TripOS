@@ -20,7 +20,7 @@ export default function Feed() {
       <PageHeader
         title="Feed"
         subtitle="Travel moments from your friends and the TripOS community."
-        actions={emailVerified && <Button className="h-10 rounded-xl" onClick={() => setCreating(true)} data-testid="feed-create-post"><Plus className="size-4" /> Create post</Button>}
+        actions={emailVerified && <Button className="h-10 rounded-xl bg-coral text-white hover:bg-[#e97a56]" onClick={() => setCreating(true)} data-testid="feed-create-post"><Plus className="size-4" /> Create post</Button>}
       />
       {!emailVerified && <p className="mb-4 rounded-xl bg-sage p-3 text-sm text-forest" role="status">Confirm your email address to share posts and comment.</p>}
       {isPending ? (

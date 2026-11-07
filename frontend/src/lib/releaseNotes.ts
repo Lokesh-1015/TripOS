@@ -17,6 +17,22 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-13",
+    features: [],
+    improved: [
+      "Forms take you straight to the first thing that needs fixing, and screen readers announce what's wrong.",
+      "Leaving a half-filled trip asks in TripOS's own window, not the browser's.",
+      "The chosen cover photo is clearly marked.",
+      "Search shows people's photos, and offers to search Explore when nothing matches.",
+      "A trip's Overview is better balanced, and nothing hides behind the + button on phones.",
+    ],
+    fixed: [
+      "Older activity lines now say \"approved X's request to leave\".",
+      "The cover hint no longer claims to suit a destination before one is typed.",
+      "An empty Memories tab has one upload button, not two.",
+    ],
+  },
+  {
     id: "2026-11-12",
     features: [
       { icon: Compass, title: "Search everything", body: "The search at the top finds your trips, places in them, people by name or username, and trips in Explore. Press Ctrl K (⌘K on a Mac) from anywhere." },

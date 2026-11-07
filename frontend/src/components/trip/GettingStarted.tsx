@@ -70,7 +70,7 @@ export function GettingStarted({ trip, onInvite }: { trip: Trip; onInvite: () =>
               <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", s.done ? "bg-forest text-white" : "bg-sage text-forest")}>{s.done ? <Check className="size-4" /> : <s.icon className="size-4" />}</span>
               <span className="min-w-0">
                 <span className={cn("block text-sm font-medium", s.done && "text-ink-muted line-through")}>{s.title}</span>
-                <span className="block truncate text-xs text-ink-muted">{s.hint}</span>
+                <span className="block text-xs text-ink-muted">{s.hint}</span>
               </span>
             </>
           );

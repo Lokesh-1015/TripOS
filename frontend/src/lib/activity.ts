@@ -1,6 +1,8 @@
 import type { TripEvent } from "./types";
 
 const JOINED = /^joined (the trip|via invite link)$/;
+/** Written by older versions; shown in today's wording. */
+const OLD_LEAVE = /^let (.+) leave the trip$/;
 
 /**
  * Makes the activity feed read in order. "You invited Dhruv" followed later by "Dhruv joined the trip"
@@ -12,6 +14,8 @@ export function tidyEvents<E extends TripEvent>(events: E[], nameOf: (id: string
   const out: E[] = [];
   events.forEach((e, i) => {
     if (used.has(e.id)) return;
+    const leave = OLD_LEAVE.exec(e.text);
+    if (leave) return void out.push({ ...e, text: `approved ${leave[1]}'s request to leave` });
     const joiner = JOINED.test(e.text) ? nameOf(e.actorId) : undefined;
     const invite = joiner ? events.slice(i + 1).find((o) => !used.has(o.id) && o.text === `invited ${joiner}`) : undefined;
     if (!invite) return void out.push(e);
