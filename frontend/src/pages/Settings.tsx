@@ -16,6 +16,7 @@ import { CURRENCIES } from "@/lib/format";
 import { useInstallApp } from "@/lib/pwa";
 import { useOwnProfile, useSocialActions } from "@/lib/social";
 import { cn } from "@/lib/utils";
+import { focusFirstInvalid } from "@/lib/fieldContext";
 
 const NOTIFY: [string, string, string][] = [
   ["invites", "Trip invitations", "When someone adds you to a trip"],
@@ -168,8 +169,8 @@ function EmailForm() {
   const change = async (e: FormEvent) => {
     e.preventDefault();
     const next = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) return setErr("Enter a valid email");
-    if (next === user.email) return setErr("That's already your email");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) return (setErr("Enter a valid email"), focusFirstInvalid());
+    if (next === user.email) return (setErr("That's already your email"), focusFirstInvalid());
     setErr(undefined);
     setSaving(true);
     try {

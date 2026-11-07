@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, Field } from "@/components/common";
+import { Avatar, ConfirmDialog, Field } from "@/components/common";
 import { ParticipantLimitField, participantLimitError } from "@/components/trip/ParticipantLimitField";
 import { InvitePeople } from "@/components/trip/InvitePeople";
 import { TripVisibilityFields, type VisibilityDraft } from "@/components/trip/TripVisibilityFields";
@@ -20,6 +20,7 @@ import { addDays, format, parseISO } from "date-fns";
 import type { Member, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { DateRangeField } from "@/components/DateRangeField";
+import { focusFirstInvalid } from "@/lib/fieldContext";
 
 const STEPS = ["Basics", "Dates", "Members", "Budget", "Review"];
 const COVERS = [IMG.manali, IMG.goa, IMG.udaipur, IMG.pangong, IMG.kerala, IMG.meghalaya, IMG.rishikesh, IMG.hawaMahal];
@@ -36,7 +37,7 @@ const COVER_HINTS: [RegExp, string][] = [
 ];
 const suggestCover = (destination: string) => img(COVER_HINTS.find(([re]) => re.test(destination))?.[1] ?? COVERS[0]);
 
-const LEAVE_WARNING = "Leave without creating this trip? What you've entered will be lost.";
+const LEAVE_WARNING = "What you've entered will be lost.";
 
 interface Draft {
   name: string; destination: string; description: string; cover: string;
@@ -90,7 +91,7 @@ export default function CreateTrip() {
     return Object.keys(e).length === 0;
   };
   const go = (to: number) => {
-    if (to > step && !validate(step)) return;
+    if (to > step && !validate(step)) return focusFirstInvalid();
     setDir(to > step ? 1 : -1);
     setStep(to);
   };
@@ -104,8 +105,17 @@ export default function CreateTrip() {
     setErr({});
   };
 
-  // Warn before throwing away a half-filled trip: on closing the tab, and on following a link inside the app.
+  // Warn before throwing away a half-filled trip. Inside the app that's TripOS's own dialog; closing or
+  // reloading the tab can only use the browser's warning.
   const created = useRef(false);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  const leave = () => {
+    created.current = true;
+    const to = leaveTo;
+    setLeaveTo(null);
+    if (to === "back") navigate(-1);
+    else if (to) navigate(to);
+  };
   const dirty = !!(d.name.trim() || d.destination.trim() || d.description.trim() || d.startDate || d.endDate || d.budget || d.members.length > 1);
   useEffect(() => {
     if (!dirty) return;
@@ -118,10 +128,9 @@ export default function CreateTrip() {
       const link = (e.target as Element | null)?.closest?.("a[href]");
       const href = link?.getAttribute("href");
       if (!link || created.current || link.getAttribute("target") === "_blank" || !href || href.startsWith("#") || href.startsWith("/app/trips/new")) return;
-      if (!window.confirm(LEAVE_WARNING)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveTo(href);
     };
     window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("click", onLink, true);
@@ -132,7 +141,7 @@ export default function CreateTrip() {
   }, [dirty]);
 
   const create = () => {
-    if (!validate(4)) return;
+    if (!validate(4)) return focusFirstInvalid();
     created.current = true;
     const id = tripId;
     const trip: Trip = {
@@ -168,7 +177,7 @@ export default function CreateTrip() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <button onClick={() => (!dirty || window.confirm(LEAVE_WARNING)) && navigate(-1)} className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink" data-testid="create-trip-back-link"><ArrowLeft className="size-4" /> Back</button>
+      <button onClick={() => (dirty ? setLeaveTo("back") : navigate(-1))} className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink" data-testid="create-trip-back-link"><ArrowLeft className="size-4" /> Back</button>
       <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Create a new trip</h1>
       <p className="mt-1 text-sm text-ink-muted">Five quick steps. You can change everything later.</p>
 
@@ -203,14 +212,14 @@ export default function CreateTrip() {
                 <Field label="Destination" htmlFor="ct-dest" error={err.destination} required>
                   <Input id="ct-dest" value={d.destination} onChange={(e) => set({ destination: e.target.value })} placeholder="City, region or country" className="h-11 rounded-xl" data-testid="create-trip-destination-input" />
                 </Field>
-                <Field label="Cover image" hint={d.cover ? undefined : "Picked to suit your destination. Choose another or upload your own."}>
+                <Field label="Cover image" hint={d.cover ? undefined : d.destination.trim() ? `Picked to suit ${d.destination.trim()}. Choose another or upload your own.` : "A default cover. Choose another or upload your own."}>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                     {COVERS.map((c) => {
                       const url = img(c);
                       return (
-                        <button key={c} onClick={() => set({ cover: url })} className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2 transition-shadow", cover === url && "ring-2 ring-forest")} aria-label="Choose cover" aria-pressed={cover === url} data-testid={`create-trip-cover-${c}`}>
+                        <button key={c} onClick={() => set({ cover: url })} className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2 ring-offset-card transition-shadow", cover === url ? "ring-[3px] ring-coral" : "opacity-90 hover:opacity-100")} aria-label="Choose cover" aria-pressed={cover === url} data-testid={`create-trip-cover-${c}`}>
                           <img src={img(c, 200)} alt="" className="size-full object-cover" />
-                          {cover === url && <span className="absolute inset-0 grid place-items-center bg-forest/40 text-white"><Check className="size-4" /></span>}
+                          {cover === url && <span className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full bg-coral text-white shadow ring-2 ring-white"><Check className="size-3" strokeWidth={3} /></span>}
                         </button>
                       );
                     })}
@@ -329,6 +338,14 @@ export default function CreateTrip() {
           <Button className="h-11 rounded-xl bg-coral px-6 text-white hover:bg-[#e97a56]" onClick={create} data-testid="create-trip-submit-button"><Check className="size-4" /> Create trip</Button>
         )}
       </div>
+      <ConfirmDialog
+        open={leaveTo !== null}
+        onOpenChange={(o) => !o && setLeaveTo(null)}
+        title="Leave without creating this trip?"
+        body={LEAVE_WARNING}
+        confirmLabel="Leave"
+        onConfirm={leave}
+      />
     </div>
   );
 }

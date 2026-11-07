@@ -70,7 +70,7 @@ export function ExpensesHub() {
         <Stat label="Total logged" value={logged.text} hint={hint(logged)} testId="hub-expenses-total" />
       </div>
       {[owe, get, logged].some((x) => x.converted) && <p className="mt-2 text-xs text-ink-muted" data-testid="hub-expenses-rates-credit"><RatesCredit /></p>}
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+      <div className="mt-6 grid items-start gap-6 xl:grid-cols-[1.2fr_1fr]">
         <section className="divide-y rounded-2xl border border-line bg-card">
           {rows.map(({ t, spent, bal }) => (
             <Link key={t.id} to={`/app/trips/${t.id}/expenses`} className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/50" data-testid={`hub-expense-trip-${t.id}`}>

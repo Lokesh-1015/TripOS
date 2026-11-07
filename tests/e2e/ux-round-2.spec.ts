@@ -138,13 +138,14 @@ test('Create trip marks what is required, picks a cover, and warns before losing
   await page.getByTestId('create-trip-destination-input').fill('Alleppey, Kerala');
   await expect(page.locator('[data-testid^="create-trip-cover-"][aria-pressed="true"]')).toHaveAttribute('data-testid', /photo-1602216056096/);
 
-  let asked = '';
-  page.once('dialog', (d) => { asked = d.message(); void d.dismiss(); });
+  // The warning is TripOS's own dialog, not the browser's.
   await page.getByTestId('desktop-sidebar').getByRole('link', { name: 'My Trips' }).click();
-  await expect.poll(() => asked).toContain('Leave without creating this trip');
+  await expect(page.getByTestId('confirm-dialog')).toContainText('Leave without creating this trip');
+  await page.getByTestId('confirm-cancel-button').click();
   await expect(page).toHaveURL(/\/app\/trips\/new$/);
-  page.once('dialog', (d) => void d.accept());
+  await expect(page.getByTestId('create-trip-name-input')).toHaveValue('Backwaters');
   await page.getByTestId('desktop-sidebar').getByRole('link', { name: 'My Trips' }).click();
+  await page.getByTestId('confirm-accept-button').click();
   await expect(page).toHaveURL(/\/app\/trips$/);
   await page.context().close();
 });

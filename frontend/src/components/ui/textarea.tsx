@@ -1,8 +1,12 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { FieldContext } from "@/lib/fieldContext"
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+  // Inside a form Field, say whether it's invalid and which message describes it.
+  const field = React.useContext(FieldContext)
+  const describedBy = [props["aria-describedby"], field?.describedBy].filter(Boolean).join(" ") || undefined
   return (
     <textarea
       data-slot="textarea"
@@ -11,6 +15,8 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
         className
       )}
       {...props}
+      aria-invalid={props["aria-invalid"] ?? (field?.invalid || undefined)}
+      aria-describedby={describedBy}
     />
   )
 }

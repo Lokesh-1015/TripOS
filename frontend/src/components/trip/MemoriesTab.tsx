@@ -168,7 +168,7 @@ export default function MemoriesTab({ trip }: { trip: Trip }) {
       </div>
 
       {photos.length === 0 ? (
-        <EmptyState icon={Images} title={typeof date === "number" ? `Nothing from ${format(addDays(parseISO(trip.startDate), date), "dd MMMM")} yet` : status === "upcoming" ? "Memories start here" : "No photos yet"} body={typeof date === "number" ? "Add the first photos from this day." : status === "upcoming" ? "Once the trip begins, everyone's photos land in one shared gallery." : "Upload the first photo from the trip."} action={access.canContribute && <Button onClick={() => ref.current?.click()} data-testid="memories-empty-upload">Upload photos</Button>} testId="memories-empty-state" />
+        <EmptyState icon={Images} title={typeof date === "number" ? `Nothing from ${format(addDays(parseISO(trip.startDate), date), "dd MMMM")} yet` : status === "upcoming" ? "Memories start here" : "No photos yet"} body={typeof date === "number" ? "Add the first photos from this day." : status === "upcoming" ? "Once the trip begins, everyone's photos land in one shared gallery." : "Upload the first photo from the trip."} testId="memories-empty-state" />
       ) : (
         days.map((d) => (
           <section key={d} data-testid={`memories-day-${d}`}>

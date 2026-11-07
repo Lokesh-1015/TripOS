@@ -32,6 +32,7 @@ import ChatTab from "@/components/trip/ChatTab";
 import MemoriesTab from "@/components/trip/MemoriesTab";
 import { DateRangeField } from "@/components/DateRangeField";
 import { TripMobileBar } from "@/components/trip/TripMobileBar";
+import { focusFirstInvalid } from "@/lib/fieldContext";
 
 const TABS = [
   ["overview", "Overview"], ["itinerary", "Itinerary"], ["expenses", "Expenses"], ["tasks", "Tasks"], ["packing", "Packing"],
@@ -251,7 +252,7 @@ function EditTripDialog({ trip, open, onOpenChange }: { trip: Trip; open: boolea
     const limitProblem = participantLimitError(limit.enabled, limit.value, joined);
     if (limitProblem) e.maxParticipants = limitProblem;
     setErr(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) return focusFirstInvalid();
     // Changing who can find a trip is explained first, so nothing is exposed by accident.
     if (sharing.visibility !== (trip.visibility ?? "private") && !confirmed) return setConfirming(true);
     setConfirming(false);
@@ -341,7 +342,8 @@ export default function TripWorkspace() {
   };
 
   return (
-    <div>
+    // On phones the + and the trip bar sit over the bottom, so the page scrolls clear of them.
+    <div className="pb-24 lg:pb-0">
       <Link to="/app/trips" className="mb-3 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink" data-testid="trip-back-to-trips"><ChevronLeft className="size-4" /> My Trips</Link>
       {/* Header */}
       <section className="relative overflow-hidden rounded-3xl bg-forest-deep text-white" data-testid="trip-header">
