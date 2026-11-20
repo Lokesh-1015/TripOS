@@ -99,12 +99,12 @@ function MembersDialog({ trip, open, onOpenChange, tab, onTabChange }: { trip: T
           </DialogHeader>
           {full && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-full-note">This trip is full, so nobody new can join, even with the link. {access.canAdmin ? "Raise the limit in Edit trip to make room." : ""}</p>}
           {access.canAdmin ? (
-            <Tabs value={tab} onValueChange={(v) => onTabChange(v as MembersTab)}>
+            <Tabs value={tab} onValueChange={(v) => onTabChange(v as MembersTab)} className="min-w-0">
               <TabsList className="w-full" data-testid="members-tabs">
                 <TabsTrigger value="invite" data-testid="members-tab-invite">Invite</TabsTrigger>
                 <TabsTrigger value="members" data-testid="members-tab-members">Members <span className="num ml-1 opacity-70">{trip.members.length}</span>{!!trip.leaveRequests?.length && <span className="ml-1.5 size-2 rounded-full bg-coral" aria-label="Someone has asked to leave" />}</TabsTrigger>
               </TabsList>
-              <TabsContent value="invite" className="mt-3 grid gap-4">
+              <TabsContent value="invite" className="mt-3 grid min-w-0 gap-4">
                   {access.canAdmin && !emailVerified && <p className="rounded-xl bg-coral-soft px-3 py-2 text-sm text-[#8A3B22]" data-testid="members-verify-note">{emailEnabled ? "Verify your email to invite people by email. You can still share the link below." : "Email invites aren't available yet. Share the link below instead."}</p>}
                   {access.canAdmin && emailVerified && <Field label="Invite travellers">
                     <InvitePeople added={onTrip} busyId={inviting} onPick={invitePerson} />
@@ -116,7 +116,7 @@ function MembersDialog({ trip, open, onOpenChange, tab, onTabChange }: { trip: T
                     </div>
                   </Field>}
                   {link && (
-                    <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
+                    <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex w-full min-w-0 items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
                       <Copy className="size-4" /> <span className="truncate">{link}</span>
                     </button>
                   )}
@@ -142,7 +142,7 @@ function MembersDialog({ trip, open, onOpenChange, tab, onTabChange }: { trip: T
           ) : (
             <>
                   {link && (
-                    <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
+                    <button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => {}); toast.success("Invite link copied", { description: "Anyone with the link can join." }); }} className="flex w-full min-w-0 items-center gap-2 rounded-xl bg-muted/70 px-3 py-2 text-left text-sm text-ink-muted hover:bg-muted" data-testid="members-copy-link-button">
                       <Copy className="size-4" /> <span className="truncate">{link}</span>
                     </button>
                   )}

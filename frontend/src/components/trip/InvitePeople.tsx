@@ -75,7 +75,7 @@ export function InvitePeople({ added, busyId, label = "Invite", onPick }: { adde
   const row = (p: PickedPerson) => <PersonRow key={p.id} person={p} label={label} state={added.has(p.id) ? "added" : busyId === p.id ? "busy" : "pick"} onPick={() => onPick(p)} />;
 
   return (
-    <div className="grid gap-2" data-testid="invite-people">
+    <div className="grid min-w-0 gap-2" data-testid="invite-people">
       <div className="relative">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
         <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search by name or username" aria-label="Search travellers by name or username" autoComplete="off" className="h-10 rounded-xl pl-9" data-testid="invite-search-input" />

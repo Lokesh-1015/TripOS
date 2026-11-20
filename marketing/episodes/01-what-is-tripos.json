@@ -1,0 +1,22 @@
+{
+  "title": "Your group chat is not a travel planner",
+  "voice": "en_US-amy-medium",
+  "pace": 0.95,
+  "music": "assets/music.mp3",
+  "coverAt": "create",
+  "scenes": [
+    { "id": "hook", "card": "groupChat", "say": "Planning a group trip in the group chat?", "caption": "Planning a group trip in the group chat? 😩", "hold": 3.4 },
+    { "id": "intro", "card": "logo", "say": "Meet TripOS. One app for the whole trip.", "caption": false },
+    { "id": "create", "action": "createTrip", "params": { "name": "Spiti Valley Ride", "destination": "Spiti, Himachal" }, "say": "Plan it in seconds.", "caption": "Plan it in seconds" },
+    { "id": "invite", "action": "inviteFriends", "params": { "person": "rohan" }, "say": "Bring your crew by username. No emails needed.", "caption": "Invite your crew by username" },
+    { "id": "vote", "action": "vote", "params": { "option": 0 }, "say": "Decide together.", "caption": "Decide together" },
+    { "id": "split", "action": "addExpense", "params": { "title": "Fuel", "amount": 3200 }, "say": "Split every rupee fairly.", "caption": "Split every rupee fairly" },
+    { "id": "plan", "action": "planAndPack", "params": { "item": "Riding gloves" }, "say": "Know the plan, and who's bringing what.", "caption": "Know the plan and who's bringing what" },
+    { "id": "memories", "action": "memories", "say": "And relive it after.", "caption": "Relive it after" },
+    { "id": "end", "card": "endCard", "say": "TripOS. Link in bio.", "caption": false, "hold": 3 }
+  ],
+  "post": {
+    "caption": "Group trips shouldn't need 400 messages. 🧳\nTripOS keeps the plan, the money, the votes and the memories in one place, for the whole crew.\n✈️ Plan the itinerary together\n💸 Split expenses, see who owes whom\n🗳️ Vote on stays and spots\n📸 Relive it with Trip Replay\nFree to use, link in bio.",
+    "hashtags": ["TripOS", "GroupTravel", "TravelPlanning", "TripWithFriends", "IndiaTravel", "TravelApp", "SplitExpenses", "RoadTrip", "Spiti", "Goa"]
+  }
+}

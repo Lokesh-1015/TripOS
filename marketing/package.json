@@ -1,0 +1,16 @@
+{
+  "name": "tripos-marketing",
+  "private": true,
+  "type": "module",
+  "description": "Makes TripOS's Instagram videos from scripts: seeds a demo world in the local app, records the real screens, adds a voice, captions and music.",
+  "scripts": {
+    "setup": "node src/setup.mjs",
+    "seed": "node src/seed.mjs",
+    "video": "node src/make.mjs"
+  },
+  "dependencies": {
+    "@playwright/test": "1.62.0",
+    "ffmpeg-static": "5.2.0",
+    "ffprobe-static": "3.1.0"
+  }
+}
