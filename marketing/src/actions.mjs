@@ -20,6 +20,17 @@ async function glide(page, pixels, ms = 900) {
   await page.evaluate(({ pixels }) => window.scrollBy({ top: pixels, behavior: "smooth" }), { pixels });
   await sleep(ms);
 }
+/** Glides the page so `el` sits below the caption, the way a thumb scroll would. */
+async function glideTo(page, el, { gap = 175, ms = 950 } = {}) {
+  await el.evaluate((node, gap) => window.scrollTo({ top: node.getBoundingClientRect().top + window.scrollY - gap, behavior: "smooth" }), gap);
+  await sleep(ms);
+}
+/** Outlines `el` with a soft pulse for `ms`, to point at the number that matters. */
+async function highlight(el, ms) {
+  await el.evaluate((node) => node.classList.add("mk-hl"));
+  await sleep(ms);
+  await el.evaluate((node) => node.classList.remove("mk-hl"));
+}
 const isoIn = (days) => {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -99,6 +110,24 @@ export const ACTIONS = {
       if (await shared.isVisible().catch(() => false)) await tap(page, shared, { before: 200, after: 400 });
       const item = page.locator('[data-testid^="packing-item-"]', { hasText: params.item ?? "Riding gloves" }).first();
       await tap(page, item.locator('[data-testid^="packing-toggle-"]'), { after: 700 });
+    },
+  },
+
+  /** After the trip: everyone's balance, then the fewest payments that settle it. */
+  settleUp: {
+    start: ({ world }) => `/app/trips/${world.trips.spiti}/expenses`,
+    run: async (page, { world, params }) => {
+      const me = world.people.ishita.id;
+      const them = world.people[params.person ?? "kabir"].id;
+      // The + button would sit over the Settle buttons this scene is about.
+      await page.addStyleTag({ content: '[data-testid="trip-quick-add"] { display: none !important; }' });
+      await sleep(params.pause ?? 450);
+      await glideTo(page, page.getByTestId("expenses-balances"));
+      await highlight(page.getByTestId(`balance-row-${me}`), params.meMs ?? 1200);
+      await highlight(page.getByTestId(`balance-row-${them}`), params.themMs ?? 1300);
+      await glideTo(page, page.getByTestId("settlements-list"), { gap: 230 });
+      const firstName = world.people[params.person ?? "kabir"].name.split(" ")[0];
+      await highlight(page.getByTestId("settlements-list").locator("li", { hasText: firstName }).first(), params.settleMs ?? 2000);
     },
   },
 

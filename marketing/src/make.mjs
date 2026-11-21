@@ -88,10 +88,20 @@ for (const p of plan) {
     await page.goto(`${WEB}${ACTIONS[s.action].start({ world, params: s.params ?? {} })}`);
     await settle(page);
   }
-  const caption = s.caption === false ? "" : s.caption ?? s.say;
+  // One caption, or a timeline of them: [{ "at": seconds, "text": "…" }], changing while the scene plays.
+  const timeline = s.captions ?? (s.caption === false ? [] : (s.caption ?? s.say) ? [{ at: 0, text: s.caption ?? s.say }] : []);
+  const big = (s.captionStyle ?? episode.captionStyle) === "big";
   p.seconds = await record(page, p.clip, async () => {
-    if (caption) await setCaption(page, caption);
+    const began = Date.now();
+    const captions = (async () => {
+      for (const c of timeline) {
+        const wait = c.at * 1000 - (Date.now() - began);
+        if (wait > 0) await sleep(wait);
+        await setCaption(page, c.text, { big });
+      }
+    })();
     if (!s.card) await ACTIONS[s.action].run(page, { world, params: s.params ?? {} });
+    await captions;
   }, p.minSeconds * 1000);
   writeFileSync(`${p.clip}.len`, String(p.seconds));
   log(`recorded ${s.id}: ${p.seconds.toFixed(1)}s`);
@@ -103,7 +113,7 @@ await browser.close();
 const parts = plan.map((p) => {
   const out = path.join(work, `${p.scene.id}.scene.mp4`);
   // A scene whose action outran its line is sped up a little to end with it, unless the script says "fit": false.
-  p.final = sceneWithVoice(p.clip, p.wav, p.seconds, out, { target: p.scene.fit === false ? p.seconds : p.minSeconds, maxSpeed: p.scene.maxSpeed ?? episode.maxSpeed ?? 1.5 });
+  p.final = sceneWithVoice(p.clip, p.wav, p.seconds, out, { target: p.scene.fit === false ? p.seconds : p.minSeconds, maxSpeed: p.scene.maxSpeed ?? episode.maxSpeed ?? 1.5, zoom: p.scene.zoom ?? 1 });
   return out;
 });
 ensureDir(OUT);

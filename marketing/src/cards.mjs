@@ -23,7 +23,7 @@ const base = (body, css = "") => `<!doctype html><html><head><meta charset="utf-
 </style></head><body>${body}</body></html>`;
 
 /** The problem: a group chat drowning in trip questions. A made-up group, not any real app's design. */
-function groupChat({ title = "Spiti trip 🏔️", messages = [] }) {
+function groupChat({ title = "Spiti trip 🏔️", messages = [], interval = 0.32, typing = false, unread = 128 }) {
   const msgs = messages.length ? messages : [
     ["Rohan", "who's booking the homestay??"],
     ["Ananya", "how much do I owe you for the bikes"],
@@ -34,13 +34,15 @@ function groupChat({ title = "Spiti trip 🏔️", messages = [] }) {
   ];
   const colors = ["#E97A56", "#3B82F6", "#8B5CF6"];
   const who = [...new Set(msgs.map(([n]) => n))];
-  const bubbles = msgs.map(([name, text], i) => `
-    <div class="msg" style="animation-delay:${0.15 + i * 0.32}s">
+  // "You" sits on the right, like any chat; everyone else on the left with a name colour.
+  const bubbles = msgs.map(([name, text], i) => name === "You"
+    ? `<div class="msg me" style="animation-delay:${0.15 + i * interval}s">${esc(text)}</div>`
+    : `<div class="msg" style="animation-delay:${0.15 + i * interval}s">
       <b style="color:${colors[who.indexOf(name) % colors.length]}">${esc(name)}</b>${esc(text)}
-    </div>`).join("");
+    </div>`).join("") + (typing ? `<div class="msg dots" style="animation-delay:${0.15 + msgs.length * interval}s"><i></i><i></i><i></i></div>` : "");
   return base(`
     <div class="phone">
-      <header><div class="av">${esc(title).slice(0, 1)}</div><div><p class="t">${esc(title)}</p><p class="s">Rohan, Ananya, Kabir, You</p></div><span class="badge">128</span></header>
+      <header><div class="av">${esc(title).slice(0, 1)}</div><div><p class="t">${esc(title)}</p><p class="s">Rohan, Ananya, Kabir, You</p></div><span class="badge">${unread}</span></header>
       <main>${bubbles}</main>
       <footer><div class="input">Message</div></footer>
     </div>`, `
@@ -50,9 +52,18 @@ function groupChat({ title = "Spiti trip 🏔️", messages = [] }) {
     .av { width: 38px; height: 38px; border-radius: 50%; background: var(--forest); color: #fff; display: grid; place-items: center; font-weight: 700; }
     .t { font-weight: 700; font-size: 16px; } .s { font-size: 12px; color: var(--muted); }
     .badge { margin-left: auto; background: var(--coral); color: #fff; font-weight: 800; font-size: 13px; padding: 3px 9px; border-radius: 999px; animation: pop .4s 1.6s both; }
-    main { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 9px; padding: 14px 14px 10px; }
-    .msg { align-self: flex-start; max-width: 82%; background: #fff; padding: 9px 12px 10px; border-radius: 4px 16px 16px 16px; font-size: 16px; line-height: 1.3; box-shadow: 0 1px 1px rgba(0,0,0,.06); animation: rise .35s both; }
+    main { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; padding: 14px 14px 10px; }
+    /* Each message takes no room until it arrives, then grows in at the bottom and pushes the rest up. */
+    .msg { align-self: flex-start; max-width: 82%; background: #fff; padding: 9px 12px 10px; border-radius: 4px 16px 16px 16px; font-size: 16px; line-height: 1.3;
+      box-shadow: 0 1px 1px rgba(0,0,0,.06); flex-shrink: 0; max-height: 0; margin-top: 0; padding-top: 0; padding-bottom: 0; opacity: 0; overflow: hidden;
+      animation: arrive .3s ease-out both; }
+    @keyframes arrive { to { max-height: 140px; margin-top: 9px; padding-top: 9px; padding-bottom: 10px; opacity: 1; } }
     .msg b { display: block; font-size: 12px; margin-bottom: 2px; }
+    .msg.me { align-self: flex-end; background: #DDF2E5; border-radius: 16px 4px 16px 16px; }
+    .msg.dots { display: flex; gap: 5px; padding-left: 14px; padding-right: 14px; }
+    .msg.dots i { width: 7px; height: 7px; border-radius: 50%; background: #9aa19d; animation: blink 1s infinite; }
+    .msg.dots i:nth-child(2) { animation-delay: .2s; } .msg.dots i:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 50% { opacity: .25; } }
     footer { padding: 10px 12px 26px; background: #fff; } .input { border: 1px solid #e5e1d8; border-radius: 999px; padding: 11px 16px; color: #9aa19d; font-size: 15px; }
   `);
 }

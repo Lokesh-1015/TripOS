@@ -123,6 +123,7 @@ export async function seed() {
     [ishita, "Homestay advance", 12000, "stay", crew],
     [rohan, "Bike rental", 6400, "transport", crew],
     [ananya, "Dinner in Kaza", 2400, "food", [ishita, rohan, ananya]],
+    [ishita, "Fuel for the ride", 3200, "transport", crew],
   ];
   for (const [payer, title, amount, category, people] of spend) await payer.must("PUT", `/trips/${spiti}/expenses/${id("ex")}`, { title, amount, category, paidBy: payer.id, date: day(1), splitType: "equal", shares: goaShares(amount, people) });
   const poll = id("poll");

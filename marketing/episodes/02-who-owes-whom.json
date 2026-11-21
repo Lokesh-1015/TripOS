@@ -1,0 +1,56 @@
+{
+  "title": "Who owes whom?",
+  "notes": "Text only, no voice: add a trending sound in Instagram when posting. Short on purpose so it gets watched to the end and loops.",
+  "captionStyle": "big",
+  "coverAt": "hook",
+  "scenes": [
+    {
+      "id": "hook",
+      "card": "groupChat",
+      "params": {
+        "title": "Spiti trip 🏔️",
+        "unread": 247,
+        "interval": 0.36,
+        "typing": true,
+        "messages": [
+          ["Rohan", "bro I paid for the cab"],
+          ["Kabir", "no I paid 💀"],
+          ["Ananya", "who paid the homestay??"],
+          ["You", "me. ₹12,000 😭"],
+          ["Kabir", "I'll send it later 🙏"],
+          ["Rohan", "how much do I owe tho"],
+          ["Ananya", "someone do the math pls"],
+          ["Kabir", "later bro"]
+        ]
+      },
+      "captions": [
+        { "at": 0, "text": "POV: the trip ended 3 weeks ago…" },
+        { "at": 2.1, "text": "…and nobody knows who owes whom 💀" }
+      ],
+      "hold": 4.4,
+      "zoom": 1.06
+    },
+    {
+      "id": "settle",
+      "action": "settleUp",
+      "params": { "person": "kabir" },
+      "captions": [
+        { "at": 0, "text": "TripOS did the math 🧮" },
+        { "at": 3.9, "text": "Who pays whom. Done. ✅" }
+      ],
+      "hold": 7,
+      "fit": false
+    },
+    {
+      "id": "end",
+      "card": "endCard",
+      "params": { "tagline": "Send this to the friend who still owes you 👀", "cta": "TripOS · free · link in bio" },
+      "caption": false,
+      "hold": 3.2
+    }
+  ],
+  "post": {
+    "caption": "Tag the friend who still owes you from the last trip 👇💸\n\nTripOS splits every expense and tells your group exactly who pays whom, in the fewest payments. No spreadsheets, no awkward reminders.\n\nFree to use, link in bio.",
+    "hashtags": ["TripOS", "GroupTrip", "TripWithFriends", "SplitTheBill", "TravelMemes", "FriendsTrip", "IndianTravellers", "RoadTrip", "Spiti", "TravelApp"]
+  }
+}

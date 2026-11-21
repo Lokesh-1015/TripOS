@@ -15,11 +15,16 @@ function ffmpeg(args, what) {
  * took longer than its line, the clip is sped up (by at most `maxSpeed`) so the scene ends with the line.
  * Returns the scene's final length in seconds.
  */
-export function sceneWithVoice(clip, voice, seconds, outFile, { target = seconds, maxSpeed = 1.5, lead = 0.15 } = {}) {
+export function sceneWithVoice(clip, voice, seconds, outFile, { target = seconds, maxSpeed = 1.5, lead = 0.15, zoom = 1 } = {}) {
   const ms = Math.round(lead * 1000);
   const speed = Math.min(maxSpeed, Math.max(1, seconds / target));
   const length = seconds / speed;
-  const video = speed > 1.02 ? `[0:v]setpts=PTS/${speed.toFixed(4)},fps=30[v]` : "[0:v]null[v]";
+  const frames = Math.max(1, Math.round(length * 30));
+  // A slow push-in (zoom above 1) keeps a still screen alive. Upscaled first so the movement stays smooth.
+  const push = zoom > 1.001
+    ? `,scale=2160:3840:flags=lanczos,zoompan=z='1+${(zoom - 1).toFixed(4)}*on/${frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30`
+    : "";
+  const video = `[0:v]${speed > 1.02 ? `setpts=PTS/${speed.toFixed(4)},` : ""}fps=30${push}[v]`;
   const audio = voice && existsSync(voice) ? `[1:a]aresample=48000,adelay=${ms}|${ms},apad[a]` : "anullsrc=r=48000:cl=stereo[a]";
   const inputs = voice && existsSync(voice) ? ["-i", clip, "-i", voice] : ["-i", clip];
   ffmpeg([

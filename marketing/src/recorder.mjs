@@ -19,6 +19,13 @@ export const OVERLAY_CSS = `
   .mk-tap { position: fixed; z-index: 2147483647; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
     background: rgba(233, 122, 86, .35); border: 3px solid #E97A56; pointer-events: none; animation: mk-tap .6s ease-out forwards; }
   @keyframes mk-tap { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+  /* Meme style: bigger and punchier, for text-led videos. */
+  #mk-caption.mk-big { top: 10.5%; font-size: 30px; line-height: 1.12; }
+  #mk-caption.mk-big span { background: #111; padding: 7px 15px; border-radius: 12px; line-height: 1.5; }
+  /* Draws the eye to the line that matters. */
+  .mk-hl { position: relative; z-index: 5; outline: 4px solid #E97A56 !important; outline-offset: 2px; border-radius: 14px;
+    animation: mk-hl .9s ease-in-out infinite alternate; }
+  @keyframes mk-hl { from { box-shadow: 0 0 0 0 rgba(233,122,86,.5); } to { box-shadow: 0 0 0 12px rgba(233,122,86,0); } }
   ::-webkit-scrollbar { display: none; }
 `;
 
@@ -45,8 +52,8 @@ export async function installOverlay(page) {
   }, OVERLAY_CSS);
 }
 
-export async function setCaption(page, text) {
-  await page.evaluate(({ t, css }) => {
+export async function setCaption(page, text, { big = false } = {}) {
+  await page.evaluate(({ t, css, big }) => {
     if (!document.getElementById("mk-style")) {
       const style = document.createElement("style");
       style.id = "mk-style";
@@ -57,12 +64,12 @@ export async function setCaption(page, text) {
     if (!t) return;
     const box = document.createElement("div");
     box.id = "mk-caption";
-    box.className = "mk-in";
+    box.className = big ? "mk-in mk-big" : "mk-in";
     const span = document.createElement("span");
     span.textContent = t;
     box.appendChild(span);
     document.body.appendChild(box);
-  }, { t: text ?? "", css: OVERLAY_CSS });
+  }, { t: text ?? "", css: OVERLAY_CSS, big });
 }
 
 /**
