@@ -71,6 +71,9 @@ Episodes are JSON files in `episodes/`. Each scene is one line of voiceover and 
 - `say` is spoken; `caption` is the text on screen (defaults to `say`; `false` for none).
 - A scene lasts as long as its line. If the action takes longer, the clip is sped up (up to `maxSpeed`, 1.5×) to end with the line; `"fit": false` keeps it real-time.
 - `hold` sets a minimum length in seconds; `pace` above 1 speaks slower.
+- `captions` changes the text during a scene: `[{ "at": 0, "text": "…" }, { "at": 2.2, "text": "…" }]`. With `"voiceCaptions": true` (or `"say"` on a caption, which can be a different spoken wording), each one is read aloud, and a line waits for the one before it to finish. `"captionStyle": "big"` gives meme-sized captions.
+- Sound effects are made locally and free: a whoosh on every cut and a pop for every chat message come automatically; add more with `"sfx": [{ "at": 1.4, "sound": "tick" }]` (`pop`, `whoosh`, `ding`, `tick`). `"sfx": false` on the episode turns them off.
+- `"zoom": 1.06` slowly pushes in on a scene.
 - **Cards** (`src/cards.mjs`): `groupChat`, `logo`, `endCard`, `text` (`params.text`).
 - **Actions** (`src/actions.mjs`): `home`, `createTrip`, `inviteFriends`, `vote`, `addExpense`, `planAndPack`, `memories`, and `show` (`params.path` like `/app/trips/:spiti/map`, `params.scroll`). New flows are added there.
 

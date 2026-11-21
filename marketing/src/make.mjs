@@ -5,7 +5,8 @@ import path from "node:path";
 import { chromium } from "playwright";
 import { ACTIONS } from "./actions.mjs";
 import { CARDS } from "./cards.mjs";
-import { cover, finish, sceneWithVoice } from "./compose.mjs";
+import { cover, finish, sceneWithSound } from "./compose.mjs";
+import { sfx } from "./sfx.mjs";
 import { API, EPISODES, OUT, ROOT, SCALE, Session, VIEWPORT, WEB, WORK, assertAppRunning, ensureDir, log, sleep } from "./lib.mjs";
 import { installOverlay, record, setCaption } from "./recorder.mjs";
 import { seed } from "./seed.mjs";
@@ -43,14 +44,43 @@ const narrator = new Session(world.ishita.email);
 await narrator.must("POST", "/auth/login", { email: world.ishita.email, password: world.ishita.password });
 if (latest) await narrator.must("PATCH", "/me", { seenReleaseNotes: latest });
 
-// 1. Voice: the length of each line sets the length of its scene.
+// 1. Sound: voice lines and effects. The voice sets each scene's length.
+// Lines come from `say` (at the start), or from captions when `voiceCaptions` is on or a caption has `say`.
+const spoken = (t) => t.replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, "").replace(/…/g, "...").trim();
 const plan = [];
-for (const s of episode.scenes) {
-  const wav = path.join(work, `${s.id}.wav`);
-  const said = s.say ? speak(s.say, wav, { voice: s.voice ?? episode.voice, pace: s.pace ?? episode.pace ?? 1 }) : 0;
-  const seconds = Math.max(s.hold ?? 0, said + 0.15 + (s.tail ?? 0.45));
-  plan.push({ scene: s, wav: s.say ? wav : null, said, minSeconds: seconds });
-  log(`voice ${s.id}: ${said.toFixed(1)}s`);
+for (const [index, s] of episode.scenes.entries()) {
+  const sounds = [];
+  const voice = { voice: s.voice ?? episode.voice, pace: s.pace ?? episode.pace ?? 1 };
+  let end = 0;
+  if (s.say) {
+    const wav = path.join(work, `${s.id}.wav`);
+    const said = speak(spoken(s.say), wav, voice);
+    sounds.push({ file: wav, at: 0.15 });
+    end = 0.15 + said;
+  }
+  // A spoken caption waits for the line before it to finish, and appears when it's said.
+  s.timeline = (s.captions ?? []).map((c, i) => {
+    const line = typeof c.say === "string" ? c.say : (c.say ?? episode.voiceCaptions) ? c.text : "";
+    if (!line || !spoken(line)) return { ...c };
+    const at = Math.max(c.at, end > 0 ? end - 0.08 : 0);
+    const wav = path.join(work, `${s.id}-${i}.wav`);
+    const said = speak(spoken(line), wav, voice);
+    sounds.push({ file: wav, at: at + 0.12 });
+    end = at + 0.12 + said;
+    return { ...c, at };
+  });
+  // Effects: a whoosh on each cut, a pop for every chat message, and any the script asks for.
+  if (episode.sfx !== false) {
+    if (index > 0) sounds.push({ file: sfx("whoosh"), at: 0, volume: 0.45 });
+    if (s.card === "groupChat") {
+      const count = (s.params?.messages?.length ?? 6) + (s.params?.typing ? 1 : 0);
+      for (let i = 0; i < count; i++) sounds.push({ file: sfx("pop"), at: 0.18 + i * (s.params?.interval ?? 0.32), volume: 0.5 });
+    }
+    for (const e of s.sfx ?? []) sounds.push({ file: sfx(e.sound), at: e.at, volume: e.volume ?? 0.7 });
+  }
+  const seconds = Math.max(s.hold ?? 0, end + (s.tail ?? 0.45));
+  plan.push({ scene: s, sounds, minSeconds: seconds });
+  log(`sound ${s.id}: ${end ? `voice ends at ${end.toFixed(1)}s` : "no voice"}, ${sounds.length} sound${sounds.length === 1 ? "" : "s"}`);
 }
 
 // 2. Record each scene in a phone-shaped browser, signed in as the narrator.
@@ -89,7 +119,7 @@ for (const p of plan) {
     await settle(page);
   }
   // One caption, or a timeline of them: [{ "at": seconds, "text": "…" }], changing while the scene plays.
-  const timeline = s.captions ?? (s.caption === false ? [] : (s.caption ?? s.say) ? [{ at: 0, text: s.caption ?? s.say }] : []);
+  const timeline = (s.timeline?.length ? s.timeline : null) ?? (s.caption === false ? [] : (s.caption ?? s.say) ? [{ at: 0, text: s.caption ?? s.say }] : []);
   const big = (s.captionStyle ?? episode.captionStyle) === "big";
   p.seconds = await record(page, p.clip, async () => {
     const began = Date.now();
@@ -113,7 +143,7 @@ await browser.close();
 const parts = plan.map((p) => {
   const out = path.join(work, `${p.scene.id}.scene.mp4`);
   // A scene whose action outran its line is sped up a little to end with it, unless the script says "fit": false.
-  p.final = sceneWithVoice(p.clip, p.wav, p.seconds, out, { target: p.scene.fit === false ? p.seconds : p.minSeconds, maxSpeed: p.scene.maxSpeed ?? episode.maxSpeed ?? 1.5, zoom: p.scene.zoom ?? 1 });
+  p.final = sceneWithSound(p.clip, p.sounds, p.seconds, out, { target: p.scene.fit === false ? p.seconds : p.minSeconds, maxSpeed: p.scene.maxSpeed ?? episode.maxSpeed ?? 1.5, zoom: p.scene.zoom ?? 1 });
   return out;
 });
 ensureDir(OUT);

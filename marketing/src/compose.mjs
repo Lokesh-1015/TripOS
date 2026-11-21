@@ -11,12 +11,12 @@ function ffmpeg(args, what) {
 }
 
 /**
- * A scene's clip with its voice starting just after the cut, and silence for the rest. When the action
- * took longer than its line, the clip is sped up (by at most `maxSpeed`) so the scene ends with the line.
+ * A scene's clip with its sound: voice lines and effects, each starting at its own moment ({ file, at,
+ * volume }), over silence. When the action took longer than its line, the clip is sped up (by at most
+ * `maxSpeed`) so the scene ends with the line; sounds keep their pitch and move with the picture.
  * Returns the scene's final length in seconds.
  */
-export function sceneWithVoice(clip, voice, seconds, outFile, { target = seconds, maxSpeed = 1.5, lead = 0.15, zoom = 1 } = {}) {
-  const ms = Math.round(lead * 1000);
+export function sceneWithSound(clip, sounds, seconds, outFile, { target = seconds, maxSpeed = 1.5, zoom = 1 } = {}) {
   const speed = Math.min(maxSpeed, Math.max(1, seconds / target));
   const length = seconds / speed;
   const frames = Math.max(1, Math.round(length * 30));
@@ -25,12 +25,18 @@ export function sceneWithVoice(clip, voice, seconds, outFile, { target = seconds
     ? `,scale=2160:3840:flags=lanczos,zoompan=z='1+${(zoom - 1).toFixed(4)}*on/${frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30`
     : "";
   const video = `[0:v]${speed > 1.02 ? `setpts=PTS/${speed.toFixed(4)},` : ""}fps=30${push}[v]`;
-  const audio = voice && existsSync(voice) ? `[1:a]aresample=48000,adelay=${ms}|${ms},apad[a]` : "anullsrc=r=48000:cl=stereo[a]";
-  const inputs = voice && existsSync(voice) ? ["-i", clip, "-i", voice] : ["-i", clip];
+  const used = sounds.filter((x) => x.file && existsSync(x.file) && x.at / speed < length);
+  const inputs = ["-i", clip, ...used.flatMap((x) => ["-i", x.file])];
+  const parts = used.map((x, i) => {
+    const ms = Math.max(0, Math.round((x.at / speed) * 1000));
+    return `[${i + 1}:a]aresample=48000,aformat=channel_layouts=stereo,volume=${x.volume ?? 1},adelay=${ms}|${ms}[s${i}]`;
+  });
+  const bed = `anullsrc=r=48000:cl=stereo,atrim=0:${length.toFixed(3)}[bed]`;
+  const mix = `[bed]${used.map((_, i) => `[s${i}]`).join("")}amix=inputs=${used.length + 1}:duration=first:normalize=0[a]`;
   ffmpeg([
-    ...inputs, "-filter_complex", `${video};${audio}`, "-map", "[v]", "-map", "[a]", "-t", length.toFixed(3),
+    ...inputs, "-filter_complex", [video, bed, ...parts, mix].join(";"), "-map", "[v]", "-map", "[a]", "-t", length.toFixed(3),
     "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-ar", "48000", outFile,
-  ], `add the voice to ${path.basename(clip)}`);
+  ], `add the sound to ${path.basename(clip)}`);
   return length;
 }
 

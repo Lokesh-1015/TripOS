@@ -1,6 +1,9 @@
 {
   "title": "Who owes whom?",
-  "notes": "Text only, no voice: add a trending sound in Instagram when posting. Short on purpose so it gets watched to the end and loops.",
+  "notes": "Voice reads each caption, with chat pops, a whoosh on each cut, ticks on the highlights and a ding when it's settled. A trending sound can still be added in Instagram at low volume.",
+  "voice": "en_US-amy-medium",
+  "pace": 0.85,
+  "voiceCaptions": true,
   "captionStyle": "big",
   "coverAt": "hook",
   "scenes": [
@@ -13,44 +16,116 @@
         "interval": 0.36,
         "typing": true,
         "messages": [
-          ["Rohan", "bro I paid for the cab"],
-          ["Kabir", "no I paid 💀"],
-          ["Ananya", "who paid the homestay??"],
-          ["You", "me. ₹12,000 😭"],
-          ["Kabir", "I'll send it later 🙏"],
-          ["Rohan", "how much do I owe tho"],
-          ["Ananya", "someone do the math pls"],
-          ["Kabir", "later bro"]
+          [
+            "Rohan",
+            "bro I paid for the cab"
+          ],
+          [
+            "Kabir",
+            "no I paid 💀"
+          ],
+          [
+            "Ananya",
+            "who paid the homestay??"
+          ],
+          [
+            "You",
+            "me. ₹12,000 😭"
+          ],
+          [
+            "Kabir",
+            "I'll send it later 🙏"
+          ],
+          [
+            "Rohan",
+            "how much do I owe tho"
+          ],
+          [
+            "Ananya",
+            "someone do the math pls"
+          ],
+          [
+            "Kabir",
+            "later bro"
+          ]
         ]
       },
       "captions": [
-        { "at": 0, "text": "POV: the trip ended 3 weeks ago…" },
-        { "at": 2.1, "text": "…and nobody knows who owes whom 💀" }
+        {
+          "at": 0,
+          "text": "POV: the trip ended 3 weeks ago…",
+          "say": "The trip ended three weeks ago..."
+        },
+        {
+          "at": 2.2,
+          "text": "…and nobody knows who owes whom 💀",
+          "say": "And nobody knows who owes whom."
+        }
       ],
-      "hold": 4.4,
+      "hold": 4.6,
       "zoom": 1.06
     },
     {
       "id": "settle",
       "action": "settleUp",
-      "params": { "person": "kabir" },
+      "params": {
+        "person": "kabir"
+      },
       "captions": [
-        { "at": 0, "text": "TripOS did the math 🧮" },
-        { "at": 3.9, "text": "Who pays whom. Done. ✅" }
+        {
+          "at": 0,
+          "text": "TripOS did the math 🧮",
+          "say": "Trip O S did the math."
+        },
+        {
+          "at": 3.9,
+          "text": "Who pays whom. Done. ✅",
+          "say": "Who pays whom. Done."
+        }
       ],
       "hold": 7,
-      "fit": false
+      "fit": false,
+      "sfx": [
+        {
+          "at": 1.45,
+          "sound": "tick"
+        },
+        {
+          "at": 2.65,
+          "sound": "tick"
+        },
+        {
+          "at": 4.9,
+          "sound": "ding",
+          "volume": 0.6
+        }
+      ]
     },
     {
       "id": "end",
       "card": "endCard",
-      "params": { "tagline": "Send this to the friend who still owes you 👀", "cta": "TripOS · free · link in bio" },
+      "params": {
+        "tagline": "Send this to the friend who still owes you 👀",
+        "cta": "TripOS · free · link in bio"
+      },
       "caption": false,
-      "hold": 3.2
+      "hold": 3.4,
+      "say": "Send this to the friend who still owes you."
     }
   ],
   "post": {
     "caption": "Tag the friend who still owes you from the last trip 👇💸\n\nTripOS splits every expense and tells your group exactly who pays whom, in the fewest payments. No spreadsheets, no awkward reminders.\n\nFree to use, link in bio.",
-    "hashtags": ["TripOS", "GroupTrip", "TripWithFriends", "SplitTheBill", "TravelMemes", "FriendsTrip", "IndianTravellers", "RoadTrip", "Spiti", "TravelApp"]
+    "hashtags": [
+      "TripOS",
+      "GroupTrip",
+      "TripWithFriends",
+      "SplitTheBill",
+      "TravelMemes",
+      "FriendsTrip",
+      "IndianTravellers",
+      "RoadTrip",
+      "Spiti",
+      "TravelApp"
+    ]
   }
 }
