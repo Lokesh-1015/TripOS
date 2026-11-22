@@ -76,6 +76,14 @@ export const ACTIONS = {
   /** Vote in the trip's homestay poll. */
   vote: {
     start: ({ world }) => `/app/trips/${world.trips.spiti}`,
+    // A vote left over from an earlier take would turn into "Vote removed", so clear it first.
+    prepare: async (page, { world, params }) => {
+      const option = page.getByTestId(`poll-option-${world.poll.options[params.option ?? 0]}`);
+      if ((await option.getAttribute("aria-pressed")) === "true") {
+        await option.click();
+        await sleep(800);
+      }
+    },
     run: async (page, { world, params }) => {
       const card = page.getByTestId(`poll-card-${world.poll.id}`);
       await card.scrollIntoViewIfNeeded();
@@ -128,6 +136,41 @@ export const ACTIONS = {
       await glideTo(page, page.getByTestId("settlements-list"), { gap: 230 });
       const firstName = world.people[params.person ?? "kabir"].name.split(" ")[0];
       await highlight(page.getByTestId("settlements-list").locator("li", { hasText: firstName }).first(), params.settleMs ?? 2000);
+    },
+  },
+
+  /** Straight to the one payment that matters: who owes you, highlighted. */
+  owes: {
+    start: ({ world }) => `/app/trips/${world.trips.spiti}/expenses`,
+    run: async (page, { world, params }) => {
+      await page.addStyleTag({ content: '[data-testid="trip-quick-add"] { display: none !important; }' });
+      await sleep(params.pause ?? 250);
+      await glideTo(page, page.getByTestId("settlements-list"), { gap: 260, ms: 800 });
+      const firstName = world.people[params.person ?? "kabir"].name.split(" ")[0];
+      await highlight(page.getByTestId("settlements-list").locator("li", { hasText: firstName }).first(), params.ms ?? 1800);
+    },
+  },
+
+  /** The shared packing list, with something ticked off. */
+  packing: {
+    start: ({ world }) => `/app/trips/${world.trips.spiti}/packing`,
+    // Before recording: open the shared list, so the scene starts on it.
+    prepare: async (page, { params }) => {
+      const shared = page.getByTestId("packing-scope-shared");
+      if (await shared.isVisible().catch(() => false)) await shared.click();
+      await sleep(400);
+      // An item ticked in an earlier take is unticked, so this take ticks it.
+      const toggle = page.locator('[data-testid^="packing-item-"]', { hasText: params.item ?? "Sunscreen" }).first().locator('[data-testid^="packing-toggle-"]');
+      if ((await toggle.getAttribute("aria-pressed")) === "true") {
+        await toggle.click();
+        await sleep(600);
+      }
+      await page.evaluate(() => window.scrollTo(0, 0));
+    },
+    run: async (page, { params }) => {
+      const item = page.locator('[data-testid^="packing-item-"]', { hasText: params.item ?? "Sunscreen" }).first();
+      await glideTo(page, item, { gap: 300, ms: 500 });
+      await tap(page, item.locator('[data-testid^="packing-toggle-"]'), { before: 250, after: 700 });
     },
   },
 

@@ -109,4 +109,30 @@ function textCard({ text = "", background = "#12443A" }) {
   `);
 }
 
-export const CARDS = { groupChat, logo: logoCard, endCard, text: textCard };
+/**
+ * A scroll-stopping opener: a real trip photo drifting slowly, a big number that lands at once, and the
+ * promise of the list. Text is on screen from the very first frame.
+ */
+function hookTitle({ number = "5", title = "types of friends on every group trip", note = "which one are you? 👀", photo = "photo-1655574515985-5ee58bc3ca5c" }) {
+  const bg = `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=1200&h=2133&q=80`;
+  return base(`
+    <div class="bg" style="background-image:url('${bg}')"></div>
+    <div class="shade"></div>
+    <div class="wrap">
+      <p class="num">${esc(number)}</p>
+      <p class="title">${esc(title)}</p>
+      <p class="note">${esc(note)}</p>
+    </div>`, `
+    body { background: #0d1f1a; }
+    .bg { position: absolute; inset: -4%; background-size: cover; background-position: center; animation: drift 6s ease-out both; }
+    @keyframes drift { from { transform: scale(1.12); } to { transform: scale(1); } }
+    .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.35) 40%, rgba(8,24,20,.85) 100%); }
+    .wrap { position: absolute; left: 0; right: 0; bottom: 17%; padding: 0 26px; color: #fff; }
+    .num { font-weight: 800; font-size: 150px; line-height: .9; color: var(--coral); text-shadow: 0 6px 30px rgba(0,0,0,.35); animation: slam .45s cubic-bezier(.2,1.4,.4,1) both; }
+    @keyframes slam { from { transform: scale(2.2) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+    .title { margin-top: 6px; font-weight: 800; font-size: 40px; line-height: 1.08; letter-spacing: -.02em; text-wrap: balance; text-transform: uppercase; animation: rise .35s .12s both; }
+    .note { margin-top: 16px; display: inline-block; background: #fff; color: var(--ink); font-weight: 800; font-size: 20px; padding: 8px 14px; border-radius: 12px; animation: pop .35s .6s both; }
+  `);
+}
+
+export const CARDS = { groupChat, logo: logoCard, endCard, text: textCard, hookTitle };

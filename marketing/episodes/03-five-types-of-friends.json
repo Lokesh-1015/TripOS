@@ -1,0 +1,118 @@
+{
+  "title": "5 types of friends on every group trip",
+  "notes": "List format for comments and tags: each friend type is a real TripOS feature. Big text from frame one; under 21s so it's watched to #5 and loops back to the hook.",
+  "voice": "en_US-amy-medium",
+  "pace": 0.8,
+  "captionStyle": "big",
+  "coverAt": "hook",
+  "scenes": [
+    {
+      "id": "hook",
+      "card": "hookTitle",
+      "params": {
+        "number": "5",
+        "title": "types of friends on every group trip",
+        "note": "which one are you? 👀",
+        "photo": "photo-1614082242765-7c98ca0f3df3"
+      },
+      "say": "Five types of friends on every group trip.",
+      "caption": false,
+      "hold": 3.0,
+      "sfx": [
+        {
+          "at": 0.05,
+          "sound": "pop",
+          "volume": 0.9
+        }
+      ]
+    },
+    {
+      "id": "planner",
+      "action": "show",
+      "params": {
+        "path": "/app/trips/:spiti/itinerary",
+        "wait": 350,
+        "scroll": 260
+      },
+      "say": "One: the planner.",
+      "caption": "#1 The planner\nhas the whole trip, day by day 🗂️",
+      "hold": 2.7
+    },
+    {
+      "id": "later",
+      "action": "owes",
+      "params": {
+        "person": "kabir"
+      },
+      "say": "Two: the I'll pay you later friend.",
+      "caption": "#2 \"I'll pay you later\"\nTripOS keeps the receipts 💸",
+      "hold": 3.0,
+      "sfx": [
+        {
+          "at": 1.0,
+          "sound": "ding",
+          "volume": 0.55
+        }
+      ]
+    },
+    {
+      "id": "undecided",
+      "action": "vote",
+      "params": {
+        "option": 0
+      },
+      "say": "Three: the one who can't decide.",
+      "caption": "#3 Can't decide anything\njust vote on it 🤔",
+      "hold": 2.8
+    },
+    {
+      "id": "forgets",
+      "action": "packing",
+      "params": {
+        "item": "Sunscreen"
+      },
+      "say": "Four: the one who forgets everything.",
+      "caption": "#4 Forgets everything\nshared packing list 🧦",
+      "hold": 2.8,
+      "sfx": [
+        {
+          "at": 1.1,
+          "sound": "tick"
+        }
+      ]
+    },
+    {
+      "id": "photos",
+      "action": "memories",
+      "say": "Five: the one with two thousand photos.",
+      "caption": "#5 Has 2,000 photos\none album for the whole crew 📸",
+      "hold": 3.0
+    },
+    {
+      "id": "end",
+      "card": "endCard",
+      "params": {
+        "tagline": "Which one are you? 👇",
+        "cta": "Tag your trip crew · link in bio"
+      },
+      "say": "Which one are you? Tag your trip crew.",
+      "caption": false,
+      "hold": 3.2
+    }
+  ],
+  "post": {
+    "caption": "Which one are you? Be honest 👇😂\n\nTag your trip crew and let them guess.\n\nTripOS keeps the plan, the money, the votes, the packing list and the photos in one place, so every type of friend is covered. Free, link in bio.",
+    "hashtags": [
+      "TripOS",
+      "GroupTrip",
+      "TripWithFriends",
+      "TravelMemes",
+      "FriendsTrip",
+      "TypesOfFriends",
+      "IndianTravellers",
+      "RoadTrip",
+      "TravelReels",
+      "TravelApp"
+    ]
+  }
+}

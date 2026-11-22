@@ -117,6 +117,7 @@ for (const p of plan) {
   } else {
     await page.goto(`${WEB}${ACTIONS[s.action].start({ world, params: s.params ?? {} })}`);
     await settle(page);
+    await ACTIONS[s.action].prepare?.(page, { world, params: s.params ?? {} });
   }
   // One caption, or a timeline of them: [{ "at": seconds, "text": "…" }], changing while the scene plays.
   const timeline = (s.timeline?.length ? s.timeline : null) ?? (s.caption === false ? [] : (s.caption ?? s.say) ? [{ at: 0, text: s.caption ?? s.say }] : []);

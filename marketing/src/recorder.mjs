@@ -22,6 +22,7 @@ export const OVERLAY_CSS = `
   /* Meme style: bigger and punchier, for text-led videos. */
   #mk-caption.mk-big { top: 10.5%; font-size: 30px; line-height: 1.12; }
   #mk-caption.mk-big span { background: #111; padding: 7px 15px; border-radius: 12px; line-height: 1.5; }
+  #mk-caption span.mk-sub { display: inline-block; margin-top: 8px; font-size: .62em; font-weight: 700; line-height: 1.3; background: #E97A56; padding: 6px 12px; }
   /* Draws the eye to the line that matters. */
   .mk-hl { position: relative; z-index: 5; outline: 4px solid #E97A56 !important; outline-offset: 2px; border-radius: 14px;
     animation: mk-hl .9s ease-in-out infinite alternate; }
@@ -65,9 +66,14 @@ export async function setCaption(page, text, { big = false } = {}) {
     const box = document.createElement("div");
     box.id = "mk-caption";
     box.className = big ? "mk-in mk-big" : "mk-in";
-    const span = document.createElement("span");
-    span.textContent = t;
-    box.appendChild(span);
+    // A second line (after a line break) is the smaller "what TripOS does" line under the headline.
+    t.split("\n").forEach((line, i) => {
+      if (i > 0) box.appendChild(document.createElement("br"));
+      const span = document.createElement("span");
+      if (i > 0) span.className = "mk-sub";
+      span.textContent = line;
+      box.appendChild(span);
+    });
     document.body.appendChild(box);
   }, { t: text ?? "", css: OVERLAY_CSS, big });
 }
