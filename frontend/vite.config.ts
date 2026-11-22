@@ -64,7 +64,7 @@ export default defineConfig(async () => {
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           navigateFallback: "/index.html",
           // The API is never cached by the service worker: private data only goes where lib/offline.ts puts it.
-          navigateFallbackDenylist: [/^\/api\//],
+          navigateFallbackDenylist: [/^\/api\//, /^\/_vercel\//],
           // Map areas someone has looked at stay available with no signal.
           runtimeCaching: [{
             urlPattern: /^https:\/\/tiles\.openfreemap\.org\//,
