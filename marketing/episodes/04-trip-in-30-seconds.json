@@ -1,0 +1,84 @@
+{
+  "title": "A whole group trip in under 30 seconds",
+  "notes": "Made to get people to try TripOS: a speedrun with a live timer through the real app, from nothing to a trip with the crew invited and the first expense split. Ends on free, no download, link in bio.",
+  "voice": "en_US-amy-medium",
+  "pace": 0.85,
+  "captionStyle": "big",
+  "coverAt": "hook",
+  "scenes": [
+    {
+      "id": "hook",
+      "card": "hookTitle",
+      "params": {
+        "number": "30s",
+        "title": "to plan a whole group trip",
+        "note": "watch the timer ⏱️",
+        "photo": "photo-1614082242765-7c98ca0f3df3"
+      },
+      "say": "A whole group trip, in thirty seconds. Watch.",
+      "caption": false,
+      "hold": 2.8,
+      "sfx": [
+        {
+          "at": 0.05,
+          "sound": "pop",
+          "volume": 0.9
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "action": "speedrun",
+      "params": {
+        "name": "Goa with the crew",
+        "destination": "Goa",
+        "crew": [
+          "rohan",
+          "ananya",
+          "kabir"
+        ],
+        "budget": 40000
+      },
+      "timer": true,
+      "fit": false,
+      "caption": false
+    },
+    {
+      "id": "split",
+      "action": "firstExpense",
+      "params": {
+        "title": "Beach shack dinner",
+        "amount": 4800
+      },
+      "timer": true,
+      "fit": false,
+      "caption": false
+    },
+    {
+      "id": "end",
+      "card": "endCard",
+      "params": {
+        "tagline": "Your next trip, sorted in 30 seconds",
+        "cta": "Free · no download · link in bio"
+      },
+      "say": "Free. No download. Link in bio.",
+      "caption": false,
+      "hold": 3.2
+    }
+  ],
+  "post": {
+    "caption": "I timed it ⏱️ A whole group trip, from nothing to dates, crew invited, budget set and the first expense split, in under 30 seconds.\n\nNo spreadsheets. No 400-message group chat. No app to download: TripOS opens right in your browser.\n\nTry it free for your next trip, link in bio 🧳",
+    "hashtags": [
+      "TripOS",
+      "TravelHacks",
+      "GroupTrip",
+      "TravelPlanning",
+      "TripWithFriends",
+      "IndianTravellers",
+      "GoaTrip",
+      "TravelTips",
+      "TravelApp",
+      "PlanWithMe"
+    ]
+  }
+}

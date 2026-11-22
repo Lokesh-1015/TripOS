@@ -142,7 +142,8 @@ export async function seed() {
 
   const world = {
     ishita: { email: ishita.email, password: PASSWORD, id: ishita.id },
-    people: Object.fromEntries(Object.entries(s).map(([k, p]) => [k, { id: p.id, name: PEOPLE[k].name, username: PEOPLE[k].username }])),
+    // Every demo person can be signed in, so a scene can have friends accept an invitation between takes.
+    people: Object.fromEntries(Object.entries(s).map(([k, p]) => [k, { id: p.id, name: PEOPLE[k].name, username: PEOPLE[k].username, email: p.email, password: PASSWORD }])),
     trips: { goa, spiti, kasol },
     poll: { id: poll, options: options.map((o) => o.id) },
   };

@@ -8,7 +8,7 @@ import { CARDS } from "./cards.mjs";
 import { cover, finish, sceneWithSound } from "./compose.mjs";
 import { sfx } from "./sfx.mjs";
 import { API, EPISODES, OUT, ROOT, SCALE, Session, VIEWPORT, WEB, WORK, assertAppRunning, ensureDir, log, sleep } from "./lib.mjs";
-import { installOverlay, record, setCaption } from "./recorder.mjs";
+import { installOverlay, record, setCaption, startTimer, stopTimer } from "./recorder.mjs";
 import { seed } from "./seed.mjs";
 import { speak } from "./voice.mjs";
 
@@ -101,6 +101,7 @@ async function settle(page) {
   await sleep(900);
 }
 
+let timerAt = 0;
 for (const p of plan) {
   const s = p.scene;
   p.clip = path.join(work, `${s.id}.mp4`);
@@ -122,8 +123,11 @@ for (const p of plan) {
   // One caption, or a timeline of them: [{ "at": seconds, "text": "…" }], changing while the scene plays.
   const timeline = (s.timeline?.length ? s.timeline : null) ?? (s.caption === false ? [] : (s.caption ?? s.say) ? [{ at: 0, text: s.caption ?? s.say }] : []);
   const big = (s.captionStyle ?? episode.captionStyle) === "big";
+  p.marks = [];
   p.seconds = await record(page, p.clip, async () => {
     const began = Date.now();
+    // A speedrun stopwatch carries on across scenes that ask for it.
+    if (s.timer) await startTimer(page, timerAt);
     const captions = (async () => {
       for (const c of timeline) {
         const wait = c.at * 1000 - (Date.now() - began);
@@ -131,9 +135,19 @@ for (const p of plan) {
         await setCaption(page, c.text, { big });
       }
     })();
-    if (!s.card) await ACTIONS[s.action].run(page, { world, params: s.params ?? {} });
+    // Actions can caption their own steps and mark sounds exactly when something happens.
+    const ctx = {
+      world,
+      params: s.params ?? {},
+      caption: (text) => setCaption(page, text, { big }),
+      mark: (sound, volume) => p.marks.push({ file: sfx(sound), at: (Date.now() - began) / 1000, volume: volume ?? 0.7 }),
+      stopTimer: () => stopTimer(page),
+    };
+    if (!s.card) await ACTIONS[s.action].run(page, ctx);
     await captions;
   }, p.minSeconds * 1000);
+  if (s.timer) timerAt += p.seconds;
+  p.sounds.push(...p.marks);
   writeFileSync(`${p.clip}.len`, String(p.seconds));
   log(`recorded ${s.id}: ${p.seconds.toFixed(1)}s`);
   await page.close();

@@ -1,6 +1,6 @@
 // The real TripOS flows a video can show. Each scene in an episode names one of these.
 // `start` is where the page opens before recording begins; `run` is what's recorded, paced for a person.
-import { sleep } from "./lib.mjs";
+import { Session, sleep } from "./lib.mjs";
 
 /** A finger-like tap: a short pause on the target so viewers see where it is, then the click. */
 async function tap(page, target, { before = 350, after = 450 } = {}) {
@@ -171,6 +171,89 @@ export const ACTIONS = {
       const item = page.locator('[data-testid^="packing-item-"]', { hasText: params.item ?? "Sunscreen" }).first();
       await glideTo(page, item, { gap: 300, ms: 500 });
       await tap(page, item.locator('[data-testid^="packing-toggle-"]'), { before: 250, after: 700 });
+    },
+  },
+
+  /**
+   * The whole Create trip wizard, as fast as a person could: name, dates, crew, budget, create.
+   * Captions each step as it happens, and remembers the new trip for the scenes after it.
+   */
+  speedrun: {
+    start: () => "/app/trips/new",
+    // Before recording: open a trip once, so its page is already loaded when the new trip opens.
+    prepare: async (page, { world }) => {
+      await page.goto(page.url().replace(/\/app\/trips\/new.*$/, `/app/trips/${world.trips.spiti}`));
+      await page.getByTestId("trip-header-name").waitFor({ timeout: 15_000 });
+      await sleep(600);
+      await page.goBack();
+      await page.getByTestId("create-trip-name-input").waitFor({ timeout: 15_000 });
+      await sleep(600);
+    },
+    run: async (page, { world, params, caption, mark }) => {
+      const next = () => tap(page, "create-trip-next-button", { before: 120, after: 380 });
+      await caption("Name it 📍");
+      mark("pop", 0.5);
+      await type(page, "create-trip-name-input", params.name ?? "Goa with the crew", 26);
+      await type(page, "create-trip-destination-input", params.destination ?? "Goa", 40);
+      await sleep(250);
+      await next();
+      await caption("Pick dates 📅");
+      mark("pop", 0.5);
+      const start = params.startIn ?? 14;
+      await tap(page, page.locator(`[data-day="${isoIn(start)}"] button`), { before: 150, after: 150 });
+      await tap(page, page.locator(`[data-day="${isoIn(start + (params.nights ?? 3))}"] button`), { before: 150, after: 300 });
+      mark("tick");
+      await next();
+      await caption("Add the crew 👯");
+      mark("pop", 0.5);
+      for (const who of params.crew ?? ["rohan", "ananya", "kabir"]) {
+        await tap(page, page.getByTestId(`invite-pick-${world.people[who].id}`), { before: 120, after: 160 });
+        mark("pop", 0.45);
+      }
+      await sleep(200);
+      await next();
+      await caption("Set a budget 💰");
+      mark("pop", 0.5);
+      await type(page, "create-trip-budget-input", String(params.budget ?? 40000), 45);
+      await next();
+      await caption("Create ✅");
+      await tap(page, "create-trip-submit-button", { before: 250, after: 200 });
+      await page.waitForURL(/\/app\/trips\/[^/]+$/, { timeout: 15_000 });
+      mark("ding", 0.6);
+      world.created = new URL(page.url()).pathname.split("/").pop();
+      await caption(params.done ?? "Trip made. Crew invited. 🎉");
+      await sleep(params.holdMs ?? 1100);
+    },
+  },
+
+  /** On the trip just made: the crew has joined, the first expense goes in, and it's split at once. */
+  firstExpense: {
+    start: ({ world }) => `/app/trips/${world.created}`,
+    // Before recording: the invited friends accept, so the split includes them.
+    prepare: async (page, { world, params }) => {
+      for (const who of params.crew ?? ["rohan", "ananya", "kabir"]) {
+        const p = world.people[who];
+        const s = new Session(p.email);
+        await s.must("POST", "/auth/login", { email: p.email, password: p.password });
+        const invite = (await s.must("GET", "/state")).notifications.find((n) => n.kind === "invite" && n.tripId === world.created);
+        if (invite) await s.must("POST", `/notifications/${invite.id}/accept`);
+      }
+      await page.reload();
+      await page.waitForLoadState("load");
+      await sleep(1800);
+    },
+    run: async (page, { params, caption, mark, stopTimer }) => {
+      await caption("First expense 💸");
+      await tap(page, "trip-quick-add", { before: 200, after: 450 });
+      await type(page, "expense-title-input", params.title ?? "Beach shack dinner", 26);
+      await type(page, "expense-amount-input", String(params.amount ?? 4800), 50);
+      await tap(page, "expense-save-button", { before: 150, after: 250 });
+      mark("ding", 0.6);
+      await stopTimer();
+      await page.addStyleTag({ content: '[data-testid="trip-quick-add"] { display: none !important; }' });
+      await glideTo(page, page.getByTestId("expenses-balances"), { gap: 290, ms: 700 });
+      await caption(params.done ?? "Split 4 ways. Done. ✅");
+      await sleep(params.holdMs ?? 1600);
     },
   },
 

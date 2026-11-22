@@ -27,8 +27,45 @@ export const OVERLAY_CSS = `
   .mk-hl { position: relative; z-index: 5; outline: 4px solid #E97A56 !important; outline-offset: 2px; border-radius: 14px;
     animation: mk-hl .9s ease-in-out infinite alternate; }
   @keyframes mk-hl { from { box-shadow: 0 0 0 0 rgba(233,122,86,.5); } to { box-shadow: 0 0 0 12px rgba(233,122,86,0); } }
+  /* A speedrun stopwatch, just under the app's header; captions move down to make room. */
+  #mk-timer { position: fixed; left: 50%; top: 10.2%; transform: translateX(-50%); z-index: 2147483647; pointer-events: none;
+    display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 10px; border-radius: 999px; background: #E97A56; color: #fff;
+    font: 800 24px/1 "Plus Jakarta Sans", system-ui, sans-serif; font-variant-numeric: tabular-nums; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+  #mk-timer::before { content: "⏱"; font-size: 20px; }
+  #mk-timer.mk-done { background: #12443A; }
+  body.mk-has-timer #mk-caption { top: 17.5%; }
   ::-webkit-scrollbar { display: none; }
 `;
+
+/** Starts the on-screen stopwatch at `from` seconds; it carries on from where the last scene stopped. */
+export async function startTimer(page, from = 0) {
+  await page.evaluate(({ from, css }) => {
+    if (!document.getElementById("mk-style")) {
+      const style = document.createElement("style");
+      style.id = "mk-style";
+      style.textContent = css;
+      document.head.appendChild(style);
+    }
+    document.body.classList.add("mk-has-timer");
+    const el = document.getElementById("mk-timer") ?? document.body.appendChild(Object.assign(document.createElement("div"), { id: "mk-timer" }));
+    const began = performance.now();
+    const show = (s) => { el.textContent = `0:${String(Math.floor(s)).padStart(2, "0")}.${Math.floor((s % 1) * 10)}`; };
+    const tick = () => {
+      if (el.dataset.stopped) return;
+      show(from + (performance.now() - began) / 1000);
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }, { from, css: OVERLAY_CSS });
+}
+
+/** Freezes the stopwatch, turned green: the run is done. */
+export async function stopTimer(page) {
+  await page.evaluate(() => {
+    const el = document.getElementById("mk-timer");
+    if (el) { el.dataset.stopped = "1"; el.classList.add("mk-done"); }
+  });
+}
 
 export async function installOverlay(page) {
   await page.addInitScript((css) => {
