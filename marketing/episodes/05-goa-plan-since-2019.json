@@ -1,0 +1,147 @@
+{
+  "title": "Our Goa plan, since 2019",
+  "notes": "Meme format, made to be shared and tagged: the Goa plan every Indian friend group makes and never goes on, year after year in one chat. Then the twist: the crew that planned it in TripOS actually went (real Memories screen). Ends on a tag prompt. About 16s so it loops.",
+  "voice": "en_US-amy-medium",
+  "pace": 0.85,
+  "captionStyle": "big",
+  "coverAt": "chat",
+  "scenes": [
+    {
+      "id": "chat",
+      "card": "groupChat",
+      "params": {
+        "title": "Goa plan 🌴🔥",
+        "unread": "999+",
+        "interval": 0.36,
+        "messages": [
+          [
+            "---",
+            "2019"
+          ],
+          [
+            "Rohan",
+            "Goa plan pakka this time 🔥"
+          ],
+          [
+            "Ananya",
+            "100% in 🙌"
+          ],
+          [
+            "---",
+            "2020"
+          ],
+          [
+            "Kabir",
+            "ok 2020 pakka"
+          ],
+          [
+            "Ananya",
+            "lockdown 💀"
+          ],
+          [
+            "---",
+            "2021"
+          ],
+          [
+            "Rohan",
+            "this year for sure"
+          ],
+          [
+            "Kabir",
+            "salary aane de 🥲"
+          ],
+          [
+            "---",
+            "2022"
+          ],
+          [
+            "Ananya",
+            "December??"
+          ],
+          [
+            "Kabir",
+            "ghar pe nahi maanenge 😭"
+          ],
+          [
+            "---",
+            "2023"
+          ],
+          [
+            "You",
+            "guys???"
+          ],
+          [
+            "---",
+            "2024"
+          ],
+          [
+            "Rohan",
+            "next month pakka 🔥🔥"
+          ],
+          [
+            "---",
+            "2026"
+          ],
+          [
+            "Ananya",
+            "Goa plan pakka this time 🔥"
+          ]
+        ],
+        "fontSize": 20
+      },
+      "say": "Every friend group's Goa plan.",
+      "captions": [
+        {
+          "at": 0,
+          "text": "Our Goa plan, since 2019 💀"
+        },
+        {
+          "at": 5.9,
+          "text": "7 years. Still \"pakka\" 🙃"
+        }
+      ],
+      "hold": 8.0
+    },
+    {
+      "id": "went",
+      "action": "memories",
+      "say": "Meanwhile, the group that planned it on Trip O S.",
+      "caption": "Meanwhile, the crew that used TripOS 👇\nactually went. every photo in one place 📸",
+      "hold": 3.8,
+      "sfx": [
+        {
+          "at": 0.1,
+          "sound": "ding",
+          "volume": 0.6
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "card": "endCard",
+      "params": {
+        "tagline": "Tag the friend who said \"pakka\" 👇",
+        "cta": "Plan it on TripOS · free · link in bio"
+      },
+      "say": "Tag the friend who said pakka.",
+      "caption": false,
+      "hold": 3.0
+    }
+  ],
+  "post": {
+    "caption": "Goa plan 2019 → 2026: still \"pakka\" 🙃\n\nTag the friend who says \"next month pakka\" every single year 👇\n\nThis time, actually go: put the dates, the crew and the budget in TripOS, split every bill, and keep all the photos in one album. Free, works in your browser, link in bio 🌴",
+    "hashtags": [
+      "GoaPlan",
+      "GoaTrip",
+      "FriendsTrip",
+      "TravelMemes",
+      "IndianMemes",
+      "GroupTrip",
+      "TripWithFriends",
+      "Relatable",
+      "TravelReels",
+      "TripOS"
+    ]
+  },
+  "coverOffset": 7.0
+}

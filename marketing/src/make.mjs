@@ -173,7 +173,7 @@ for (const p of plan) {
   if (p.scene.id === episode.coverAt) break;
   at += p.final;
 }
-cover(video, at + 1.2, path.join(OUT, `${slug}-cover.jpg`));
+cover(video, at + (episode.coverOffset ?? 1.2), path.join(OUT, `${slug}-cover.jpg`));
 if (episode.post) writeFileSync(path.join(OUT, `${slug}-post.txt`), `${episode.post.caption}\n\n${(episode.post.hashtags ?? []).map((h) => `#${h}`).join(" ")}\n`);
 if (!flag("keep")) for (const f of ["joined.mp4", "scenes.txt"]) rmSync(path.join(work, f), { force: true });
 log(`done: ${path.relative(path.join(ROOT, ".."), video)} (${total.toFixed(1)}s), with a cover and post text in marketing/out`);

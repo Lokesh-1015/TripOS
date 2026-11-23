@@ -23,7 +23,7 @@ const base = (body, css = "") => `<!doctype html><html><head><meta charset="utf-
 </style></head><body>${body}</body></html>`;
 
 /** The problem: a group chat drowning in trip questions. A made-up group, not any real app's design. */
-function groupChat({ title = "Spiti trip 🏔️", messages = [], interval = 0.32, typing = false, unread = 128 }) {
+function groupChat({ title = "Spiti trip 🏔️", messages = [], interval = 0.32, typing = false, unread = 128, fontSize = 16 }) {
   const msgs = messages.length ? messages : [
     ["Rohan", "who's booking the homestay??"],
     ["Ananya", "how much do I owe you for the bikes"],
@@ -33,9 +33,12 @@ function groupChat({ title = "Spiti trip 🏔️", messages = [], interval = 0.3
     ["Kabir", "?? anyone"],
   ];
   const colors = ["#E97A56", "#3B82F6", "#8B5CF6"];
-  const who = [...new Set(msgs.map(([n]) => n))];
+  const who = [...new Set(msgs.map(([n]) => n).filter((n) => n !== "---"))];
   // "You" sits on the right, like any chat; everyone else on the left with a name colour.
-  const bubbles = msgs.map(([name, text], i) => name === "You"
+  // A message from "---" is a date divider, like "2019" between a chat's days.
+  const bubbles = msgs.map(([name, text], i) => name === "---"
+    ? `<div class="msg day" style="animation-delay:${0.15 + i * interval}s">${esc(text)}</div>`
+    : name === "You"
     ? `<div class="msg me" style="animation-delay:${0.15 + i * interval}s">${esc(text)}</div>`
     : `<div class="msg" style="animation-delay:${0.15 + i * interval}s">
       <b style="color:${colors[who.indexOf(name) % colors.length]}">${esc(name)}</b>${esc(text)}
@@ -47,6 +50,7 @@ function groupChat({ title = "Spiti trip 🏔️", messages = [], interval = 0.3
       <footer><div class="input">Message</div></footer>
     </div>`, `
     body { background: #ECE8E1; }
+    .msg { font-size: ${fontSize}px !important; } .msg b { font-size: ${Math.round(fontSize * 0.75)}px !important; }
     .phone { position: absolute; inset: 0; display: flex; flex-direction: column; }
     header { display: flex; align-items: center; gap: 10px; padding: 46px 16px 12px; background: #fff; border-bottom: 1px solid #e5e1d8; }
     .av { width: 38px; height: 38px; border-radius: 50%; background: var(--forest); color: #fff; display: grid; place-items: center; font-weight: 700; }
@@ -59,6 +63,7 @@ function groupChat({ title = "Spiti trip 🏔️", messages = [], interval = 0.3
       animation: arrive .3s ease-out both; }
     @keyframes arrive { to { max-height: 140px; margin-top: 9px; padding-top: 9px; padding-bottom: 10px; opacity: 1; } }
     .msg b { display: block; font-size: 12px; margin-bottom: 2px; }
+    .msg.day { align-self: center; background: #12443A; color: #fff; font-weight: 800; font-size: 14px; border-radius: 999px; padding-left: 14px; padding-right: 14px; }
     .msg.me { align-self: flex-end; background: #DDF2E5; border-radius: 16px 4px 16px 16px; }
     .msg.dots { display: flex; gap: 5px; padding-left: 14px; padding-right: 14px; }
     .msg.dots i { width: 7px; height: 7px; border-radius: 50%; background: #9aa19d; animation: blink 1s infinite; }
